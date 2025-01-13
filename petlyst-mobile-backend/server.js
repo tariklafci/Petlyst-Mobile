@@ -20,6 +20,6 @@ app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
 
 app.listen(port, () => {
-  console.log(`Server is running on http://192.168.1.100:${port}`);
+  console.log(`Server is running on http://192.168.63.209:${port}`);
 });
 

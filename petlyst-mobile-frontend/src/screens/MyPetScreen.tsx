@@ -44,7 +44,7 @@ const MyPetScreen = () => {
         return;
       }
 
-      const response = await fetch('http://192.168.1.100:3001/api/fetch-pets', {
+      const response = await fetch('http://192.168.63.209:3001/api/fetch-pets', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -105,7 +105,7 @@ const MyPetScreen = () => {
         return;
       }
   
-      const response = await fetch('http://192.168.1.100:3001/api/delete-pet', {
+      const response = await fetch('http://192.168.63.209:3001/api/delete-pet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json', // Add Content-Type for JSON
