@@ -43,7 +43,7 @@ exports.registerUser = async (req, res) => {
     try {
         const { name, surname, email, password, user_type } = req.body;
 
-        const existingUser = await pool.query('SELECT user_email FROM users WHERE email = $1', [email]);
+        const existingUser = await pool.query('SELECT user_email FROM users WHERE user_email = $1', [email]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ message: 'User already exists' });
         }
@@ -65,7 +65,7 @@ exports.registerUser = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     const { email } = req.body;
     try {
-        const userQuery = 'SELECT user_id, user_email FROM users WHERE email = $1';
+        const userQuery = 'SELECT user_id, user_email FROM users WHERE user_email = $1';
         const userResult = await pool.query(userQuery, [email]);
 
         if (userResult.rows.length === 0) {
@@ -85,7 +85,7 @@ exports.resetPassword = async (req, res) => {
         await pool.query(insertQuery, [userResult.rows[0].id, email, verificationCode, expiresAt]);
 
         await pool.query(
-            'DELETE FROM password_reset_tokens WHERE email = $1 AND id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY created_at DESC LIMIT 1)',
+            'DELETE FROM password_reset_tokens WHERE user_email = $1 AND id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY created_at DESC LIMIT 1)',
             [email]
         );
 
@@ -162,10 +162,10 @@ exports.verifyResetCode = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        const updateQuery = 'UPDATE users SET password = $1 WHERE email = $2';
+        const updateQuery = 'UPDATE users SET password = $1 WHERE user_email = $2';
         await pool.query(updateQuery, [hashedPassword, email]);
 
-        const markUsedQuery = 'UPDATE password_reset_tokens SET is_used = TRUE WHERE id = $1';
+        const markUsedQuery = 'UPDATE password_reset_tokens SET is_used = TRUE WHERE user_id = $1';
         await pool.query(markUsedQuery, [tokenResult.rows[0].id]);
 
         return res.status(200).json({
