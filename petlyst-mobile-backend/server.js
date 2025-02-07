@@ -25,6 +25,8 @@ app.use('/api', authRoutes);
 app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
 
+const httpsServer = https.createServer(credentials, app);
+
 httpsServer.listen(PORT, () => {
   console.log(`Server is running on https://petlyst.com:${PORT}`);
 });
