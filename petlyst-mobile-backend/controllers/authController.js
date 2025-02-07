@@ -10,26 +10,32 @@ exports.loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // Query to find the user by email
         const userQuery = await pool.query('SELECT * FROM users WHERE user_email = $1', [email]);
 
+        // If user is not found, return invalid credentials
         if (userQuery.rowCount === 0) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         const user = userQuery.rows[0];
-        const isMatch = await bcrypt.compare(password, user.password);
+
+        // Compare the input password with the hashed password in the database
+        const isMatch = await bcrypt.compare(password, user.user_password); // Updated to `user_password`
 
         if (!isMatch) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const token = jwt.sign({ sub: user.id, email: user.email }, process.env.SECRET_KEY, {
+        // Generate a JWT token
+        const token = jwt.sign({ sub: user.user_id, email: user.user_email }, process.env.SECRET_KEY, {
             expiresIn: '1h',
         });
 
+        // Respond with the token and user details
         return res.json({
             token,
-            user_id: user.id,
+            user_id: user.user_id,
             user_type: user.user_type,
         });
     } catch (error) {
@@ -37,6 +43,7 @@ exports.loginUser = async (req, res) => {
         return res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 // Register user
 exports.registerUser = async (req, res) => {
@@ -82,7 +89,7 @@ exports.resetPassword = async (req, res) => {
       INSERT INTO password_reset_tokens (user_id, user_email, reset_code, expires_at)
       VALUES ($1, $2, $3, $4)
     `;
-        await pool.query(insertQuery, [userResult.rows[0].id, email, verificationCode, expiresAt]);
+        await pool.query(insertQuery, [userResult.rows[0].user_id, email, verificationCode, expiresAt]);
 
         await pool.query(
             'DELETE FROM password_reset_tokens WHERE user_email = $1 AND id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY created_at DESC LIMIT 1)',
@@ -129,27 +136,15 @@ exports.resetPassword = async (req, res) => {
 exports.verifyResetCode = async (req, res) => {
     const { email, code, newPassword } = req.body;
     try {
-
-        // Validate the new password
-        // const passwordValidation = validatePassword(newPassword);
-        // if (!passwordValidation.isValid) {
-        //   return res.status(400).json({
-        //     success: false,
-        //     message: 'Password does not meet security requirements',
-        //     error: 'INVALID_PASSWORD',
-        //     passwordErrors: passwordValidation.errors,
-        //   });
-        // }
-
         const tokenQuery = `
-    SELECT * FROM password_reset_tokens 
-    WHERE user_email = $1 
-    AND reset_code = $2 
-    AND expires_at > CURRENT_TIMESTAMP 
-    AND is_used = FALSE 
-    ORDER BY created_at DESC 
-    LIMIT 1
-  `;
+        SELECT * FROM password_reset_tokens 
+        WHERE user_email = $1 
+        AND reset_code = $2 
+        AND expires_at > CURRENT_TIMESTAMP 
+        AND is_used = FALSE 
+        ORDER BY created_at DESC 
+        LIMIT 1
+        `;
         const tokenResult = await pool.query(tokenQuery, [email, code]);
 
         if (tokenResult.rows.length === 0) {
@@ -162,11 +157,11 @@ exports.verifyResetCode = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-        const updateQuery = 'UPDATE users SET password = $1 WHERE user_email = $2';
+        const updateQuery = 'UPDATE users SET user_password = $1 WHERE user_email = $2'; // Updated to `user_password`
         await pool.query(updateQuery, [hashedPassword, email]);
 
         const markUsedQuery = 'UPDATE password_reset_tokens SET is_used = TRUE WHERE user_id = $1';
-        await pool.query(markUsedQuery, [tokenResult.rows[0].id]);
+        await pool.query(markUsedQuery, [tokenResult.rows[0].user_id]);
 
         return res.status(200).json({
             success: true,
