@@ -1,6 +1,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const https = require('https');
+const fs = require('fs');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -8,7 +10,11 @@ const petRoutes = require('./routes/petRoutes');
 const clinicRoutes = require('./routes/clinicRoutes');
 
 const app = express();
-const port = process.env.PORT || 3001;
+const PORT = process.env.PORT;
+
+const privateKey = fs.readFileSync('/home/ubuntu/privkey1.pem', 'utf8');
+const certificate = fs.readFileSync('/home/ubuntu/fullchain1.pem', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
 
 // Middleware
 app.use(bodyParser.json());
@@ -19,7 +25,7 @@ app.use('/api', authRoutes);
 app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
 
-app.listen(port, () => {
-  console.log(`Server is running on http://192.168.63.209:${port}`);
+httpsServer.listen(PORT, () => {
+  console.log(`Server is running on https://petlyst.com:${PORT}`);
 });
 
