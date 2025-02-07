@@ -50,7 +50,7 @@ exports.registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query(
-            'INSERT INTO users (name, surname, email, password, user_type) VALUES ($1, $2, $3, $4, $5)',
+            'INSERT INTO users (user_name, user_surname, user_email, user_password, user_type) VALUES ($1, $2, $3, $4, $5)',
             [name, surname, email, hashedPassword, user_type]
         );
 
@@ -79,7 +79,7 @@ exports.resetPassword = async (req, res) => {
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         const insertQuery = `
-      INSERT INTO password_reset_tokens (user_id, email, reset_code, expires_at)
+      INSERT INTO password_reset_tokens (user_id, user_email, reset_code, expires_at)
       VALUES ($1, $2, $3, $4)
     `;
         await pool.query(insertQuery, [userResult.rows[0].id, email, verificationCode, expiresAt]);

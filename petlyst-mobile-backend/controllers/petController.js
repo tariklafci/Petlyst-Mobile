@@ -53,7 +53,7 @@ exports.addPet = async (req, res) => {
             : null;
 
         const insertQuery = `
-      INSERT INTO pets (name, breed, birth_date, species, pet_owner_id, pet_img_url)
+      INSERT INTO pets (pet_name, pet_breed, pet_birth_date, pet_species, pet_owner_id, pet_photo)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
