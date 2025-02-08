@@ -140,7 +140,7 @@ exports.verifyResetCode = async (req, res) => {
         SELECT * FROM password_reset_tokens 
         WHERE user_email = $1 
         AND reset_code = $2 
-        AND user_token_expires_at > CURRENT_TIMESTAMP 
+        AND reset_token_expires_at > CURRENT_TIMESTAMP 
         AND reset_token_is_used = FALSE 
         ORDER BY reset_token_created_at DESC 
         LIMIT 1
