@@ -17,10 +17,10 @@ exports.fetchPets = async (req, res) => {
         const petsWithPresignedUrls = await Promise.all(
             result.rows.map(async (pet) => {
                 let signedUrl = null;
-                if (pet.pet_img_url) {
+                if (pet.pet_photo) {
                     try {
                         signedUrl = await generatePresignedUrl(
-                            pet.pet_img_url,
+                            pet.pet_photo,
                             userId,
                             pet.name
                         );

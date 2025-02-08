@@ -58,9 +58,9 @@ const MyPetScreen = () => {
       const data = await response.json();
       const formattedPets: Pet[] = data.map((pet: any) => ({
         id: pet.pet_id,
-        name: pet.name,
-        breed: pet.breed,
-        imageUrl: pet.imageUrl,
+        name: pet.pet_name,
+        breed: pet.pet_breed,
+        imageUrl: pet.pet_photo,
         age: calculateAge(pet.birth_date),
         
       }));
