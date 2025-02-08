@@ -8,7 +8,7 @@ const {
 // Fetch pets
 exports.fetchPets = async (req, res) => {
     try {
-        const userId = req.user.sub;
+        const userId = req.user.sub; // Assuming `req.user.sub` contains the pet owner ID
         const result = await pool.query(
             'SELECT * FROM pets WHERE pet_owner_id = $1',
             [userId]
@@ -22,7 +22,7 @@ exports.fetchPets = async (req, res) => {
                         signedUrl = await generatePresignedUrl(
                             pet.pet_photo,
                             userId,
-                            pet.name
+                            pet.pet_name // Updated from `pet.name` to `pet.pet_name`
                         );
                     } catch (err) {
                         console.error(
@@ -31,7 +31,10 @@ exports.fetchPets = async (req, res) => {
                         );
                     }
                 }
-                return { ...pet, imageUrl: signedUrl };
+                return {
+                    ...pet,
+                    imageUrl: signedUrl, // Add the signed URL to the response
+                };
             })
         );
 
