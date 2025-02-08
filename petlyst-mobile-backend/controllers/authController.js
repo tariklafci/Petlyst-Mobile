@@ -86,7 +86,7 @@ exports.resetPassword = async (req, res) => {
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
         const insertQuery = `
-      INSERT INTO password_reset_tokens (user_id, user_email, reset_code, expires_at)
+      INSERT INTO password_reset_tokens (user_id, user_email, reset_code, reset_token_expires_at)
       VALUES ($1, $2, $3, $4)
     `;
         await pool.query(insertQuery, [userResult.rows[0].user_id, email, verificationCode, expiresAt]);
