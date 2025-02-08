@@ -33,7 +33,7 @@ exports.fetchPets = async (req, res) => {
                 }
                 return {
                     ...pet,
-                    imageUrl: signedUrl, // Add the signed URL to the response
+                    pet_photo: signedUrl, // Add the signed URL to the response
                 };
             })
         );
