@@ -92,7 +92,7 @@ exports.resetPassword = async (req, res) => {
         await pool.query(insertQuery, [userResult.rows[0].user_id, email, verificationCode, expiresAt]);
 
         await pool.query(
-            'DELETE FROM password_reset_tokens WHERE user_email = $1 AND id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY reset_token_created_at DESC LIMIT 1)',
+            'DELETE FROM password_reset_tokens WHERE user_email = $1 AND reset_token_id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY reset_token_created_at DESC LIMIT 1)',
             [email]
         );
 
