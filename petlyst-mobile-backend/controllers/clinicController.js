@@ -19,9 +19,8 @@ exports.fetchClinics = async (req, res) => {
         c.clinic_location AS location,
         cap.clinic_album_photo_id AS photo_id,
         cap.clinic_album_photo_url AS s3_url,
-        cap.clinic_album_photo_url_created_at AS created_at
       FROM clinics AS c
-      LEFT JOIN clinic_album_photos AS cap
+      LEFT JOIN clinic_album AS cap
         ON c.clinic_id = cap.clinic_id
       ORDER BY c.clinic_id;
     `;
