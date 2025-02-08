@@ -160,7 +160,7 @@ exports.verifyResetCode = async (req, res) => {
         const updateQuery = 'UPDATE users SET user_password = $1 WHERE user_email = $2'; // Updated to `user_password`
         await pool.query(updateQuery, [hashedPassword, email]);
 
-        const markUsedQuery = 'UPDATE password_reset_tokens SET is_used = TRUE WHERE user_id = $1';
+        const markUsedQuery = 'UPDATE password_reset_tokens SET reset_token_is_used = TRUE WHERE user_id = $1';
         await pool.query(markUsedQuery, [tokenResult.rows[0].user_id]);
 
         return res.status(200).json({
