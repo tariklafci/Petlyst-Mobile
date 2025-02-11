@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -30,10 +30,35 @@ const MyPetScreen = () => {
     }
   }, []);
 
-  useFocusEffect(() => {
-    if (pets.length === 0)
-      AsyncStorage.setItem('selectedPetName', '');
-  });
+
+  //Use Focus Effect --> when first pet is created, set selectedPetName is AsyncStorage and make its radiobutton active, if there is no pet set selectedPetName as null
+  useFocusEffect(
+    useCallback(() => {
+      const updateSelectedPetName = async () => {
+        try {
+          const storedPetName = await AsyncStorage.getItem('selectedPetName');
+  
+          if (pets.length === 0) {
+            // If no pets exist, clear the selected pet
+            await AsyncStorage.removeItem('selectedPetName');
+            await AsyncStorage.removeItem('selectedPetId');
+            setSelectedPetId(null);
+          } else if (!storedPetName) {
+            // If no pet is selected and pets exist, set the first pet as default
+            await AsyncStorage.setItem('selectedPetName', pets[0].name);
+            await AsyncStorage.setItem('selectedPetId', pets[0].id.toString());
+            setSelectedPetId(pets[0].id);
+          }
+        } catch (error) {
+          console.error('Error updating selected pet:', error);
+        }
+      };
+  
+      updateSelectedPetName();
+    }, [pets]) // Runs when `pets` changes
+  );
+  
+  
 
   const fetchPets = async () => {
     setLoading(true);
