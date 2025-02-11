@@ -133,16 +133,15 @@ const MyPetScreen = () => {
       const response = await fetch('https://petlyst.com:3001/api/delete-pet', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json', // Add Content-Type for JSON
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          id: selectedPetId, // Use the correct key `id` matching the server code
+          id: selectedPetId,
         }),
       });
   
       if (!response.ok) {
-        // Check if the response is not successful
         const errorData = await response.json();
         console.error('Failed to delete pet:', errorData);
         Alert.alert('Error', errorData.message || 'Failed to delete pet');
@@ -150,20 +149,36 @@ const MyPetScreen = () => {
         return;
       }
   
-      const data = await response.json();
-  
-      // Optional: Perform actions after deletion
       Alert.alert('Success', 'Pet deleted successfully');
-      setPets((prevPets) => prevPets.filter((pet) => pet.id !== selectedPetId));
-      setSelectedPetId(null); // Reset selected pet ID
+  
+      // Remove the deleted pet from the pets list
+      const updatedPets = pets.filter((pet) => pet.id !== selectedPetId);
+      setPets(updatedPets);
+  
+      // If the deleted pet was selected, reassign selection
+      if (selectedPetId !== null) {
+        if (updatedPets.length > 0) {
+          // Assign the first remaining pet as the new selected pet
+          await AsyncStorage.setItem('selectedPetName', updatedPets[0].name);
+          await AsyncStorage.setItem('selectedPetId', updatedPets[0].id.toString());
+          setSelectedPetId(updatedPets[0].id);
+        } else {
+          // No pets left, clear selection
+          await AsyncStorage.removeItem('selectedPetName');
+          await AsyncStorage.removeItem('selectedPetId');
+          setSelectedPetId(null);
+        }
+      }
+  
       setEditDeleteTab(false);
     } catch (error) {
       console.error('Error deleting pet:', error);
       Alert.alert('Error', 'Something went wrong while deleting the pet');
     } finally {
-      setLoading(false); // Ensure loading state is reset
+      setLoading(false);
     }
   };
+  
 
   const calculateAge = (birth_date: Date | null): string => {
     if (!birth_date) return 'Unknown';
