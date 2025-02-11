@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/datetimepicker": "8.2.0",
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-native-picker/picker": "2.9.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -15,6 +16,7 @@
     "expo-screen-orientation": "~8.0.3",
     "expo-secure-store": "~14.0.0",
     "react": "18.3.1",
+    "react-native": "0.76.7",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-maps": "1.18.0",
     "react-native-modal-datetime-picker": "^18.0.0",
@@ -27,5 +29,11 @@
   },
   "devDependencies": {
     "@types/react": "^18.3.18"
+  },
+  "name": "petlyst-mobile-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   }
 }
