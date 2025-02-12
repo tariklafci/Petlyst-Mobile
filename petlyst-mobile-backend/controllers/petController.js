@@ -88,7 +88,7 @@ exports.deletePet = async (req, res) => {
         }
 
         const pet = petResult.rows[0];
-        const { name: petName, pet_img_url: petImgUrl } = pet;
+        const { name: petName, pet_photo: petImgUrl } = pet;
 
         if (petImgUrl) {
             await deleteFileFromS3(pet_owner_id, petName);
