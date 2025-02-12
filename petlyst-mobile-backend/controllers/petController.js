@@ -88,10 +88,11 @@ exports.deletePet = async (req, res) => {
         }
 
         const pet = petResult.rows[0];
-        const { name: petName, pet_photo: petImgUrl } = pet;
+        const { pet_name: petName, pet_photo: petImgUrl } = pet;
 
         if (petImgUrl) {
             await deleteFileFromS3(pet_owner_id, petName);
+            console.log("petImgUrl if'inin içine girdi")
         }
 
         const deleteQuery = `
