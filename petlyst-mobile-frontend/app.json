@@ -12,6 +12,12 @@
     },
     "android": {
       "package": "com.tlafci.petlystmobilefrontend"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "7eb19353-8e0c-42fc-aa05-e4a322353a4c"
+      }
+    },
+    "owner": "tlafci"
   }
 }
