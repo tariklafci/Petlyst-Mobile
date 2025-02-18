@@ -9,16 +9,21 @@ interface Pet {
   id: number;
   name: string;
   breed: string;
+  species: string;
   imageUrl: string | null;
+  pet_birth_date: Date;
   age: string;
 }
 
-const MyPetScreen = () => {
+const MyPetScreen = ({ navigation }: { navigation: any }) => {
   const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPetName, setSelectedPetName] = useState<string | null>(null);
+  const [selectedPetBreed, setSelectedPetBreed] = useState<string | null>(null);
+  const [selectedPetSpecies, setSelectedPetSpecies] = useState<string | null>(null);
+  const [selectedPetBirthDate, setSelectedPetBirthDate] = useState<Date | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const navigation = useNavigation();
   const [editDeleteTab, setEditDeleteTab] = useState<boolean>(false);
 
 
@@ -85,8 +90,10 @@ const MyPetScreen = () => {
         id: pet.pet_id,
         name: pet.pet_name,
         breed: pet.pet_breed,
+        species: pet.pet_species,
         imageUrl: pet.pet_photo,
-        age: calculateAge(pet.birth_date),
+        pet_birth_date: pet.pet_birth_date,
+        age: calculateAge(pet.pet_birth_date),
         
       }));
 
@@ -97,7 +104,7 @@ const MyPetScreen = () => {
     if (!storedPetId && formattedPets.length > 0) {
       // Set the selectedPetId to the first pet's ID
       const firstPet = formattedPets[0];
-      await selectPet(firstPet.id, firstPet.name); // Update AsyncStorage and state
+      await selectFirstPet(firstPet.id, firstPet.name); // Update AsyncStorage and state
     }
     } catch (error) {
       console.error('Error fetching pets:', error);
@@ -107,10 +114,10 @@ const MyPetScreen = () => {
     }
   };
 
-  const handleLongPress = async (id: number, name: string) => {
+  const handleLongPress = async (id: number, name: string, breed: string, species: string, birth_date: Date) => {
     try {
       setEditDeleteTab(true);
-      await selectPet(id, name);
+      await selectPet(id, name, breed, species, birth_date);
     } catch (error) {
       
     }
@@ -192,11 +199,26 @@ const MyPetScreen = () => {
     return `${age} ${age === 1 ? 'year' : 'years'}`;
   };
 
-  const selectPet = async (id: number, name: string) => {
+  const selectFirstPet = async (id: number, name: string) => {
     try {
       await AsyncStorage.setItem('selectedPetId', id.toString());
       await AsyncStorage.setItem('selectedPetName', name)
       setSelectedPetId(id);
+      await loadSelectedPetId();
+    } catch (error) {
+      console.error('Error storing selected pet ID:', error);
+    }
+  };
+
+  const selectPet = async (id: number, name: string, breed: string, species: string, birthDate: Date) => {
+    try {
+      await AsyncStorage.setItem('selectedPetId', id.toString());
+      await AsyncStorage.setItem('selectedPetName', name)
+      setSelectedPetId(id);
+      setSelectedPetName(name);
+      setSelectedPetBreed(breed);
+      setSelectedPetSpecies(species);
+      setSelectedPetBirthDate(birthDate);
       await loadSelectedPetId();
     } catch (error) {
       console.error('Error storing selected pet ID:', error);
@@ -222,7 +244,7 @@ const MyPetScreen = () => {
   };
 
   const renderPetCard = ({ item }: { item: Pet }) => (
-    <TouchableOpacity onPress={() => selectPet(item.id, item.name)} onLongPress={() => handleLongPress(item.id, item.name)} style={styles.petItem}>
+    <TouchableOpacity onPress={() => selectPet(item.id, item.name, item.breed, item.species, item.pet_birth_date)} onLongPress={() => handleLongPress(item.id, item.name, item.breed, item.species, item.pet_birth_date)} style={styles.petItem}>
       <View style={styles.petDetailsContainer}>
         <Image
           source={
@@ -274,7 +296,13 @@ const MyPetScreen = () => {
     // Show three TouchableOpacity buttons when editDeleteTab is true
     <View style={styles.editDeleteContainer}>
       <TouchableOpacity
-        onPress={() => console.log('Edit pressed')}
+        onPress={() => navigation.navigate('EditPet', {
+          petId: selectedPetId, 
+          petName: selectedPetName, 
+          petBreed: selectedPetBreed, 
+          petSpecies: selectedPetSpecies, 
+          petBirthDate: selectedPetBirthDate})}
+        
         style={styles.editButton}
       >
         <Text style={styles.editButtonText}>Edit</Text>

@@ -17,6 +17,7 @@ import MapScreen from '../screens/MapScreen';
 import { useAuth } from '../context/AuthContext'
 import PasswordResetScreen from '../screens/PasswordResetScreen';
 import VerifyCodeScreen from '../screens/VerifyCodeScreen';
+import EditPetScreen from '../screens/EditPetScreen';
 
 
 /* -------------------------------
@@ -100,6 +101,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }}/>
             <Stack.Screen name="AddPet" component={AddPetScreen} options={{ headerShown: false }}/>
+            <Stack.Screen name="EditPet" component={EditPetScreen} options={{ headerShown: false }}/>
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ headerShown: false }}/>
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }}/>
           </>

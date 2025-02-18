@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer(); // Or configure as needed
 const authenticateToken = require('../middlewares/authenticateToken');
-const { fetchPets, addPet, deletePet } = require('../controllers/petController');
+const { fetchPets, addPet, deletePet, editPet } = require('../controllers/petController');
 
 // GET /fetch-pets
 router.get('/fetch-pets', authenticateToken, fetchPets);
@@ -13,5 +13,8 @@ router.post('/add-pet', authenticateToken, upload.single('photo'), addPet);
 
 // POST /delete-pet
 router.post('/delete-pet', authenticateToken, deletePet);
+
+// POST /edit-pet
+router.put('/edit-pet', authenticateToken, upload.single('photo'), editPet);
 
 module.exports = router;
