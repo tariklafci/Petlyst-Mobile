@@ -111,7 +111,7 @@ exports.deletePet = async (req, res) => {
 };
 
 //Edit Pet
-exports.updatePet = async (req, res) => {
+exports.editPet = async (req, res) => {
     // Destructure fields from the request body.
     // We expect pet_id, breed, birthDate, and species.
     const { pet_id, breed, birthDate, species } = req.body;
