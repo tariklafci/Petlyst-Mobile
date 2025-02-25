@@ -47,54 +47,25 @@ exports.loginUser = async (req, res) => {
 
 // Register user
 exports.registerUser = async (req, res) => {
-    const client = await pool.connect(); // Get a dedicated connection
-
     try {
         const { name, surname, email, password, user_type } = req.body;
 
-        await client.query('BEGIN'); // Start transaction
-
-        // Check if user already exists
-        const existingUser = await client.query('SELECT user_email FROM users WHERE user_email = $1', [email]);
+        const existingUser = await pool.query('SELECT user_email FROM users WHERE user_email = $1', [email]);
         if (existingUser.rows.length > 0) {
-            await client.query('ROLLBACK'); // Rollback transaction if user exists
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Insert into users table and get the new user_id
-        const userResult = await client.query(
-            'INSERT INTO users (user_name, user_surname, user_email, user_password, user_type) VALUES ($1, $2, $3, $4, $5) RETURNING user_id',
+        await pool.query(
+            'INSERT INTO users (user_name, user_surname, user_email, user_password, user_type) VALUES ($1, $2, $3, $4, $5)',
             [name, surname, email, hashedPassword, user_type]
         );
 
-        const userId = userResult.rows[0].user_id;
-
-        // Insert into the appropriate table based on user_type
-        if (user_type === 'veterinarian') {
-            await client.query(
-                'INSERT INTO veterinarians (veterinarian_id) VALUES ($1)',
-                [userId]
-            );
-        } else if (user_type === 'petowner') {
-            await client.query(
-                'INSERT INTO petowners (pet_owner_id) VALUES ($1)',
-                [userId]
-            );
-        }
-
-        await client.query('COMMIT'); // Commit the transaction
-        client.release(); // Release the connection
 
         return res.json({ message: 'User created successfully' });
-
     } catch (error) {
-        await client.query('ROLLBACK'); // Rollback transaction if an error occurs
-        client.release(); // Release the connection
         console.error('Error registering user:', error);
-        return res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error' });
     }
 };
 
