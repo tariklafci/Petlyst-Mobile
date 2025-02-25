@@ -78,7 +78,7 @@ exports.registerUser = async (req, res) => {
                 'INSERT INTO veterinarians (veterinarian_id) VALUES ($1)',
                 [userId]
             );
-        } else if (user_type === 'petowner') {
+        } else if (user_type === 'pet_owner') {
             await client.query(
                 'INSERT INTO petowners (pet_owner_id) VALUES ($1)',
                 [userId]
