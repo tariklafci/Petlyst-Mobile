@@ -16,7 +16,7 @@ exports.fetchClinics = async (req, res) => {
         c.emergency_available_days,
         c.opening_time,
         c.closing_time,
-        c.clinic_location AS location,
+        c.clinic_address AS location,
         cap.clinic_album_photo_id AS photo_id,
         cap.clinic_album_photo_url AS s3_url
       FROM clinics AS c
