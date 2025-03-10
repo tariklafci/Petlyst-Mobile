@@ -37,7 +37,7 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
     setDatePickerVisibility(false);
   };
 
-  const handleConfirm = (date: Date) => {
+  const handleConfirm = (date) => {
     console.warn("A date has been picked: ", date);
     setBirthDate(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`);
     hideDatePicker();
