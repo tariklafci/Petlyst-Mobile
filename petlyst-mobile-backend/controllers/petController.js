@@ -117,6 +117,9 @@ exports.deletePet = async (req, res) => {
         const { pet_id, breed, birthDate, species } = req.body;
         const userId = req.user.sub;
 
+        console.log('Request body:', req.body);
+        console.log('Uploaded file:', req.file);
+
         try {
             // If a new file (photo) is provided, upload it to S3.
             let photo;
