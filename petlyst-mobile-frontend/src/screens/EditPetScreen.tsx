@@ -87,8 +87,7 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
       const response = await fetch('https://petlyst.com:3001/api/edit-pet', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
         },
         body: formData,
       });
