@@ -14,7 +14,7 @@ router.post('/add-pet', authenticateToken, upload.single('photo'), addPet);
 // POST /delete-pet
 router.post('/delete-pet', authenticateToken, deletePet);
 
-// POST /edit-pet
-router.put('/edit-pet', authenticateToken, upload.single('photo'), editPet);
+// PATCH /edit-pet
+router.patch('/edit-pet', authenticateToken, upload.single('photo'), editPet);
 
 module.exports = router;
