@@ -6,7 +6,7 @@ import { View, StyleSheet, ActivityIndicator, Platform, PermissionsAndroid, Aler
 const MeetingScreen = ({ route, navigation }: { route: any; navigation: any }) => {
   const { room } = route.params; // Retrieve room name from navigation params
 
-  const meetingUrl = `https://tarik-jitsi.online/10#config.deeplinking.disabled=true`;
+  const meetingUrl = `meeting.petlyst.com/10#config.deeplinking.disabled=true`;
 
   const requestPermissions = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();

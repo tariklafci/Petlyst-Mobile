@@ -98,7 +98,9 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
         Alert.alert('Success', data.message, [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('MyPet'), // Navigate back to your MyPetScreen
+            onPress: () => navigation.navigate('MainTabs', {
+              screen: 'MyPet',
+            }),
           },
         ]);
       } else {
