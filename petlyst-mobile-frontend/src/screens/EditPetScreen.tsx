@@ -72,6 +72,7 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
 
       // Build form data; note that pet_name is not updated per your schema.
       const formData = new FormData();
+      formData.append('pet_name', petName);
       formData.append('pet_id', petId);
       formData.append('breed', breed);
       formData.append('birthDate', birthDate);

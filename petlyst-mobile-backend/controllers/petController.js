@@ -76,7 +76,7 @@ exports.addPet = async (req, res) => {
 exports.editPet = async (req, res) => {
     // Destructure fields from the request body.
     // We expect pet_id, breed, birthDate, and species.
-    const { pet_id, breed, birthDate, species } = req.body;
+    const { pet_name, pet_id, breed, birthDate, species } = req.body;
     const userId = req.user.sub;
 
 
@@ -85,7 +85,7 @@ exports.editPet = async (req, res) => {
         let photo;
         if (req.file) {
             // Optionally, you can use a pet identifier or other field for naming the file.
-            photo = await uploadFileToS3(req.file, userId, pet_id);
+            photo = await uploadFileToS3(req.file, userId, pet_name);
             console.log("editPet uploadFileTOS3 if'inin içine girdi")
         }
 
