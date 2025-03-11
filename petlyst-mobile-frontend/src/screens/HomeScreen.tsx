@@ -95,10 +95,8 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       const storedName = await AsyncStorage.getItem('selectedPetName');
       if (!storedName) {
         setBestFor(`Recommended by Petlyst`);
-        console.log(`Selected Pet Name: ${storedName}`);
       } else {
         setBestFor(`Best for ${storedName}`);
-        console.log(`Selected Pet Name: ${storedName}`);
       }
     } catch (error) {
       console.error('Error loading selected pet name:', error);
@@ -121,7 +119,6 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   const handleViewinTheMap = async () => {
     // const coordinates = selectedClinic?.location; // Gets coordinates from db
     const address = selectedClinic?.clinic_address; // Gets address from db
-    console.log(`Address: ${address}`);
 
     // if (!coordinates || !address) { 
     //   console.error("Location data is undefined or invalid.");

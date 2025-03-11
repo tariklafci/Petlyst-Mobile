@@ -26,7 +26,6 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
 
 
   useEffect(() => {
-    console.log(petId, petName, petBreed, petSpecies, petBirthDate);
   }, []);
 
   const showDatePicker = () => {
