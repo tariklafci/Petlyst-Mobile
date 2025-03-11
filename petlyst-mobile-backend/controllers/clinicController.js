@@ -120,7 +120,6 @@ exports.fetchClinicsAppointment = async (req, res) => {
 
       const query = `
           SELECT 
-              clinic_id,
               clinic_name,
               opening_time::TEXT, 
               closing_time::TEXT, 

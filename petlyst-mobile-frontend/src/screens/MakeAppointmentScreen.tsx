@@ -36,6 +36,10 @@ const MakeAppointmentScreen = ({ route, navigation }: { route: any; navigation: 
 //     setTimeSlots(slots);
 //   }, [clinic]);
 
+useEffect(() => {
+    fetchClinicDetails(clinic_id);
+  }, []);
+
   const handleTimeSlotPress = (slot: string) => {
     setSelectedTimeSlot(slot);
   };
@@ -78,7 +82,7 @@ const MakeAppointmentScreen = ({ route, navigation }: { route: any; navigation: 
             clinicTimeSlots: clinic.clinic_time_slots, // Integer
         };
 
-        setClinic(formattedClinic); // Set state with clinic details
+        setClinics([formattedClinic]); 
 
     } catch (error) {
         console.error('Error fetching clinic details:', error);
@@ -147,7 +151,7 @@ const MakeAppointmentScreen = ({ route, navigation }: { route: any; navigation: 
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text>Make Appointment at {clinic.clinic_id}</Text>
+      <Text>Make Appointment at</Text>
 
       <Text style={{ marginTop: 16 }}>Available Time Slots:</Text>
       <FlatList
