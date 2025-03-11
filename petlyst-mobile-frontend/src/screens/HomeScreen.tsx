@@ -156,6 +156,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     setCurrentIndex(newIndex);
   };
 
+  const handleMakeAppointment = async (clinicId: any) => {
+    navigation.navigate('MakeAppointment', { clinic_id: clinicId });
+};
+
   return (
     <View style={styles.container}>
       {/* Search Bar */}
@@ -293,7 +297,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                   <Text style={styles.detailsButtonText}>View in the Map</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.appointmentButton}>
+                <TouchableOpacity onPress={() => handleMakeAppointment(selectedClinic.id)} style={styles.appointmentButton}>
                   <Text style={styles.appointmentButtonText}>
                     Make an Appointment
                   </Text>
