@@ -31,19 +31,10 @@ const InboxScreen = ({ navigation }: { navigation: any }) => {
       <TouchableOpacity onPress={handleSignOut}>
         <Text style={styles.text} >Sign Out</Text>
       </TouchableOpacity>
-      {/* <TouchableOpacity onPress={() => handleMeeting()}>
-        <Text style={styles.text} >Go to the Meeting</Text>
+      
+      <TouchableOpacity onPress={handleMeeting}>
+        <Text style={styles.text}>Go to the Meeting</Text>
       </TouchableOpacity>
-      <View style={styles.container}>
-      <MapView style={styles.map}
-  initialRegion={{
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  }}
-/>
-    </View>  */}
       </View>
     )
   };
