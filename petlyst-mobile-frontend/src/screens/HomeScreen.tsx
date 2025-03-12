@@ -95,10 +95,8 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       const storedName = await AsyncStorage.getItem('selectedPetName');
       if (!storedName) {
         setBestFor(`Recommended by Petlyst`);
-        console.log(`Selected Pet Name: ${storedName}`);
       } else {
         setBestFor(`Best for ${storedName}`);
-        console.log(`Selected Pet Name: ${storedName}`);
       }
     } catch (error) {
       console.error('Error loading selected pet name:', error);
@@ -121,7 +119,6 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   const handleViewinTheMap = async () => {
     // const coordinates = selectedClinic?.location; // Gets coordinates from db
     const address = selectedClinic?.clinic_address; // Gets address from db
-    console.log(`Address: ${address}`);
 
     // if (!coordinates || !address) { 
     //   console.error("Location data is undefined or invalid.");
@@ -158,6 +155,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
     setCurrentIndex(newIndex);
   };
+
+  const handleMakeAppointment = async (clinicId: any) => {
+    navigation.navigate('MakeAppointment', { clinic_id: clinicId });
+};
 
   return (
     <View style={styles.container}>
@@ -296,7 +297,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                   <Text style={styles.detailsButtonText}>View in the Map</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.appointmentButton}>
+                <TouchableOpacity onPress={() => handleMakeAppointment(selectedClinic.id)} style={styles.appointmentButton}>
                   <Text style={styles.appointmentButtonText}>
                     Make an Appointment
                   </Text>
