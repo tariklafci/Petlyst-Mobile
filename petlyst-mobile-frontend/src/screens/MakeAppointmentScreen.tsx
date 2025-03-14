@@ -1,40 +1,72 @@
-// MakeAppointmentScreen.tsx
+// AppointmentDetailsScreen.tsx
 
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  FlatList,
+  SafeAreaView,
   TouchableOpacity,
-  Alert,
+  FlatList,
   StyleSheet,
-  ActivityIndicator,
+  Image,
   ScrollView,
+  Modal,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
+import { Ionicons } from '@expo/vector-icons';
 
 /**
- * Utility function to generate time slots in "HH:MM - HH:MM" format
- * e.g. ("08:00 - 08:30", "08:30 - 09:00", etc.)
+ * Utility to generate a range of days (starting from "today" for 'count' days).
+ * Returns objects with dayName (Mon, Tue, etc.), dateNum (e.g. 14), and a Date instance.
  */
-const generateTimeSlots = (
+function generateNextDays(count: number) {
+  const days: { id: string; dayName: string; dateNum: string; dateObj: Date }[] = [];
+  const today = new Date();
+
+  for (let i = 0; i < count; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+
+    // Day abbreviation, e.g., 'MO', 'TU', etc.
+    const weekday = date
+      .toLocaleString('en-US', { weekday: 'short' })
+      .toUpperCase() // e.g. "MON" => we'll just take first 2 letters
+      .slice(0, 2);
+
+    days.push({
+      id: `${weekday} ${date.getDate()}`, // e.g. "MO 19"
+      dayName: weekday,
+      dateNum: date.getDate().toString(),
+      dateObj: date,
+    });
+  }
+  return days;
+}
+
+/**
+ * Utility to generate time slots (e.g. "09.00 - 09.30") from opening to closing in intervals.
+ * - openingTime, closingTime: "HH:MM" strings
+ * - intervalMinutes: e.g. 30
+ */
+function generateTimeSlots(
   openingTime: string,
   closingTime: string,
-  interval: number
-): string[] => {
-  const slots: string[] = [];
-  let [openHour, openMinute] = openingTime.split(':').map(Number);
-  let [closeHour, closeMinute] = closingTime.split(':').map(Number);
+  intervalMinutes: number
+): string[] {
+  const [openHour, openMinute] = openingTime.split(':').map(Number);
+  const [closeHour, closeMinute] = closingTime.split(':').map(Number);
 
   let currentHour = openHour;
   let currentMinute = openMinute;
+  const slots: string[] = [];
 
   while (
     currentHour < closeHour ||
     (currentHour === closeHour && currentMinute < closeMinute)
   ) {
-    let nextMinute = currentMinute + interval;
+    const startHour = currentHour.toString().padStart(2, '0');
+    const startMin = currentMinute.toString().padStart(2, '0');
+
+    let nextMinute = currentMinute + intervalMinutes;
     let nextHour = currentHour;
 
     if (nextMinute >= 60) {
@@ -42,7 +74,7 @@ const generateTimeSlots = (
       nextMinute -= 60;
     }
 
-    // If next block goes past closing, break
+    // If we exceed closing time, break
     if (
       nextHour > closeHour ||
       (nextHour === closeHour && nextMinute > closeMinute)
@@ -50,393 +82,463 @@ const generateTimeSlots = (
       break;
     }
 
-    const startTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute
-      .toString()
-      .padStart(2, '0')}`;
-    const endTime = `${nextHour.toString().padStart(2, '0')}:${nextMinute
-      .toString()
-      .padStart(2, '0')}`;
+    const endHour = nextHour.toString().padStart(2, '0');
+    const endMin = nextMinute.toString().padStart(2, '0');
 
-    slots.push(`${startTime} - ${endTime}`);
+    // e.g. "09.00 - 09.30"
+    slots.push(`${startHour}.${startMin} - ${endHour}.${endMin}`);
 
     currentHour = nextHour;
     currentMinute = nextMinute;
   }
 
   return slots;
-};
-
-interface Clinic {
-  id: number;
-  name: string;
-  openingTime: string;        // e.g. "08:00"
-  closingTime: string;        // e.g. "20:00"
-  allowOnlineMeetings: boolean;
-  availableDays: boolean[];   // e.g. [false, true, true, true, true, true, false] => Sunday-Saturday
-  emergencyAvailableDays: boolean[];
-  clinicTimeSlots: number;    // e.g. 30 (minutes)
 }
 
-const MakeAppointmentScreen = ({ route, navigation }: { route: any; navigation: any }) => {
-  const { clinic_id } = route.params;
+/**
+ * Helper to split an array into two roughly equal parts (for left & right columns).
+ */
+function splitIntoTwoColumns(arr: string[]): { left: string[]; right: string[] } {
+  const midpoint = Math.ceil(arr.length / 2);
+  return {
+    left: arr.slice(0, midpoint),
+    right: arr.slice(midpoint),
+  };
+}
 
-  const [clinic, setClinic] = useState<Clinic | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+interface Pet {
+  id: number;
+  name: string;
+  age: number;
+  breed: string;
+  imageUri: string;
+}
 
-  // For day/time selection
-  const [daysArray, setDaysArray] = useState<Date[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+/**
+ * Example AppointmentDetailsScreen:
+ * - "Which Pet?" is selectable. Tapping it opens a modal of user’s pets.
+ * - "Which Date?" is a horizontal list from today’s date forward (7 days).
+ * - Time slots are generated from openingTime, closingTime, interval.
+ * - Splits slots into two columns in dashed boxes.
+ * - Final "Complete Appointment" button logs selections (or do your booking logic).
+ */
+const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigation: any }) => {
+  // Suppose you get these from route.params or a fetch:
+  const openingTime = route?.params?.openingTime || '09:00';
+  const closingTime = route?.params?.closingTime || '17:00';
+  const interval = route?.params?.timeSlotInterval || 30; // in minutes
 
-  // For time slot selection
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  // For demonstration, generate next 7 days:
+  const [days, setDays] = useState<
+    { id: string; dayName: string; dateNum: string; dateObj: Date }[]
+  >([]);
+  const [selectedDayId, setSelectedDayId] = useState<string>('');
 
-  // Toggle for video meeting
-  const [videoMeeting, setVideoMeeting] = useState<boolean>(false);
+  // Time slots
+  const [allSlots, setAllSlots] = useState<string[]>([]);
+  const [leftSlots, setLeftSlots] = useState<string[]>([]);
+  const [rightSlots, setRightSlots] = useState<string[]>([]);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  // Pets
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
+  const [showPetModal, setShowPetModal] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchClinicDetails(clinic_id);
+    // Generate days from today
+    const nextDays = generateNextDays(7);
+    setDays(nextDays);
+
+    // Default select the first day in the array
+    if (nextDays.length > 0) {
+      setSelectedDayId(nextDays[0].id);
+    }
+
+    // Generate time slots from opening/closing times
+    const slots = generateTimeSlots(openingTime, closingTime, interval);
+    setAllSlots(slots);
+
+    // Split into two columns
+    const { left, right } = splitIntoTwoColumns(slots);
+    setLeftSlots(left);
+    setRightSlots(right);
+
+    // Example: fetch user’s pets or set them from route
+    // Hard-coded for demonstration
+    const userPets: Pet[] = [
+      {
+        id: 1,
+        name: 'Hera',
+        age: 4,
+        breed: 'American Cocker',
+        imageUri: 'https://placekitten.com/100/100',
+      },
+      {
+        id: 2,
+        name: 'Buddy',
+        age: 2,
+        breed: 'Golden Retriever',
+        imageUri: 'https://placekitten.com/120/120',
+      },
+    ];
+    setPets(userPets);
+
+    // Select the first pet by default
+    setSelectedPet(userPets[0]);
   }, []);
 
-  /**
-   * Fetch clinic details from your backend
-   */
-  const fetchClinicDetails = async (clinicId: number) => {
-    setLoading(true);
-    try {
-      const token = await SecureStore.getItemAsync('userToken');
-      if (!token) {
-        Alert.alert('Error', 'No token found. Please log in again.');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `https://petlyst.com:3001/api/fetch-clinic-info-appointments?clinic_id=${clinicId}`,
-        {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const clinicData = await response.json();
-
-      const formattedClinic: Clinic = {
-        id: clinicData.clinic_id,
-        name: clinicData.clinic_name,
-        openingTime: clinicData.opening_time,       // e.g. "08:00"
-        closingTime: clinicData.closing_time,       // e.g. "20:00"
-        allowOnlineMeetings: clinicData.allow_online_meetings,
-        availableDays: clinicData.available_days,   // boolean array [Sun..Sat]
-        emergencyAvailableDays: clinicData.emergency_available_days,
-        clinicTimeSlots: clinicData.clinic_time_slots, // e.g. 30
-      };
-
-      setClinic(formattedClinic);
-
-      // Generate an array of upcoming days (e.g. next 14 days)
-      const upcomingDays: Date[] = [];
-      for (let i = 0; i < 14; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        upcomingDays.push(date);
-      }
-      setDaysArray(upcomingDays);
-
-      // Generate the time slots (same for every day, but you might change that if needed)
-      const slots = generateTimeSlots(
-        formattedClinic.openingTime,
-        formattedClinic.closingTime,
-        formattedClinic.clinicTimeSlots
-      );
-      setTimeSlots(slots);
-    } catch (error) {
-      console.error('Error fetching clinic details:', error);
-      Alert.alert('Error', 'Something went wrong fetching clinic details.');
-    } finally {
-      setLoading(false);
-    }
+  /** "Which Pet?" card tapped => show modal of pets */
+  const handlePetCardPress = () => {
+    setShowPetModal(true);
   };
 
-  /**
-   * Handle user selecting a day from the horizontal list
-   */
-  const handleSelectDate = (day: Date, isAvailable: boolean) => {
-    if (!isAvailable) {
-      Alert.alert('Not Available', 'Clinic is closed on this day.');
-      return;
-    }
-    setSelectedDate(day);
-    setSelectedTimeSlot(null); // reset time slot when day changes
-    setVideoMeeting(false);    // also reset the video toggle
+  /** User picks a pet in the modal */
+  const handlePetSelect = (pet: Pet) => {
+    setSelectedPet(pet);
+    setShowPetModal(false);
   };
 
-  /**
-   * Handle user tapping on a specific time slot
-   */
-  const handleTimeSlotPress = (slot: string) => {
-    setSelectedTimeSlot(slot);
-    // If you want to show the video toggle immediately after selection, that's fine
-    // Otherwise you can keep it always visible if `allowOnlineMeetings` is true
+  /** Day tapped in the horizontal list */
+  const handleDayPress = (dayId: string) => {
+    setSelectedDayId(dayId);
+    setSelectedTime(null); // reset time selection
   };
 
-  /**
-   * Toggle video meeting
-   */
-  const handleToggleVideo = () => {
-    setVideoMeeting((prev) => !prev);
+  /** Time slot tapped */
+  const handleTimePress = (time: string) => {
+    setSelectedTime(time);
   };
 
-  /**
-   * Confirm appointment: send data to your backend
-   */
-  const handleConfirmAppointment = async () => {
-    try {
-      // Make sure we have a pet selected
-      const petId = await AsyncStorage.getItem('selectedPetId');
-      if (!petId) {
-        Alert.alert('Error', 'No pet selected. Please select a pet first.');
-        return;
-      }
+  /** Final "Complete Appointment" */
+  const handleCompleteAppointment = () => {
+    // In a real app, you might navigate or call an API here
+    const chosenDay = days.find((d) => d.id === selectedDayId);
+    console.log('Selected Pet:', selectedPet?.name);
+    console.log('Selected Day:', chosenDay?.dateObj?.toDateString());
+    console.log('Selected Time:', selectedTime);
 
-      // Must have selected a date and time slot
-      if (!selectedDate || !selectedTimeSlot || !clinic) {
-        Alert.alert('Error', 'Please select a day and time slot.');
-        return;
-      }
+    // For demonstration, just log. You could do:
+    // navigation.navigate('ConfirmScreen', { ...data });
+  };
 
-      // Convert the selected time slot (e.g. "08:00 - 08:30") into a Date object
-      const [startLabel] = selectedTimeSlot.split(' - ');
-      const [hours, minutes] = startLabel.split(':').map(Number);
+  /** Renders a single day in the horizontal list */
+  const renderDayItem = ({ item }: { item: typeof days[0] }) => {
+    const isSelected = item.id === selectedDayId;
+    return (
+      <TouchableOpacity
+        style={[styles.dayItem, isSelected && styles.dayItemSelected]}
+        onPress={() => handleDayPress(item.id)}
+      >
+        <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>
+          {item.dayName}
+        </Text>
+        <Text style={[styles.dateNum, isSelected && styles.dateNumSelected]}>
+          {item.dateNum}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
-      // Create a new date/time for the selected day
-      const appointmentDate = new Date(selectedDate);
-      appointmentDate.setHours(hours, minutes, 0, 0);
-
-      // Example: POST to your API
-      const response = await fetch('https://petlyst.com:3001/api/set-appointment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pet_id: Number(petId),
-          clinic_id: clinic.id,
-          appointment_date: appointmentDate.toISOString(),
-          video_meeting: videoMeeting, // only relevant if clinic.allowOnlineMeetings is true
-          appointment_status: 'pending',
-          notes: 'Some note from user input', // Or collect from a TextInput
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create appointment');
-      }
-
-      Alert.alert('Success', 'Appointment created! Status is pending.');
-      navigation.goBack();
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Error creating appointment.');
-    }
+  /** Renders a single time slot button in the columns */
+  const renderTimeButton = (time: string, column: 'left' | 'right') => {
+    const isSelected = time === selectedTime;
+    return (
+      <TouchableOpacity
+        key={`${column}-${time}`}
+        style={[styles.timeSlot, isSelected && styles.timeSlotSelected]}
+        onPress={() => handleTimePress(time)}
+      >
+        <Text style={[styles.timeText, isSelected && styles.timeTextSelected]}>
+          {time}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {loading ? (
-        <ActivityIndicator size="large" color="#007BFF" />
-      ) : !clinic ? (
-        <Text style={styles.errorText}>Error loading clinic details.</Text>
-      ) : (
-        <>
-          <Text style={styles.headerText}>Make Appointment at {clinic.name}</Text>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Header */}
+      <View style={styles.headerContainer}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Appointment Details</Text>
+        <View style={{ width: 24 }} /> {/* placeholder for spacing */}
+      </View>
 
-          {/* Horizontal list of upcoming days */}
-          <Text style={styles.sectionTitle}>Select Day:</Text>
-          <FlatList
-            data={daysArray}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.toDateString()}
-            style={{ marginBottom: 20 }}
-            renderItem={({ item }) => {
-              const dayOfWeek = item.getDay(); // 0=Sun,1=Mon,...6=Sat
-              const isAvailable = clinic.availableDays[dayOfWeek];
-              const isSelected =
-                selectedDate && item.toDateString() === selectedDate.toDateString();
-
-              return (
-                <TouchableOpacity
-                  disabled={!isAvailable}
-                  onPress={() => handleSelectDate(item, isAvailable)}
-                  style={[
-                    styles.dayItem,
-                    isAvailable ? styles.dayAvailable : styles.dayNotAvailable,
-                    isSelected && styles.daySelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      !isAvailable && { color: '#999' },
-                      isSelected && { color: '#FFF' },
-                    ]}
-                  >
-                    {item.toDateString().slice(0, 3)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.dayText,
-                      !isAvailable && { color: '#999' },
-                      isSelected && { color: '#FFF' },
-                    ]}
-                  >
-                    {item.getDate()}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-
-          {/* Time Slots */}
-          <Text style={styles.sectionTitle}>Available Time Slots:</Text>
-          <FlatList
-            data={timeSlots}
-            keyExtractor={(item) => item}
-            style={{ marginBottom: 30 }}
-            renderItem={({ item }) => {
-              const isSelected = item === selectedTimeSlot;
-              return (
-                <TouchableOpacity
-                  onPress={() => handleTimeSlotPress(item)}
-                  style={[styles.slotItem, isSelected && styles.slotSelected]}
-                >
-                  <Text
-                    style={[
-                      styles.slotText,
-                      isSelected && { color: '#FFF', fontWeight: '600' },
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              );
-            }}
-          />
-
-          {/* Video meeting toggle (only if clinic allows and a slot is selected) */}
-          {clinic.allowOnlineMeetings && selectedTimeSlot && (
-            <TouchableOpacity
-              onPress={handleToggleVideo}
-              style={[
-                styles.videoToggle,
-                { backgroundColor: videoMeeting ? '#4CAF50' : '#FFF' },
-              ]}
-            >
-              <Text style={{ color: videoMeeting ? '#FFF' : '#333' }}>
-                {videoMeeting ? 'Video Meeting: ON' : 'Video Meeting: OFF'}
-              </Text>
-            </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Which Pet? */}
+        <Text style={styles.sectionTitle}>Which Pet?</Text>
+        <TouchableOpacity style={styles.petCard} onPress={handlePetCardPress}>
+          {selectedPet && (
+            <>
+              <Image
+                source={{ uri: selectedPet.imageUri }}
+                style={styles.petImage}
+              />
+              <View style={{ marginLeft: 12 }}>
+                <Text style={styles.petName}>{selectedPet.name}</Text>
+                <Text style={styles.petDesc}>
+                  {selectedPet.age} - {selectedPet.breed}
+                </Text>
+              </View>
+            </>
           )}
+        </TouchableOpacity>
 
-          {/* Confirm Button */}
-          <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmAppointment}>
-            <Text style={styles.confirmButtonText}>Confirm Appointment</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </ScrollView>
+        {/* Which Date? */}
+        <Text style={styles.sectionTitle}>Which Date?</Text>
+        <FlatList
+          data={days}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item) => item.id}
+          renderItem={renderDayItem}
+          contentContainerStyle={{ paddingVertical: 8 }}
+        />
+
+        {/* Time slots in two columns */}
+        <View style={styles.timeSlotsRow}>
+          {/* Left Column */}
+          <View style={styles.timeColumn}>
+            {leftSlots.map((time) => renderTimeButton(time, 'left'))}
+          </View>
+          {/* Right Column */}
+          <View style={styles.timeColumn}>
+            {rightSlots.map((time) => renderTimeButton(time, 'right'))}
+          </View>
+        </View>
+
+        {/* Complete Appointment Button */}
+        <TouchableOpacity style={styles.completeButton} onPress={handleCompleteAppointment}>
+          <Text style={styles.completeButtonText}>Complete Appointment</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal for pet selection */}
+      <Modal
+        visible={showPetModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPetModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Select a Pet</Text>
+            {pets.map((pet) => (
+              <TouchableOpacity
+                key={pet.id}
+                style={styles.petOption}
+                onPress={() => handlePetSelect(pet)}
+              >
+                <Image source={{ uri: pet.imageUri }} style={styles.petOptionImage} />
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.petOptionName}>{pet.name}</Text>
+                  <Text style={styles.petOptionDesc}>
+                    {pet.age} - {pet.breed}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowPetModal(false)}
+            >
+              <Text style={styles.modalCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 };
 
-export default MakeAppointmentScreen;
+export default AppointmentDetailsScreen;
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#FFFFFF',
   },
-  contentContainer: {
-    padding: 16,
+  headerContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
-  headerText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
     color: '#333',
   },
-  errorText: {
-    fontSize: 16,
-    color: 'red',
-    margin: 16,
+  container: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#333',
+    marginTop: 16,
     marginBottom: 8,
+  },
+
+  // Pet card
+  petCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F6F9FD',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  petImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  petName: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
   },
+  petDesc: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+
+  // Day picker
   dayItem: {
-    width: 60,
+    width: 50,
     height: 60,
     borderRadius: 8,
+    backgroundColor: '#F6F9FD',
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dayAvailable: {
-    backgroundColor: '#FFF',
-    borderColor: '#007BFF',
-    borderWidth: 1,
+  dayItemSelected: {
+    backgroundColor: '#006DFF',
   },
-  dayNotAvailable: {
-    backgroundColor: '#EEE',
-    borderColor: '#CCC',
-    borderWidth: 1,
+  dayName: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 2,
   },
-  daySelected: {
-    backgroundColor: '#007BFF',
-  },
-  dayText: {
+  dateNum: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
-    fontSize: 14,
   },
-  slotItem: {
-    backgroundColor: '#FFF',
-    padding: 10,
-    marginVertical: 4,
-    borderRadius: 6,
+  dayNameSelected: {
+    color: '#FFF',
+  },
+  dateNumSelected: {
+    color: '#FFF',
+  },
+
+  // Time slots
+  timeSlotsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    justifyContent: 'space-between',
+  },
+  timeColumn: {
+    width: '48%',
     borderWidth: 1,
-    borderColor: '#CCC',
+    borderColor: '#DDE7F0',
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    padding: 8,
   },
-  slotSelected: {
-    backgroundColor: '#007BFF',
-    borderColor: '#007BFF',
-  },
-  slotText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  videoToggle: {
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#CCC',
-    alignItems: 'center',
-  },
-  confirmButton: {
-    backgroundColor: '#28A745',
-    padding: 14,
+  timeSlot: {
+    backgroundColor: '#F6F9FD',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 8,
   },
-  confirmButtonText: {
+  timeSlotSelected: {
+    backgroundColor: '#006DFF',
+  },
+  timeText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  timeTextSelected: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+
+  // Complete button
+  completeButton: {
+    marginTop: 24,
+    backgroundColor: '#006DFF',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  completeButtonText: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Pet selection modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#333',
+    textAlign: 'center',
+  },
+  petOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  petOptionImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  petOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  petOptionDesc: {
+    fontSize: 14,
+    color: '#666',
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    alignSelf: 'center',
+    backgroundColor: '#EEE',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  modalCloseText: {
+    fontSize: 14,
+    color: '#333',
   },
 });
