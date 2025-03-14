@@ -77,7 +77,6 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
         id: clinic.id,
         clinic_name: clinic.name,
         clinic_address: clinic.address,
-        clinic_phone: clinic.phone_number,
         verification_status: clinic.verification_status,
         operator_id: clinic.operator_id,
         location: clinic.location,
@@ -477,7 +476,7 @@ const styles = StyleSheet.create({
   appointmentButtonText: {
     color: '#fff',
     fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'center', 
     fontSize: 16,
   },
 });
