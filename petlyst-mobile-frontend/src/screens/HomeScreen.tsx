@@ -70,7 +70,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       }
       const data = await response.json();
 
-      // Filter clinics to include only those with verification_status === 'true'
+      // Filter clinics to include only those with verification_status === 'verified'
       const verifiedClinics = data.filter((clinic: any) => clinic.verification_status === 'verified');
 
       const transformed: ClinicItem[] = verifiedClinics.map((clinic: any) => ({
