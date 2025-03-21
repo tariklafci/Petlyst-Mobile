@@ -8,14 +8,12 @@ exports.fetchClinics = async (req, res) => {
       SELECT 
         c.clinic_id AS clinic_id,
         c.clinic_name AS name,
-        c.clinic_address AS address,
         c.clinic_verification_status AS verification_status,
         c.clinic_operator_id AS operator_id,
         c.available_days,
         c.emergency_available_days,
         c.opening_time,
         c.closing_time,
-        c.clinic_address AS location,
         cap.clinic_album_photo_id AS photo_id,
         cap.clinic_album_photo_url AS s3_url
       FROM clinics AS c
@@ -35,7 +33,6 @@ exports.fetchClinics = async (req, res) => {
         address,
         verification_status,
         operator_id,
-        location,
         available_days,
         emergency_available_days,
         opening_time,
@@ -52,7 +49,6 @@ exports.fetchClinics = async (req, res) => {
           address,
           verification_status,
           operator_id,
-          location,
           available_days, // Array of boolean values for each day
           emergency_available_days, // Array of boolean values for emergency days
           opening_time,
