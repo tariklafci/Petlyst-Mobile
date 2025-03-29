@@ -11,8 +11,13 @@ import {
   Image,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 /**
  * Utility to generate a range of days (starting from "today" for 'count' days).
@@ -109,15 +114,17 @@ function splitIntoTwoColumns(arr: string[]): { left: string[]; right: string[] }
 interface Pet {
   id: number;
   name: string;
-  age: number;
   breed: string;
-  imageUri: string;
+  species: string;
+  imageUrl: string | null;
+  pet_birth_date: Date;
+  age: string;
 }
 
 /**
  * Example AppointmentDetailsScreen:
- * - "Which Pet?" is selectable. Tapping it opens a modal of user’s pets.
- * - "Which Date?" is a horizontal list from today’s date forward (7 days).
+ * - "Which Pet?" is selectable. Tapping it opens a modal of user's pets.
+ * - "Which Date?" is a horizontal list from today's date forward (7 days).
  * - Time slots are generated from openingTime, closingTime, interval.
  * - Splits slots into two columns in dashed boxes.
  * - Final "Complete Appointment" button logs selections (or do your booking logic).
@@ -144,10 +151,12 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [showPetModal, setShowPetModal] = useState<boolean>(false);
+  const [isLoadingPets, setIsLoadingPets] = useState<boolean>(true);
+  const [petsError, setPetsError] = useState<string | null>(null);
 
   useEffect(() => {
     // Generate days from today
-    const nextDays = generateNextDays(7);
+    const nextDays = generateNextDays(15);
     setDays(nextDays);
 
     // Default select the first day in the array
@@ -164,29 +173,104 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     setLeftSlots(left);
     setRightSlots(right);
 
-    // Example: fetch user’s pets or set them from route
-    // Hard-coded for demonstration
-    const userPets: Pet[] = [
-      {
-        id: 1,
-        name: 'Hera',
-        age: 4,
-        breed: 'American Cocker',
-        imageUri: 'https://placekitten.com/100/100',
-      },
-      {
-        id: 2,
-        name: 'Buddy',
-        age: 2,
-        breed: 'Golden Retriever',
-        imageUri: 'https://placekitten.com/120/120',
-      },
-    ];
-    setPets(userPets);
+    // Fetch pets from API
+    const fetchPets = async () => {
+      setIsLoadingPets(true);
+      setPetsError(null);
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+        
+        const response = await fetch('https://petlyst.com:3001/api/fetch-pets', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch pets');
+        }
 
-    // Select the first pet by default
-    setSelectedPet(userPets[0]);
+        const data = await response.json();
+        setPets(data);
+        
+        // Select the first pet by default if available
+        if (data.length > 0) {
+          setSelectedPet(data[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching pets:', error);
+        setPetsError(error instanceof Error ? error.message : 'Failed to fetch pets');
+      } finally {
+        setIsLoadingPets(false);
+      }
+    };
+
+    fetchPets();
   }, []);
+
+  const fetchPets = async () => {
+    setLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        Alert.alert('Error', 'No token found. Please log in again.');
+        return;
+      }
+
+      const response = await fetch('https://petlyst.com:3001/api/fetch-pets', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data = await response.json();
+      const formattedPets: Pet[] = data.map((pet: any) => ({
+        id: pet.pet_id,
+        name: pet.pet_name,
+        breed: pet.pet_breed,
+        species: pet.pet_species,
+        imageUrl: pet.pet_photo,
+        pet_birth_date: pet.pet_birth_date,
+        age: calculateAge(pet.pet_birth_date),
+        
+      }));
+
+      setPets(formattedPets);
+
+       // Check if selectedPetId is already set in AsyncStorage because if pet is not selected before first pet should be selected default
+    const storedPetId = await AsyncStorage.getItem('selectedPetId');
+    if (!storedPetId && formattedPets.length > 0) {
+      // Set the selectedPetId to the first pet's ID
+      const firstPet = formattedPets[0];
+      await selectFirstPet(firstPet.id, firstPet.name); // Update AsyncStorage and state
+    }
+    } catch (error) {
+      console.error('Error fetching pets:', error);
+      Alert.alert('Error', 'Something went wrong fetching pets.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateAge = (birth_date: Date | null): string => {
+    if (!birth_date) return 'Unknown';
+    const birth = new Date(birth_date);
+    const now = new Date();
+    let age = now.getFullYear() - birth.getFullYear();
+    const monthDiff = now.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+    return `${age} ${age === 1 ? 'year' : 'years'}`;
+  };
 
   /** "Which Pet?" card tapped => show modal of pets */
   const handlePetCardPress = () => {
@@ -227,6 +311,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     const isSelected = item.id === selectedDayId;
     return (
       <TouchableOpacity
+        key={item.id}
         style={[styles.dayItem, isSelected && styles.dayItemSelected]}
         onPress={() => handleDayPress(item.id)}
       >
@@ -271,7 +356,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         {/* Which Pet? */}
         <Text style={styles.sectionTitle}>Which Pet?</Text>
         <TouchableOpacity style={styles.petCard} onPress={handlePetCardPress}>
-          {selectedPet && (
+          {selectedPet ? (
             <>
               <Image
                 source={{ uri: selectedPet.imageUri }}
@@ -284,6 +369,8 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
                 </Text>
               </View>
             </>
+          ) : (
+            <Text style={styles.petName}>Select a pet</Text>
           )}
         </TouchableOpacity>
 
@@ -326,21 +413,29 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Select a Pet</Text>
-            {pets.map((pet) => (
-              <TouchableOpacity
-                key={pet.id}
-                style={styles.petOption}
-                onPress={() => handlePetSelect(pet)}
-              >
-                <Image source={{ uri: pet.imageUri }} style={styles.petOptionImage} />
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.petOptionName}>{pet.name}</Text>
-                  <Text style={styles.petOptionDesc}>
-                    {pet.age} - {pet.breed}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {isLoadingPets ? (
+              <Text style={styles.petOptionName}>Loading pets...</Text>
+            ) : petsError ? (
+              <Text style={[styles.petOptionName, { color: 'red' }]}>{petsError}</Text>
+            ) : pets.length > 0 ? (
+              pets.map((pet) => (
+                <TouchableOpacity
+                  key={pet.id}
+                  style={styles.petOption}
+                  onPress={() => handlePetSelect(pet)}
+                >
+                  <Image source={{ uri: pet.imageUri }} style={styles.petOptionImage} />
+                  <View style={{ marginLeft: 10 }}>
+                    <Text style={styles.petOptionName}>{pet.name}</Text>
+                    <Text style={styles.petOptionDesc}>
+                      {pet.age} - {pet.breed}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.petOptionName}>No pets available</Text>
+            )}
 
             <TouchableOpacity
               style={styles.modalCloseButton}
