@@ -8,7 +8,6 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const petRoutes = require('./routes/petRoutes');
 const clinicRoutes = require('./routes/clinicRoutes');
-const appointmentRoutes = require('./routes/appointmentRoutes');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -25,7 +24,6 @@ app.use(cors());
 app.use('/api', authRoutes);
 app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
-app.use('/api', appointmentRoutes);
 
 const httpsServer = https.createServer(credentials, app);
 
