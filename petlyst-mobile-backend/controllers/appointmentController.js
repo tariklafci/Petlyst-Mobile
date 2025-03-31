@@ -42,36 +42,51 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
-    // Generate a meeting URL if this is a video meeting
+    // Generate a meeting URL and password if this is a video meeting
     let meeting_url = null;
+    let meeting_password = null;
     if (video_meeting) {
       // Simple UUID-based link for demonstration purposes
       // In a production app, you'd integrate with a video conferencing API
       meeting_url = `https://petlyst.com/meet/${uuidv4()}`;
+      meeting_password = Math.random().toString(36).substring(2, 10).toUpperCase(); // Random alphanumeric password
     }
+    
+    // Default values for other required fields
+    const clinic_id = null; // This will be assigned by admin/vet later
+    const veterinarian_id = null; // This will be assigned by admin/vet later
+    const appointment_status = 'pending'; // Default status for new appointments
 
     // Insert the appointment into the database
     const query = `
       INSERT INTO appointments (
-        pet_id, 
-        video_meeting, 
-        meeting_url, 
-        appointment_start_hour, 
-        appointment_end_hour, 
-        notes, 
+        pet_id,
+        video_meeting,
+        clinic_id,
+        veterinarian_id,
+        meeting_url,
+        appointment_start_hour,
+        appointment_status,
+        notes,
+        appointment_end_hour,
+        meeting_password,
         appointment_date
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
       RETURNING *
     `;
 
     const values = [
       pet_id,
       video_meeting,
+      clinic_id,
+      veterinarian_id,
       meeting_url,
       appointment_start_hour,
-      appointment_end_hour,
+      appointment_status,
       notes || '',
+      appointment_end_hour,
+      meeting_password,
       appointment_date
     ];
 
