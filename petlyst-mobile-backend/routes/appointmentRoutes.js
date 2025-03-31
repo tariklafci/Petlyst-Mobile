@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const appointmentController = require('../controllers/appointmentController');
-const { authenticateToken } = require('../middleware/auth');
+const authenticateToken = require('../middlewares/authenticateToken');
 
 // Create a new appointment
 router.post('/create-appointment', authenticateToken, appointmentController.createAppointment);
