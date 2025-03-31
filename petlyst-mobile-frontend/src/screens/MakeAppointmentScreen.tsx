@@ -419,6 +419,9 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
 
       console.log('Sending appointment data:', JSON.stringify(appointmentData));
 
+      // Log the API endpoint we're using
+      console.log('API endpoint:', 'https://petlyst.com:3001/api/create-appointment');
+
       // Send the data to the backend
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
@@ -429,15 +432,31 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         body: JSON.stringify(appointmentData)
       });
 
+      // Log the response status and headers
+      console.log('Response status:', response.status);
+      console.log('Response status text:', response.statusText);
+      
       // Check for non-JSON responses
       const contentType = response.headers.get('content-type');
+      console.log('Content-Type:', contentType);
+      
+      // Get the response text regardless of content type
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned non-JSON response. Please contact support.');
+        console.error('Non-JSON response:', responseText);
+        throw new Error(`Server returned non-JSON response (${response.status}). Please contact support.`);
       }
 
-      const result = await response.json();
+      // Parse the JSON response
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Failed to parse server response. Please contact support.');
+      }
       
       if (!response.ok) {
         throw new Error(result.message || 'Failed to create appointment');

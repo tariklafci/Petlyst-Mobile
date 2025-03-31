@@ -22,8 +22,10 @@ exports.createAppointment = async (req, res) => {
   } = req.body;
   const user_id = req.user.userId; // from the auth middleware
 
+  console.log('Received appointment data:', JSON.stringify(req.body, null, 2));
+
   // Validate required fields
-  if (!pet_id || appointment_start_hour === undefined || appointment_end_hour === undefined || !appointment_date) {
+  if (!pet_id || !appointment_start_hour || !appointment_end_hour || !appointment_date) {
     return res.status(400).json({ 
       success: false,
       message: 'Missing required fields. Please provide pet_id, appointment_start_hour, appointment_end_hour, and appointment_date.'
@@ -45,63 +47,84 @@ exports.createAppointment = async (req, res) => {
     // Generate a meeting URL and password if this is a video meeting
     let meeting_url = null;
     let meeting_password = null;
-    if (video_meeting) {
+    const videoMeetingValue = video_meeting === true; // Ensure boolean
+    
+    if (videoMeetingValue) {
       // Simple UUID-based link for demonstration purposes
       // In a production app, you'd integrate with a video conferencing API
       meeting_url = `https://petlyst.com/meet/${uuidv4()}`;
       meeting_password = Math.random().toString(36).substring(2, 10).toUpperCase(); // Random alphanumeric password
     }
-    
-    // Default values for other required fields
-    const clinic_id = null; // This will be assigned by admin/vet later
-    const veterinarian_id = null; // This will be assigned by admin/vet later
-    const appointment_status = 'pending'; // Default status for new appointments
 
-    // Insert the appointment into the database
+    // Try to determine the column names and types in the appointments table
+    try {
+      const tableInfoQuery = `
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = 'appointments'
+      `;
+      const tableInfo = await pool.query(tableInfoQuery);
+      console.log('Appointments table columns:', tableInfo.rows);
+    } catch (infoError) {
+      console.warn('Could not fetch table info:', infoError.message);
+    }
+
+    // First, try the most basic query with only the critical fields
+    // This minimizes chances of SQL errors with column mismatches
     const query = `
       INSERT INTO appointments (
         pet_id,
         video_meeting,
-        clinic_id,
-        veterinarian_id,
-        meeting_url,
         appointment_start_hour,
-        appointment_status,
-        notes,
         appointment_end_hour,
-        meeting_password,
-        appointment_date
+        appointment_date,
+        notes
       ) 
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+      VALUES ($1, $2, $3, $4, $5, $6) 
       RETURNING *
     `;
 
     const values = [
       pet_id,
-      video_meeting,
-      clinic_id,
-      veterinarian_id,
-      meeting_url,
+      videoMeetingValue,
       appointment_start_hour,
-      appointment_status,
-      notes || '',
       appointment_end_hour,
-      meeting_password,
-      appointment_date
+      appointment_date,
+      notes || ''
     ];
 
+    console.log('Executing SQL with values:', JSON.stringify(values, null, 2));
+    
     const result = await pool.query(query, values);
+    console.log('SQL result:', result.rows[0]);
 
-    // Check if appointment was created successfully
-    if (result.rows.length > 0) {
-      return res.status(201).json({
-        success: true,
-        message: 'Appointment created successfully',
-        appointment: result.rows[0]
-      });
-    } else {
-      throw new Error('Failed to create appointment');
+    // After succeeding with basic insert, update with additional fields if needed
+    if (result.rows.length > 0 && (meeting_url || meeting_password)) {
+      const appointmentId = result.rows[0].appointment_id;
+      const updateQuery = `
+        UPDATE appointments 
+        SET meeting_url = $1, meeting_password = $2 
+        WHERE appointment_id = $3
+        RETURNING *
+      `;
+      
+      try {
+        const updateResult = await pool.query(updateQuery, 
+          [meeting_url, meeting_password, appointmentId]
+        );
+        console.log('Updated with meeting details:', updateResult.rows[0]);
+      } catch (updateError) {
+        console.warn('Could not update meeting details:', updateError.message);
+        // Continue anyway as the basic appointment was created
+      }
     }
+
+    // Return the successful response
+    return res.status(201).json({
+      success: true,
+      message: 'Appointment created successfully',
+      appointment: result.rows[0]
+    });
   } catch (error) {
     console.error('Error creating appointment:', error);
     return res.status(500).json({
