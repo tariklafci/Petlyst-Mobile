@@ -417,6 +417,8 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         appointment_date: appointmentDate
       };
 
+      console.log('Sending appointment data:', JSON.stringify(appointmentData));
+
       // Send the data to the backend
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
@@ -427,12 +429,19 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         body: JSON.stringify(appointmentData)
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create appointment');
+      // Check for non-JSON responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        throw new Error('Server returned non-JSON response. Please contact support.');
       }
 
       const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create appointment');
+      }
       
       // Close the modal and reset form
       setShowConfirmModal(false);
@@ -449,7 +458,26 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
       );
     } catch (error) {
       console.error('Error creating appointment:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create appointment');
+      let errorMessage = 'Failed to create appointment';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert(
+        'Error', 
+        errorMessage,
+        [
+          { 
+            text: 'Try Again',
+            style: 'cancel'
+          },
+          {
+            text: 'Cancel',
+            onPress: () => setShowConfirmModal(false)
+          }
+        ]
+      );
     } finally {
       setIsSubmitting(false);
     }
