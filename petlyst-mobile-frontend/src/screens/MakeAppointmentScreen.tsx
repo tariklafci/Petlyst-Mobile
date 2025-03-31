@@ -1,118 +1,22 @@
-// AppointmentDetailsScreen.tsx
-
 import React, { useEffect, useState } from 'react';
 import {
+  SafeAreaView,
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
-  StyleSheet,
   Image,
+  ActivityIndicator,
+  Alert,
   ScrollView,
   Modal,
-  Alert,
-  ActivityIndicator,
   TextInput,
   Switch,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-
-/**
- * Utility to generate a range of days (starting from "today" for 'count' days).
- * Returns objects with dayName (Mon, Tue, etc.), dateNum (e.g. 14), and a Date instance.
- */
-function generateNextDays(count: number) {
-  const days: { id: string; dayName: string; dateNum: string; dateObj: Date }[] = [];
-  const today = new Date();
-
-  for (let i = 0; i < count; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-
-    // Day abbreviation, e.g., 'MO', 'TU', etc.
-    const weekday = date
-      .toLocaleString('en-US', { weekday: 'short' })
-      .toUpperCase() // e.g. "MON" => we'll just take first 2 letters
-      .slice(0, 2);
-
-    days.push({
-      id: `${weekday} ${date.getDate()}`, // e.g. "MO 19"
-      dayName: weekday,
-      dateNum: date.getDate().toString(),
-      dateObj: date,
-    });
-  }
-  return days;
-}
-
-/**
- * Utility to generate time slots (e.g. "09.00 - 09.30") from opening to closing in intervals.
- * - openingTime, closingTime: "HH:MM" strings
- * - intervalMinutes: e.g. 30
- */
-function generateTimeSlots(
-  openingTime: string,
-  closingTime: string,
-  intervalMinutes: number
-): string[] {
-  const [openHour, openMinute] = openingTime.split(':').map(Number);
-  const [closeHour, closeMinute] = closingTime.split(':').map(Number);
-
-  let currentHour = openHour;
-  let currentMinute = openMinute;
-  const slots: string[] = [];
-
-  while (
-    currentHour < closeHour ||
-    (currentHour === closeHour && currentMinute < closeMinute)
-  ) {
-    const startHour = currentHour.toString().padStart(2, '0');
-    const startMin = currentMinute.toString().padStart(2, '0');
-
-    let nextMinute = currentMinute + intervalMinutes;
-    let nextHour = currentHour;
-
-    if (nextMinute >= 60) {
-      nextHour += 1;
-      nextMinute -= 60;
-    }
-
-    // If we exceed closing time, break
-    if (
-      nextHour > closeHour ||
-      (nextHour === closeHour && nextMinute > closeMinute)
-    ) {
-      break;
-    }
-
-    const endHour = nextHour.toString().padStart(2, '0');
-    const endMin = nextMinute.toString().padStart(2, '0');
-
-    // e.g. "09.00 - 09.30"
-    slots.push(`${startHour}.${startMin} - ${endHour}.${endMin}`);
-
-    currentHour = nextHour;
-    currentMinute = nextMinute;
-  }
-
-  return slots;
-}
-
-/**
- * Helper to split an array into two roughly equal parts (for left & right columns).
- */
-function splitIntoTwoColumns(arr: string[]): { left: string[]; right: string[] } {
-  const midpoint = Math.ceil(arr.length / 2);
-  return {
-    left: arr.slice(0, midpoint),
-    right: arr.slice(midpoint),
-  };
-}
 
 interface Pet {
   id: number;
@@ -124,99 +28,96 @@ interface Pet {
   age: string;
 }
 
-/**
- * Example AppointmentDetailsScreen:
- * - "Which Pet?" is selectable. Tapping it opens a modal of user's pets.
- * - "Which Date?" is a horizontal list from today's date forward (7 days).
- * - Time slots are generated from openingTime, closingTime, interval.
- * - Splits slots into two columns in dashed boxes.
- * - Final "Complete Appointment" button logs selections (or do your booking logic).
- */
+interface DayItem {
+  id: string;
+  dayName: string;
+  dateNum: string;
+  dateObj: Date;
+}
+
 const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigation: any }) => {
-  // Suppose you get these from route.params or a fetch:
-  const openingTime = route?.params?.openingTime || '09:00';
+  // Appointment configuration (fallback values provided)
+  const openingTime = route?.params?.openingTime || '10:00';
   const closingTime = route?.params?.closingTime || '17:00';
-  const interval = route?.params?.timeSlotInterval || 30; // in minutes
+  const interval = route?.params?.timeSlotInterval || 30;
 
-  // For demonstration, generate next 7 days:
-  const [days, setDays] = useState<
-    { id: string; dayName: string; dateNum: string; dateObj: Date }[]
-  >([]);
+  // State variables
+  const [days, setDays] = useState<DayItem[]>([]);
   const [selectedDayId, setSelectedDayId] = useState<string>('');
-
-  // Time slots
   const [allSlots, setAllSlots] = useState<string[]>([]);
   const [leftSlots, setLeftSlots] = useState<string[]>([]);
   const [rightSlots, setRightSlots] = useState<string[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-
-  // Pets
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
-  const [showPetModal, setShowPetModal] = useState<boolean>(false);
   const [isLoadingPets, setIsLoadingPets] = useState<boolean>(true);
   const [petsError, setPetsError] = useState<string | null>(null);
-
-  // Appointment confirmation modal
+  const [showPetModal, setShowPetModal] = useState<boolean>(false);
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [isVideoMeeting, setIsVideoMeeting] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Function to navigate to AddPet screen
-  const handleNavigateToAddPet = () => {
-    // Store the current route name in AsyncStorage to return here after adding a pet
-    AsyncStorage.setItem('previousScreen', 'AppointmentDetails');
-    navigation.navigate('AddPet');
+  // Utility: Generate next N days starting from today
+  const generateNextDays = (count: number): DayItem[] => {
+    const daysArray: DayItem[] = [];
+    const today = new Date();
+    for (let i = 0; i < count; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const weekday = date.toLocaleString('en-US', { weekday: 'short' }).toUpperCase().slice(0, 2);
+      daysArray.push({
+        id: `${weekday} ${date.getDate()}`,
+        dayName: weekday,
+        dateNum: date.getDate().toString(),
+        dateObj: date,
+      });
+    }
+    return daysArray;
   };
 
-  useEffect(() => {
-    // Generate days from today
-    const nextDays = generateNextDays(15);
-    setDays(nextDays);
+  // Utility: Generate time slots based on opening/closing times and interval
+  const generateTimeSlots = (open: string, close: string, intervalMinutes: number): string[] => {
+    const [openHour, openMinute] = open.split(':').map(Number);
+    const [closeHour, closeMinute] = close.split(':').map(Number);
+    let currentHour = openHour;
+    let currentMinute = openMinute;
+    const slots: string[] = [];
 
-    // Default select the first day in the array
-    if (nextDays.length > 0) {
-      setSelectedDayId(nextDays[0].id);
-    }
-
-    // Generate time slots from opening/closing times
-    const slots = generateTimeSlots(openingTime, closingTime, interval);
-    setAllSlots(slots);
-
-    // Split into two columns
-    const { left, right } = splitIntoTwoColumns(slots);
-    setLeftSlots(left);
-    setRightSlots(right);
-
-    // Fetch pets from API
-    fetchPets();
-
-    // Check if we're returning from AddPet screen
-    const checkPreviousScreen = async () => {
-      const prevScreen = await AsyncStorage.getItem('previousScreen');
-      if (prevScreen === 'AppointmentDetails') {
-        // We're returning from Add Pet screen, refetch pets
-        fetchPets();
-        // Clear the stored value
-        await AsyncStorage.removeItem('previousScreen');
+    while (
+      currentHour < closeHour ||
+      (currentHour === closeHour && currentMinute < closeMinute)
+    ) {
+      const startHour = currentHour.toString().padStart(2, '0');
+      const startMin = currentMinute.toString().padStart(2, '0');
+      let nextMinute = currentMinute + intervalMinutes;
+      let nextHour = currentHour;
+      if (nextMinute >= 60) {
+        nextHour += 1;
+        nextMinute -= 60;
       }
-    };
-    
-    checkPreviousScreen();
-  }, []);
+      if (
+        nextHour > closeHour ||
+        (nextHour === closeHour && nextMinute > closeMinute)
+      ) {
+        break;
+      }
+      const endHour = nextHour.toString().padStart(2, '0');
+      const endMin = nextMinute.toString().padStart(2, '0');
+      slots.push(`${startHour}.${startMin} - ${endHour}.${endMin}`);
+      currentHour = nextHour;
+      currentMinute = nextMinute;
+    }
+    return slots;
+  };
 
-  useEffect(() => {
-    // This will run when the screen comes into focus
-    const unsubscribe = navigation.addListener('focus', () => {
-      // Refetch pets when the screen is focused
-      fetchPets();
-    });
+  // Utility: Split array into two columns
+  const splitIntoTwoColumns = (arr: string[]): { left: string[]; right: string[] } => {
+    const midpoint = Math.ceil(arr.length / 2);
+    return { left: arr.slice(0, midpoint), right: arr.slice(midpoint) };
+  };
 
-    // Clean up the listener when component unmounts
-    return unsubscribe;
-  }, [navigation]);
-
+  // Utility: Calculate pet age based on birth date
   const calculateAge = (birth_date: Date | null): string => {
     if (!birth_date) return 'Unknown';
     const birth = new Date(birth_date);
@@ -229,16 +130,19 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     return `${age} ${age === 1 ? 'year' : 'years'}`;
   };
 
+  // Utility: Set the first pet as default
   const selectFirstPet = async (id: number, name: string) => {
     try {
       await AsyncStorage.setItem('selectedPetId', id.toString());
       await AsyncStorage.setItem('selectedPetName', name);
-      setSelectedPet(pets.find(pet => pet.id === id) || null);
+      const pet = pets.find(p => p.id === id) || null;
+      setSelectedPet(pet);
     } catch (error) {
       console.error('Error storing selected pet ID:', error);
     }
   };
 
+  // Fetch pets from the API
   const fetchPets = async () => {
     setIsLoadingPets(true);
     try {
@@ -247,18 +151,13 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         Alert.alert('Error', 'No token found. Please log in again.');
         return;
       }
-
       const response = await fetch('https://petlyst.com:3001/api/fetch-pets', {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
-
       const data = await response.json();
       const formattedPets: Pet[] = data.map((pet: any) => ({
         id: pet.pet_id,
@@ -269,10 +168,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         pet_birth_date: pet.pet_birth_date,
         age: calculateAge(pet.pet_birth_date),
       }));
-
       setPets(formattedPets);
-
-      // Check if selectedPetId is already set in AsyncStorage
       const storedPetId = await AsyncStorage.getItem('selectedPetId');
       if (storedPetId && formattedPets.length > 0) {
         const petId = parseInt(storedPetId, 10);
@@ -280,11 +176,9 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         if (pet) {
           setSelectedPet(pet);
         } else if (formattedPets.length > 0) {
-          // If stored pet not found, default to first pet
           await selectFirstPet(formattedPets[0].id, formattedPets[0].name);
         }
       } else if (formattedPets.length > 0) {
-        // No stored pet ID, set the first pet
         await selectFirstPet(formattedPets[0].id, formattedPets[0].name);
       }
     } catch (error) {
@@ -296,51 +190,54 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  /** "Which Pet?" card tapped => show modal of pets */
-  const handlePetCardPress = () => {
-    setShowPetModal(true);
-  };
+  // On component mount, generate days, time slots, and fetch pets
+  useEffect(() => {
+    const nextDays = generateNextDays(15);
+    setDays(nextDays);
+    if (nextDays.length > 0) {
+      setSelectedDayId(nextDays[0].id);
+    }
+    const slots = generateTimeSlots(openingTime, closingTime, interval);
+    setAllSlots(slots);
+    const { left, right } = splitIntoTwoColumns(slots);
+    setLeftSlots(left);
+    setRightSlots(right);
+    fetchPets();
+  }, []);
 
-  /** User picks a pet in the modal */
+  // Refresh pets when the screen gains focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', fetchPets);
+    return unsubscribe;
+  }, [navigation]);
+
+  // Handlers for pet, day, and time selection
+  const handlePetCardPress = () => setShowPetModal(true);
   const handlePetSelect = (pet: Pet) => {
     setSelectedPet(pet);
     setShowPetModal(false);
-    // Also update AsyncStorage
     AsyncStorage.setItem('selectedPetId', pet.id.toString());
     AsyncStorage.setItem('selectedPetName', pet.name);
   };
-
-  /** Day tapped in the horizontal list */
   const handleDayPress = (dayId: string) => {
     setSelectedDayId(dayId);
-    setSelectedTime(null); // reset time selection
+    setSelectedTime(null);
   };
+  const handleTimePress = (time: string) => setSelectedTime(time);
 
-  /** Time slot tapped */
-  const handleTimePress = (time: string) => {
-    setSelectedTime(time);
-  };
-
-  /** Parse time string "HH.MM - HH.MM" into start and end objects */
-  const parseTimeSlot = (timeSlotString: string | null): { start: Date | null, end: Date | null } => {
+  // Parse the selected time slot into start and end Date objects
+  const parseTimeSlot = (timeSlotString: string | null): { start: Date | null; end: Date | null } => {
     if (!timeSlotString) return { start: null, end: null };
-
     try {
       const [startStr, endStr] = timeSlotString.split(' - ');
       const [startHour, startMinute] = startStr.split('.').map(Number);
       const [endHour, endMinute] = endStr.split('.').map(Number);
-
-      // Find the selected day
       const selectedDay = days.find(day => day.id === selectedDayId);
       if (!selectedDay) return { start: null, end: null };
-
-      // Create new date objects for start and end times
       const startDate = new Date(selectedDay.dateObj);
       startDate.setHours(startHour, startMinute, 0, 0);
-
       const endDate = new Date(selectedDay.dateObj);
       endDate.setHours(endHour, endMinute, 0, 0);
-
       return { start: startDate, end: endDate };
     } catch (error) {
       console.error('Error parsing time slot:', error);
@@ -348,28 +245,43 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  /** Final "Complete Appointment" */
+  // Prepare appointment details for confirmation
+  const getFormattedAppointmentDetails = () => {
+    if (!selectedPet || !selectedDayId || !selectedTime) return null;
+    const selectedDay = days.find(day => day.id === selectedDayId);
+    if (!selectedDay) return null;
+    const formattedDate = selectedDay.dateObj.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    return {
+      petName: selectedPet.name,
+      petBreed: selectedPet.breed,
+      date: formattedDate,
+      time: selectedTime,
+    };
+  };
+
+  // When the user taps to complete the appointment
   const handleCompleteAppointment = () => {
     if (!selectedPet) {
       Alert.alert('Missing Information', 'Please select a pet for the appointment.');
       return;
     }
-
     if (!selectedDayId) {
       Alert.alert('Missing Information', 'Please select a day for the appointment.');
       return;
     }
-
     if (!selectedTime) {
       Alert.alert('Missing Information', 'Please select a time slot for the appointment.');
       return;
     }
-
-    // Show the confirmation modal to collect additional details
     setShowConfirmModal(true);
   };
 
-  /** Submit the appointment to the backend */
+  // Submit appointment to the backend
   const submitAppointment = async () => {
     setIsSubmitting(true);
     try {
@@ -379,159 +291,80 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         setIsSubmitting(false);
         return;
       }
-
-      // Get the selected pet ID
       const petId = selectedPet?.id;
       if (!petId) {
         Alert.alert('Error', 'No pet selected.');
         setIsSubmitting(false);
         return;
       }
-
-      // Get the selected day
       const selectedDay = days.find(day => day.id === selectedDayId);
       if (!selectedDay) {
         Alert.alert('Error', 'No day selected.');
         setIsSubmitting(false);
         return;
       }
-
-      // Parse the time slot
       const { start, end } = parseTimeSlot(selectedTime);
       if (!start || !end) {
         Alert.alert('Error', 'Invalid time selection.');
         setIsSubmitting(false);
         return;
       }
-
-      // Format the date for the API (YYYY-MM-DD)
       const appointmentDate = selectedDay.dateObj.toISOString().split('T')[0];
-
-      // Create the appointment data
       const appointmentData = {
         pet_id: petId,
         video_meeting: isVideoMeeting,
         appointment_start_hour: start.toISOString(),
         appointment_end_hour: end.toISOString(),
         notes: notes.trim(),
-        appointment_date: appointmentDate
+        appointment_date: appointmentDate,
       };
-
-      console.log('Sending appointment data:', JSON.stringify(appointmentData));
-
-      // Log the API endpoint we're using
-      console.log('API endpoint:', 'https://petlyst.com:3001/api/create-appointment');
-
-      // Send the data to the backend
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(appointmentData)
+        body: JSON.stringify(appointmentData),
       });
-
-      // Log the response status and headers
-      console.log('Response status:', response.status);
-      console.log('Response status text:', response.statusText);
-      
-      // Check for non-JSON responses
       const contentType = response.headers.get('content-type');
-      console.log('Content-Type:', contentType);
-      
-      // Get the response text regardless of content type
       const responseText = await response.text();
-      console.log('Response text:', responseText);
-
       if (!contentType || !contentType.includes('application/json')) {
-        console.error('Non-JSON response:', responseText);
-        throw new Error(`Server returned non-JSON response (${response.status}). Please contact support.`);
+        throw new Error(`Server returned non-JSON response (${response.status}).`);
       }
-
-      // Parse the JSON response
       let result;
       try {
         result = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        throw new Error('Failed to parse server response. Please contact support.');
+        throw new Error('Failed to parse server response.');
       }
-      
       if (!response.ok) {
         throw new Error(result.message || 'Failed to create appointment');
       }
-      
-      // Close the modal and reset form
       setShowConfirmModal(false);
       setNotes('');
       setIsVideoMeeting(false);
-      
-      // Show success message
       Alert.alert(
-        'Appointment Created', 
+        'Appointment Created',
         `Your appointment has been successfully scheduled.${isVideoMeeting ? '\n\nYou will receive a video meeting link before your appointment.' : ''}`,
-        [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (error) {
-      console.error('Error creating appointment:', error);
       let errorMessage = 'Failed to create appointment';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      Alert.alert(
-        'Error', 
-        errorMessage,
-        [
-          { 
-            text: 'Try Again',
-            style: 'cancel'
-          },
-          {
-            text: 'Cancel',
-            onPress: () => setShowConfirmModal(false)
-          }
-        ]
-      );
+      if (error instanceof Error) errorMessage = error.message;
+      Alert.alert('Error', errorMessage, [
+        { text: 'Try Again', style: 'cancel' },
+        { text: 'Cancel', onPress: () => setShowConfirmModal(false) },
+      ]);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  /** Format the appointment details for display */
-  const getFormattedAppointmentDetails = () => {
-    if (!selectedPet || !selectedDayId || !selectedTime) return null;
-
-    const selectedDay = days.find(day => day.id === selectedDayId);
-    
-    if (!selectedDay) return null;
-
-    // Format the date: e.g., "Monday, January 1, 2023"
-    const formattedDate = selectedDay.dateObj.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    return {
-      petName: selectedPet.name,
-      petBreed: selectedPet.breed,
-      date: formattedDate,
-      time: selectedTime
-    };
-  };
-
-  /** Renders a single day in the horizontal list */
-  const renderDayItem = ({ item }: { item: typeof days[0] }) => {
+  // Render functions for day and time selections
+  const renderDayItem = ({ item }: { item: DayItem }) => {
     const isSelected = item.id === selectedDayId;
     return (
       <TouchableOpacity
-        key={item.id}
         style={[styles.dayItem, isSelected && styles.dayItemSelected]}
         onPress={() => handleDayPress(item.id)}
       >
@@ -545,7 +378,6 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     );
   };
 
-  /** Renders a single time slot button in the columns */
   const renderTimeButton = (time: string, column: 'left' | 'right') => {
     const isSelected = time === selectedTime;
     return (
@@ -564,54 +396,44 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Header */}
-      <View style={styles.headerContainer}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Appointment Details</Text>
-        <View style={{ width: 24 }} /> {/* placeholder for spacing */}
+        <View style={{ width: 24 }} />
       </View>
 
       {isLoadingPets ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#006DFF" />
+          <ActivityIndicator size="large" color="#007bff" />
           <Text style={styles.loadingText}>Loading your pets...</Text>
         </View>
       ) : pets.length === 0 ? (
-        // No pets view
-        <View style={styles.noPetsContainer}>
-          <Ionicons name="paw-outline" size={60} color="#006DFF" />
-          <Text style={styles.noPetsTitle}>No Pets Found</Text>
-          <Text style={styles.noPetsMessage}>
+        <View style={styles.emptyContainer}>
+          <Ionicons name="paw-outline" size={60} color="#007bff" />
+          <Text style={styles.emptyText}>No Pets Found</Text>
+          <Text style={styles.emptySubText}>
             To proceed with booking an appointment, you need to add a pet to your profile first.
           </Text>
-          <TouchableOpacity 
-            style={styles.addPetButton}
-            onPress={handleNavigateToAddPet}
-          >
-            <Text style={styles.addPetButtonText}>Add a Pet</Text>
+          <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddPet')}>
+            <Text style={styles.addButtonText}>Add a Pet</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView contentContainerStyle={styles.contentContainer}>
           {/* Which Pet? */}
           <Text style={styles.sectionTitle}>Which Pet?</Text>
           <TouchableOpacity style={styles.petCard} onPress={handlePetCardPress}>
             {selectedPet ? (
               <>
                 <Image
-                  source={
-                    selectedPet.imageUrl
-                      ? { uri: selectedPet.imageUrl }
-                      : require('../../assets/splash-icon.png')
-                  }
+                  source={selectedPet.imageUrl ? { uri: selectedPet.imageUrl } : require('../../assets/splash-icon.png')}
                   style={styles.petImage}
                 />
-                <View style={{ marginLeft: 12 }}>
+                <View style={styles.petInfo}>
                   <Text style={styles.petName}>{selectedPet.name}</Text>
-                  <Text style={styles.petDesc}>
-                    {selectedPet.age} - {selectedPet.breed}
-                  </Text>
+                  <Text style={styles.petDetails}>{selectedPet.age} - {selectedPet.breed}</Text>
                 </View>
               </>
             ) : (
@@ -627,27 +449,21 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
             renderItem={renderDayItem}
-            contentContainerStyle={{ paddingVertical: 8 }}
+            contentContainerStyle={styles.daysList}
           />
 
-          {/* Time slots in two columns */}
-          <View style={styles.timeSlotsRow}>
-            {/* Left Column */}
+          {/* Time slots (split into two columns) */}
+          <View style={styles.timeSlotsContainer}>
             <View style={styles.timeColumn}>
-              {leftSlots.map((time) => renderTimeButton(time, 'left'))}
+              {leftSlots.map(time => renderTimeButton(time, 'left'))}
             </View>
-            {/* Right Column */}
             <View style={styles.timeColumn}>
-              {rightSlots.map((time) => renderTimeButton(time, 'right'))}
+              {rightSlots.map(time => renderTimeButton(time, 'right'))}
             </View>
           </View>
 
-          {/* Complete Appointment Button */}
-          <TouchableOpacity 
-            style={[
-              styles.completeButton,
-              (!selectedPet || !selectedTime) && styles.completeButtonDisabled
-            ]} 
+          <TouchableOpacity
+            style={[styles.completeButton, (!selectedPet || !selectedTime) && styles.completeButtonDisabled]}
             onPress={handleCompleteAppointment}
             disabled={!selectedPet || !selectedTime}
           >
@@ -656,7 +472,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         </ScrollView>
       )}
 
-      {/* Modal for pet selection */}
+      {/* Pet Selection Modal */}
       <Modal
         visible={showPetModal}
         transparent
@@ -668,53 +484,43 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
             <Text style={styles.modalTitle}>Select a Pet</Text>
             {isLoadingPets ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#006DFF" />
+                <ActivityIndicator size="large" color="#007bff" />
                 <Text style={styles.loadingText}>Loading pets...</Text>
               </View>
             ) : petsError ? (
-              <Text style={[styles.petOptionName, { color: 'red' }]}>{petsError}</Text>
+              <Text style={{ color: 'red' }}>{petsError}</Text>
             ) : pets.length > 0 ? (
-              pets.map((pet) => (
+              pets.map(pet => (
                 <TouchableOpacity
                   key={pet.id}
                   style={styles.petOption}
                   onPress={() => handlePetSelect(pet)}
                 >
-                  <Image 
-                    source={
-                      pet.imageUrl
-                        ? { uri: pet.imageUrl }
-                        : require('../../assets/splash-icon.png')
-                    }
-                    style={styles.petOptionImage} 
+                  <Image
+                    source={pet.imageUrl ? { uri: pet.imageUrl } : require('../../assets/splash-icon.png')}
+                    style={styles.petOptionImage}
                   />
-                  <View style={{ marginLeft: 10 }}>
+                  <View style={styles.petOptionInfo}>
                     <Text style={styles.petOptionName}>{pet.name}</Text>
-                    <Text style={styles.petOptionDesc}>
-                      {pet.age} - {pet.breed}
-                    </Text>
+                    <Text style={styles.petOptionDesc}>{pet.age} - {pet.breed}</Text>
                   </View>
                 </TouchableOpacity>
               ))
             ) : (
-              <View style={styles.noPetsModalContent}>
-                <Text style={styles.petOptionName}>No pets available</Text>
+              <View style={styles.emptyContainer}>
+                <Text>No pets available</Text>
                 <TouchableOpacity
-                  style={styles.addPetModalButton}
+                  style={styles.addButton}
                   onPress={() => {
                     setShowPetModal(false);
-                    handleNavigateToAddPet();
+                    navigation.navigate('AddPet');
                   }}
                 >
-                  <Text style={styles.addPetButtonText}>Add a Pet</Text>
+                  <Text style={styles.addButtonText}>Add a Pet</Text>
                 </TouchableOpacity>
               </View>
             )}
-
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setShowPetModal(false)}
-            >
+            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowPetModal(false)}>
               <Text style={styles.modalCloseText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -731,8 +537,6 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         <View style={styles.modalOverlay}>
           <View style={styles.confirmModalContainer}>
             <Text style={styles.modalTitle}>Confirm Appointment</Text>
-            
-            {/* Appointment Details Summary */}
             {getFormattedAppointmentDetails() && (
               <View style={styles.appointmentSummary}>
                 <Text style={styles.summaryTitle}>Appointment Details</Text>
@@ -752,25 +556,20 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
                 </View>
               </View>
             )}
-
-            {/* Video Meeting Option */}
             <View style={styles.optionRow}>
               <Text style={styles.optionLabel}>Video Meeting:</Text>
               <Switch
-                trackColor={{ false: "#ccc", true: "#006DFF" }}
+                trackColor={{ false: "#ccc", true: "#007bff" }}
                 thumbColor={isVideoMeeting ? "#fff" : "#f4f3f4"}
                 onValueChange={setIsVideoMeeting}
                 value={isVideoMeeting}
               />
             </View>
-            
             {isVideoMeeting && (
               <Text style={styles.videoMeetingNote}>
                 A secure meeting link will be sent to you before the appointment.
               </Text>
             )}
-
-            {/* Notes Input */}
             <Text style={styles.notesLabel}>Additional Notes</Text>
             <TextInput
               style={styles.notesInput}
@@ -780,22 +579,11 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
               value={notes}
               onChangeText={setNotes}
             />
-
-            {/* Action Buttons */}
             <View style={styles.actionButtonsRow}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowConfirmModal(false)}
-                disabled={isSubmitting}
-              >
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowConfirmModal(false)} disabled={isSubmitting}>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={styles.confirmButton}
-                onPress={submitAppointment}
-                disabled={isSubmitting}
-              >
+              <TouchableOpacity style={styles.confirmButton} onPress={submitAppointment} disabled={isSubmitting}>
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
@@ -815,32 +603,20 @@ export default AppointmentDetailsScreen;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
-  headerContainer: {
+  header: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#333',
-  },
-  container: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 16,
-    marginBottom: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -850,79 +626,87 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
   },
-  noPetsContainer: {
+  emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
-  noPetsTitle: {
-    fontSize: 20,
+  emptyText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  addButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
     color: '#333',
-  },
-  noPetsMessage: {
-    fontSize: 16,
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#666',
-    lineHeight: 22,
   },
-  addPetButton: {
-    backgroundColor: '#006DFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  addPetButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  noPetsModalContent: {
-    alignItems: 'center',
-    padding: 10,
-  },
-  addPetModalButton: {
-    backgroundColor: '#006DFF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-
-  // Pet card
   petCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F6F9FD',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
   petImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: '#e0e0e0',
+  },
+  petInfo: {
+    flex: 1,
   },
   petName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-  petDesc: {
+  petDetails: {
     fontSize: 14,
     color: '#666',
     marginTop: 4,
   },
-
-  // Day picker
+  daysList: {
+    paddingVertical: 8,
+  },
   dayItem: {
     width: 50,
     height: 60,
@@ -933,7 +717,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayItemSelected: {
-    backgroundColor: '#006DFF',
+    backgroundColor: '#007bff',
   },
   dayName: {
     fontSize: 13,
@@ -951,9 +735,7 @@ const styles = StyleSheet.create({
   dateNumSelected: {
     color: '#FFF',
   },
-
-  // Time slots
-  timeSlotsRow: {
+  timeSlotsContainer: {
     flexDirection: 'row',
     marginTop: 12,
     justifyContent: 'space-between',
@@ -974,7 +756,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   timeSlotSelected: {
-    backgroundColor: '#006DFF',
+    backgroundColor: '#007bff',
   },
   timeText: {
     fontSize: 14,
@@ -984,11 +766,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '600',
   },
-
-  // Complete button
   completeButton: {
     marginTop: 24,
-    backgroundColor: '#006DFF',
+    backgroundColor: '#007bff',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1001,8 +781,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-
-  // Pet selection modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.35)',
@@ -1033,6 +811,9 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
   },
+  petOptionInfo: {
+    marginLeft: 10,
+  },
   petOptionName: {
     fontSize: 16,
     fontWeight: '600',
@@ -1054,8 +835,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
-
-  // Appointment Confirmation Modal
   confirmModalContainer: {
     width: '90%',
     backgroundColor: '#fff',
@@ -1143,7 +922,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   confirmButton: {
-    backgroundColor: '#006DFF',
+    backgroundColor: '#007bff',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
