@@ -25,7 +25,7 @@ exports.fetchClinics = async (req, res) => {
         c.is_open_24_7 AS clinic_is_open_24_7,
         c.clinic_type AS clinic_type,
         cap.clinic_album_photo_id AS photo_id,
-        cap.clinic_album_photo_url AS s3_url,
+        cap.clinic_album_photo_url AS s3_url
       FROM clinics AS c
       LEFT JOIN clinic_albums AS cap
         ON c.clinic_id = cap.clinic_id
