@@ -7,3 +7,5 @@ const { createAppointment } = require('../controllers/appointmentController');
 
 
 router.post('/create-appointment', authenticateToken, createAppointment);
+
+module.exports = router;
