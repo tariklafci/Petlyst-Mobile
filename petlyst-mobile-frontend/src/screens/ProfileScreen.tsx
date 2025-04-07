@@ -48,7 +48,7 @@ const ProfileScreen = ({ navigation }: any) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const statusOptions = ['pending', 'active', 'completed'];
+  const statusOptions = ['pending', 'confirmed', 'completed'];
   const displayOptions = ['Pending', 'Active', 'Completed'];
 
   // Function to fetch appointments
@@ -153,11 +153,11 @@ const ProfileScreen = ({ navigation }: any) => {
             style={[
               styles.statusText, 
               item.status === 'pending' && styles.pendingText,
-              item.status === 'active' && styles.activeText,
+              item.status === 'confirmed' && styles.activeText,
               item.status === 'completed' && styles.completedText,
             ]}
           >
-            {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+            {item.status === 'confirmed' ? 'Active' : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
           </Text>
         </View>
       </View>
