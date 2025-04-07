@@ -26,13 +26,13 @@ type ClinicItem = {
   id: number; // if you want to use id in keyExtractor
   clinic_name: string;
   clinic_address: string;
+  clinic_description: string;
   clinic_phone: string;
   verification_status: string;
   operator_id: number;
   location: string;
   photos: ClinicPhoto[];
   working_hours?: string;
-  description?: string;
   average_rating?: number;
   total_reviews?: number;
 };
@@ -77,9 +77,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
         id: clinic.id,
         clinic_name: clinic.name,
         clinic_address: clinic.address,
+        clinic_description: clinic.description,
         verification_status: clinic.verification_status,
         operator_id: clinic.operator_id,
-        location: clinic.location,
+        address: clinic.address,
         photos: clinic.photos || [],
       }));
 
@@ -156,7 +157,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleMakeAppointment = async (clinicId: any) => {
-    navigation.navigate('MakeAppointment', { clinic_id: clinicId });
+    navigation.navigate('MakeAppointment', { clinic_id: clinicId,  });
 };
 
   return (
@@ -256,19 +257,19 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 </Text>
 
                 <Text style={styles.descriptionText}>
-                  {selectedClinic.description || 'N/A'}
+                  {selectedClinic.clinic_description || 'N/A'}
                 </Text>
 
                 {/* More info in detail rows */}
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Address:</Text>
+                  <Text style={styles.detailLabel}>Address: {selectedClinic.clinic_address} </Text>
                   <Text style={styles.detailValue}>
-                    {selectedClinic.clinic_address}
+                    
                   </Text>
                 </View>
 
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Phone:</Text>
+                  <Text style={styles.detailLabel}>Phone: {selectedClinic.clinic_phone}</Text>
                   <Text style={styles.detailValue}>
                     {selectedClinic.clinic_phone}
                   </Text>
