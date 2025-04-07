@@ -23,12 +23,27 @@ type ClinicPhoto = {
 };
 
 type ClinicItem = {
-  id: number; // if you want to use id in keyExtractor
+  id: number;
   clinic_name: string;
-  clinic_address: string;
+  clinic_email: string;
+  clinic_operator_id: number;
   clinic_description: string;
-  clinic_phone: string;
+  clinic_opening_time: Date;
+  clinic_closing_time: Date;
   verification_status: string;
+  clinic_establishment_year: number;
+  clinic_show_phone_number: boolean;
+  clinic_allow_direct_messages: boolean;
+  clinic_show_mail_address: boolean;
+  clinic_allow_online_meetings: boolean;
+  clinic_available_days: boolean[];
+  clinic_emergency_days: boolean[];
+  clinic_time_slots?: number;
+  clinic_is_open_24_7?: boolean;
+  clinic_type?: string;
+  clinic_slug?: string;
+  clinic_address?: string;
+  clinic_phone?: string;
   operator_id: number;
   location: string;
   photos: ClinicPhoto[];
@@ -76,12 +91,31 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       const transformed: ClinicItem[] = verifiedClinics.map((clinic: any) => ({
         id: clinic.id,
         clinic_name: clinic.name,
-        clinic_address: clinic.address,
+        clinic_email: clinic.email,
+        clinic_operator_id: clinic.clinic_operator_id,
         clinic_description: clinic.description,
+        clinic_opening_time: clinic.opening_time,
+        clinic_closing_time: clinic.closing_time,
         verification_status: clinic.verification_status,
+        clinic_establishment_year: clinic.establishment_year,
+        clinic_show_phone_number: clinic.show_phone_number,
+        clinic_allow_direct_messages: clinic.allow_direct_messages,
+        clinic_show_mail_address: clinic.show_mail_address,
+        clinic_allow_online_meetings: clinic.allow_online_meetings,
+        clinic_available_days: clinic.available_days,
+        clinic_emergency_days: clinic.emergency_days,
+        clinic_time_slots: clinic.clinic_time_slots,
+        clinic_is_open_24_7: clinic.is_open_24_7,
+        clinic_type: clinic.type,
+        clinic_slug: clinic.slug,
+        clinic_address: clinic.address,
+        clinic_phone: clinic.phone,
         operator_id: clinic.operator_id,
-        address: clinic.address,
+        location: clinic.location || '',
         photos: clinic.photos || [],
+        working_hours: clinic.working_hours,
+        average_rating: clinic.average_rating,
+        total_reviews: clinic.total_reviews,
       }));
 
       setAllClinics(transformed);
@@ -103,6 +137,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -117,13 +152,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleViewinTheMap = async () => {
-    // const coordinates = selectedClinic?.location; // Gets coordinates from db
-    const address = selectedClinic?.clinic_address; // Gets address from db
-
-    // if (!coordinates || !address) { 
-    //   console.error("Location data is undefined or invalid.");
-    //   return;
-    // }
+    const address = selectedClinic?.clinic_address;
     
     setModalVisible(false);
     navigation.navigate('MapScreen', { address }); // Pass the location string
@@ -157,7 +186,11 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleMakeAppointment = async (clinicId: any) => {
-    navigation.navigate('MakeAppointment', { clinic_id: clinicId,  });
+    const clinic_time_slots = selectedClinic?.clinic_time_slots;
+    const clinic_is_open_24_7 = selectedClinic?.clinic_is_open_24_7;
+    navigation.navigate('MakeAppointment', { clinic_id: clinicId, clinic_time_slots});
+    console.log(`${clinicId} + ${clinic_time_slots} + ${clinic_is_open_24_7}`);
+    setModalVisible(false);
 };
 
   return (
@@ -278,7 +311,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Working Hours:</Text>
                   <Text style={styles.detailValue}>
-                    {selectedClinic.working_hours || 'N/A'}
+                    {`${selectedClinic.clinic_opening_time} - ${selectedClinic.clinic_closing_time}` || 'N/A'}
                   </Text>
                 </View>
 
