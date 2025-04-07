@@ -26,7 +26,6 @@ interface Pet {
 interface Clinic {
   name: string;
   address: string;
-  photo: string | null;
 }
 
 interface Appointment {
@@ -121,10 +120,9 @@ const ProfileScreen = ({ navigation }: any) => {
       }}
     >
       <View style={styles.cardHeader}>
-        <Image 
-          source={item.clinic.photo ? { uri: item.clinic.photo } : require('../../assets/splash-icon.png')} 
-          style={styles.clinicImage} 
-        />
+        <View style={styles.clinicIconContainer}>
+          <Ionicons name="medkit-outline" size={20} color="#007bff" />
+        </View>
         <View style={styles.headerInfo}>
           <Text style={styles.clinicName}>{item.clinic.name}</Text>
           <Text style={styles.appointmentDate}>{item.date} • {item.startTime} - {item.endTime}</Text>
@@ -367,11 +365,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  clinicImage: {
+  clinicIconContainer: {
+    backgroundColor: '#e6f2ff',
+    borderRadius: 20,
+    padding: 10,
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerInfo: {
     flex: 1,

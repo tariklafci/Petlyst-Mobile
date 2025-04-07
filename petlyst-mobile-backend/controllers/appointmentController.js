@@ -87,8 +87,7 @@ exports.fetchAppointments = async (req, res) => {
                 p.pet_breed,
                 p.pet_photo,
                 c.clinic_name,
-                c.clinic_address,
-                c.clinic_photo
+                c.clinic_address
             FROM 
                 appointments a
             JOIN 
@@ -152,8 +151,7 @@ exports.fetchAppointments = async (req, res) => {
                 },
                 clinic: {
                     name: appointment.clinic_name,
-                    address: appointment.clinic_address,
-                    photo: appointment.clinic_photo
+                    address: appointment.clinic_address
                 }
             };
         });
