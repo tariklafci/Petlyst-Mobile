@@ -37,6 +37,7 @@ interface DayItem {
 
 const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigation: any }) => {
   // Appointment configuration (fallback values provided)
+  const clinic_id = route?.params?.clinic_id;
   const openingTime = route?.params?.openingTime || '10:00';
   const closingTime = route?.params?.closingTime || '17:00';
   const interval = route?.params?.timeSlotInterval || 30;
@@ -317,6 +318,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         appointment_end_hour: end.toISOString(),
         notes: notes.trim(),
         appointment_date: appointmentDate,
+        clinic_id: clinic_id,
       };
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
