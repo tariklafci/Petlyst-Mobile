@@ -67,7 +67,7 @@ exports.fetchClinics = async (req, res) => {
           name: clinic_name,
           email: clinic_email,
           address: clinic_address,
-          operator_id: operator_id,
+          clinic_operator_id: clinic_operator_id,
           description: clinic_description,
           opening_time: clinic_opening_time,
           closing_time: clinic_closing_time,
