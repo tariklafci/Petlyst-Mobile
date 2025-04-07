@@ -40,7 +40,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   const clinic_id = route?.params?.clinic_id;
   const openingTime = route?.params?.openingTime || '10:00';
   const closingTime = route?.params?.closingTime || '17:00';
-  const interval = route?.params?.timeSlotInterval || 30;
+  const interval = route?.params?.clinic_time_slots || 30;
 
   // State variables
   const [days, setDays] = useState<DayItem[]>([]);
@@ -319,6 +319,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         notes: notes.trim(),
         appointment_date: appointmentDate,
         clinic_id: clinic_id,
+        appointment_status: 'pending'
       };
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
