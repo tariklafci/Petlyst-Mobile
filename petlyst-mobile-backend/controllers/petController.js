@@ -140,6 +140,7 @@ exports.deletePet = async (req, res) => {
     try {
         const pet_owner_id = req.user.sub;
 
+        // First, check if the pet exists and belongs to the user
         const petQuery = `SELECT * FROM pets WHERE pet_id = $1 AND pet_owner_id = $2`;
         const petResult = await pool.query(petQuery, [id, pet_owner_id]);
 
@@ -152,19 +153,48 @@ exports.deletePet = async (req, res) => {
         const pet = petResult.rows[0];
         const { pet_name: petName, pet_photo: petImgUrl } = pet;
 
-        if (petImgUrl) {
-            await deleteFileFromS3(pet_owner_id, petName);
+        // Check for existing appointments for this pet
+        const appointmentsQuery = `SELECT COUNT(*) FROM appointments WHERE pet_id = $1`;
+        const appointmentsResult = await pool.query(appointmentsQuery, [id]);
+        const appointmentCount = parseInt(appointmentsResult.rows[0].count);
+
+        console.log(`Found ${appointmentCount} appointments for pet ID ${id}`);
+
+        // If appointments exist, prevent deletion
+        if (appointmentCount > 0) {
+            return res
+                .status(400)
+                .json({ 
+                    message: `Cannot delete pet. ${petName} has ${appointmentCount} scheduled appointment${appointmentCount > 1 ? 's' : ''}. Please cancel all appointments first.` 
+                });
         }
 
-        const deleteQuery = `
-      DELETE FROM pets WHERE pet_id = $1 AND pet_owner_id = $2 
-      RETURNING *`;
-        const deleteResult = await pool.query(deleteQuery, [id, pet_owner_id]);
+        // Begin a transaction for consistent deletion
+        await pool.query('BEGIN');
 
-        res.status(200).json({
-            message: 'Pet deleted successfully',
-            pet: deleteResult.rows[0],
-        });
+        try {
+            // Delete pet's photo from S3 if exists
+            if (petImgUrl) {
+                await deleteFileFromS3(pet_owner_id, petName);
+            }
+
+            // Delete the pet
+            const deleteQuery = `DELETE FROM pets WHERE pet_id = $1 AND pet_owner_id = $2 RETURNING *`;
+            const deleteResult = await pool.query(deleteQuery, [id, pet_owner_id]);
+
+            // Commit the transaction
+            await pool.query('COMMIT');
+
+            console.log(`Pet with ID ${id} successfully deleted`);
+            res.status(200).json({
+                message: 'Pet deleted successfully',
+                pet: deleteResult.rows[0],
+            });
+        } catch (error) {
+            // Rollback the transaction if any error occurs
+            await pool.query('ROLLBACK');
+            throw error; // Re-throw to be caught by the outer catch block
+        }
     } catch (error) {
         console.error('Error deleting pet:', error);
         res.status(500).json({ error: 'Failed to delete pet' });

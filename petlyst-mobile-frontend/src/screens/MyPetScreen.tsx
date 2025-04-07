@@ -148,10 +148,28 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         }),
       });
   
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Failed to delete pet:', errorData);
-        Alert.alert('Error', errorData.message || 'Failed to delete pet');
+        console.error('Failed to delete pet:', responseData);
+        
+        // Show specific error message if pet has appointments
+        if (response.status === 400 && responseData.message && responseData.message.includes('appointment')) {
+          Alert.alert(
+            'Cannot Delete Pet', 
+            responseData.message,
+            [
+              {
+                text: 'OK',
+                style: 'default'
+              }
+            ]
+          );
+        } else {
+          // Generic error for other cases
+          Alert.alert('Error', responseData.message || 'Failed to delete pet');
+        }
+        
         setLoading(false);
         return;
       }
@@ -286,7 +304,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
             style={styles.addButton}
             onPress={() => navigation.navigate('AddPet')}
           >
-            <Text style={styles.addButtonText}>Let’s Add!</Text>
+            <Text style={styles.addButtonText}>Let's Add!</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -345,7 +363,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
               style={styles.addButton}
               onPress={() => navigation.navigate('AddPet')}
             >
-              <Text style={styles.addButtonText}>Let’s Add!</Text>
+              <Text style={styles.addButtonText}>Let's Add!</Text>
             </TouchableOpacity>
           </View>
         </>
