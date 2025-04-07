@@ -51,7 +51,6 @@ exports.fetchClinics = async (req, res) => {
         clinic_show_mail_address,
         clinic_allow_online_meetings,
         clinic_verification_status,
-        operator_id,
         clinic_available_days,
         clinic_emergency_available_days,
         clinic_is_open_24_7,
