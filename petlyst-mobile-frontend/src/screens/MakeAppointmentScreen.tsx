@@ -311,8 +311,20 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         return;
       }
 
-      // Format the date in YYYY-MM-DD format without timezone conversion
-      const appointmentDate = selectedDay.dateObj.toISOString().split('T')[0];
+      // Create a function to format dates consistently
+      const formatDateForServer = (date: Date): string => {
+        const pad = (num: number): string => String(num).padStart(2, '0');
+        
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1); // months are 0-indexed
+        const day = pad(date.getDate());
+        
+        // Format: YYYY-MM-DD
+        return `${year}-${month}-${day}`;
+      };
+      
+      // Format date without timezone conversion - use the same function we use for time
+      const appointmentDate = formatDateForServer(selectedDay.dateObj);
       
       // Create timezone-aware datetime strings that preserve the selected local time
       // This prevents the issue where toISOString() converts to UTC and shifts the time
