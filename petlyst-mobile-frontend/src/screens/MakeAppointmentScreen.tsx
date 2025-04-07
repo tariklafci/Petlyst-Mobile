@@ -310,17 +310,37 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         setIsSubmitting(false);
         return;
       }
+
+      // Format the date in YYYY-MM-DD format without timezone conversion
       const appointmentDate = selectedDay.dateObj.toISOString().split('T')[0];
+      
+      // Create timezone-aware datetime strings that preserve the selected local time
+      // This prevents the issue where toISOString() converts to UTC and shifts the time
+      const formatDateTimeForServer = (date: Date): string => {
+        const pad = (num: number): string => String(num).padStart(2, '0');
+        
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1); // months are 0-indexed
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        const seconds = pad(date.getSeconds());
+        
+        // Format: YYYY-MM-DD HH:MM:SS (PostgreSQL timestamp format)
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+      
       const appointmentData = {
         pet_id: petId,
         video_meeting: isVideoMeeting,
-        appointment_start_hour: start.toISOString(),
-        appointment_end_hour: end.toISOString(),
+        appointment_start_hour: formatDateTimeForServer(start),
+        appointment_end_hour: formatDateTimeForServer(end),
         notes: notes.trim(),
         appointment_date: appointmentDate,
         clinic_id: clinic_id,
         appointment_status: 'pending'
       };
+      
       const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
         method: 'POST',
         headers: {
