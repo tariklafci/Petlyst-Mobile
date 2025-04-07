@@ -72,6 +72,8 @@ exports.fetchAppointments = async (req, res) => {
     const { status } = req.query;
     
     try {
+        console.log(`Fetching appointments for user ${userId} with status: ${status || 'all'}`);
+        
         // Build the query based on the filter status
         let queryText = `
             SELECT 
@@ -103,12 +105,17 @@ exports.fetchAppointments = async (req, res) => {
         if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
             queryText += ` AND a.appointment_status = $2`;
             queryParams.push(status.toLowerCase());
+            console.log(`Applied status filter: ${status.toLowerCase()}`);
         }
         
         // Add order by clause
         queryText += ` ORDER BY a.appointment_date ASC, a.appointment_start_hour ASC`;
         
+        console.log('Executing query:', queryText);
+        console.log('With parameters:', queryParams);
+        
         const result = await pool.query(queryText, queryParams);
+        console.log(`Found ${result.rows.length} appointments`);
         
         // Format the response data
         const appointments = result.rows.map(appointment => {
