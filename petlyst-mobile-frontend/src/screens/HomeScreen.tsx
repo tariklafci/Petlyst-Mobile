@@ -155,6 +155,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     setSelectedClinic(clinic);
     setModalVisible(true);
     setCurrentIndex(0); // reset carousel index
+    setIsDescriptionExpanded(false); // Reset description to collapsed state
   };
 
   const handleViewinTheMap = async () => {
@@ -197,7 +198,13 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     navigation.navigate('MakeAppointment', { clinic_id: clinicId, clinic_time_slots});
     console.log(`${clinicId} + ${clinic_time_slots} + ${clinic_is_open_24_7}`);
     setModalVisible(false);
-};
+  };
+
+  // Add a function to handle modal close
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setIsDescriptionExpanded(false); // Reset description to collapsed state
+  };
 
   // Function to handle scroll events
   const handleScroll = (event: any) => {
@@ -307,12 +314,12 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
         visible={modalVisible}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={handleModalClose}
       >
         <View style={styles.modalContainer}>
           {/* Top Header with "X" */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
+            <TouchableOpacity onPress={handleModalClose}>
               <Ionicons name="close" size={26} color="#333" />
             </TouchableOpacity>
           </View>
