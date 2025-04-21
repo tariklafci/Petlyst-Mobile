@@ -561,14 +561,14 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     width: '100%',
-    height: 300,
+    height: 250, // Reduced from 300
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative', // Added to position dots and counter
   },
   carouselImage: {
     width: width,
-    height: 300,
+    height: 250, // Reduced from 300
   },
   dotsContainer: {
     position: 'absolute',
@@ -619,6 +619,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginTop: -20, // overlaps carousel slightly
     flex: 1,
+    paddingBottom: 30, // Added more padding at the bottom
 
     // iOS shadow
     shadowColor: '#000',
