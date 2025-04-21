@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,8 @@ import {
   Modal,
   Image,
   RefreshControl,
+  ScrollView,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +68,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   
   // Track photo carousel index
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [scrollIndicatorOpacity] = useState(new Animated.Value(1));
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isScrollable, setIsScrollable] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -193,6 +199,81 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     setModalVisible(false);
 };
 
+  // Function to handle scroll events
+  const handleScroll = (event: any) => {
+    try {
+      if (!event || !event.nativeEvent || 
+          !event.nativeEvent.layoutMeasurement || 
+          !event.nativeEvent.contentOffset || 
+          !event.nativeEvent.contentSize) {
+        return;
+      }
+      
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      
+      // Ensure we have valid height values
+      const layoutHeight = layoutMeasurement.height || 0;
+      const contentOffsetY = contentOffset.y || 0;
+      const contentHeight = contentSize.height || 0;
+      
+      const paddingToBottom = 20;
+      const isCloseToBottom = layoutHeight + contentOffsetY >= 
+        contentHeight - paddingToBottom;
+      
+      // Fade out the scroll indicator when near the bottom
+      Animated.timing(scrollIndicatorOpacity, {
+        toValue: isCloseToBottom ? 0 : 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } catch (error) {
+      console.error('Error handling scroll event:', error);
+    }
+  };
+
+  // Function to check if content is scrollable
+  const checkIfScrollable = (event: any) => {
+    try {
+      // Check if all required properties exist
+      if (!event || !event.nativeEvent || 
+          !event.nativeEvent.layoutMeasurement || 
+          !event.nativeEvent.contentSize) {
+        console.log('Missing required properties for scroll check');
+        return;
+      }
+      
+      const { layoutMeasurement, contentSize } = event.nativeEvent;
+      
+      // Ensure we have valid height values
+      const layoutHeight = layoutMeasurement.height || 0;
+      const contentHeight = contentSize.height || 0;
+      
+      const isContentScrollable = contentHeight > layoutHeight;
+      setIsScrollable(isContentScrollable);
+      
+      // Only show scroll indicator if content is scrollable
+      Animated.timing(scrollIndicatorOpacity, {
+        toValue: isContentScrollable ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } catch (error) {
+      console.error('Error checking if content is scrollable:', error);
+      // Default to not showing the scroll indicator if there's an error
+      setIsScrollable(false);
+      Animated.timing(scrollIndicatorOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
+  // Function to toggle description expansion
+  const toggleDescription = () => {
+    setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
+
   return (
     <View style={styles.container}>
       {/* Search Bar */}
@@ -256,7 +337,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                   )}
                 />
 
-                {/* Pagination Dots */}
+                {/* Pagination Dots - Enhanced */}
                 <View style={styles.dotsContainer}>
                   {selectedClinic.photos.map((_, index) => (
                     <View
@@ -268,6 +349,13 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                     />
                   ))}
                 </View>
+                
+                {/* Image Counter */}
+                <View style={styles.imageCounter}>
+                  <Text style={styles.imageCounterText}>
+                    {currentIndex + 1}/{selectedClinic.photos.length}
+                  </Text>
+                </View>
               </>
             ) : (
               <View style={styles.imagePlaceholder}>
@@ -276,66 +364,115 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             )}
           </View>
 
-          {/* Bottom Card: Clinic Details */}
-          <View style={styles.bottomCard}>
-            {selectedClinic && (
-              <>
-                <Text style={styles.modalTitle}>{selectedClinic.clinic_name}</Text>
+          {/* Bottom Card: Clinic Details - Now Scrollable */}
+          <View style={styles.bottomCardContainer}>
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.bottomCard} 
+              showsVerticalScrollIndicator={true}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onContentSizeChange={checkIfScrollable}
+              onLayout={checkIfScrollable}
+            >
+              {selectedClinic && (
+                <>
+                  <Text style={styles.modalTitle}>{selectedClinic.clinic_name}</Text>
 
-                {/* Example star rating text (optional) */}
-                <Text style={styles.smallRatingText}>
-                  {selectedClinic.average_rating
-                    ? `★ ${selectedClinic.average_rating.toFixed(1)} / 5`
-                    : 'No rating yet'}
-                </Text>
+                  {/* Example star rating text (optional) */}
+                  <Text style={styles.smallRatingText}>
+                    {selectedClinic.average_rating
+                      ? `★ ${selectedClinic.average_rating.toFixed(1)} / 5`
+                      : 'No rating yet'}
+                  </Text>
 
-                <Text style={styles.descriptionText}>
-                  {selectedClinic.clinic_description || 'N/A'}
-                </Text>
-
-                {/* More info in detail rows */}
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Address: {selectedClinic.clinic_address} </Text>
-                  <Text style={styles.detailValue}>
+                  {/* Description with Show More button */}
+                  <View style={styles.descriptionContainer}>
+                    <Text 
+                      style={[
+                        styles.descriptionText,
+                        !isDescriptionExpanded && styles.descriptionCollapsed
+                      ]}
+                      numberOfLines={isDescriptionExpanded ? undefined : 2}
+                    >
+                      {selectedClinic.clinic_description || 'N/A'}
+                    </Text>
                     
-                  </Text>
+                    {selectedClinic.clinic_description && 
+                     selectedClinic.clinic_description.length > 80 && (
+                      <TouchableOpacity 
+                        style={styles.showMoreButton}
+                        onPress={toggleDescription}
+                      >
+                        <Text style={styles.showMoreText}>
+                          {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                        </Text>
+                        <Ionicons 
+                          name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
+                          size={16} 
+                          color="#4285F4" 
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* More info in detail rows */}
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Address: {selectedClinic.clinic_address} </Text>
+                    <Text style={styles.detailValue}>
+                      
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Phone: {selectedClinic.clinic_phone}</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedClinic.clinic_phone}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Working Hours:</Text>
+                    <Text style={styles.detailValue}>
+                      {`${selectedClinic.clinic_opening_time} - ${selectedClinic.clinic_closing_time}` || 'N/A'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>Total Reviews:</Text>
+                    <Text style={styles.detailValue}>
+                      {selectedClinic.total_reviews ?? 'N/A'}
+                    </Text>
+                  </View>
+
+                  {/* Action Buttons */}
+                  <TouchableOpacity
+                    style={styles.detailsButton}
+                    onPress={() => handleViewinTheMap()}
+                  >
+                    <Text style={styles.detailsButtonText}>View in the Map</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => handleMakeAppointment(selectedClinic.id)} style={styles.appointmentButton}>
+                    <Text style={styles.appointmentButtonText}>
+                      Make an Appointment
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Add some padding at the bottom to ensure buttons are fully visible */}
+                  <View style={{ height: 20 }} />
+                </>
+              )}
+            </ScrollView>
+            
+            {/* Scroll indicator - only shown when content is scrollable */}
+            {isScrollable && (
+              <Animated.View style={[styles.scrollIndicator, { opacity: scrollIndicatorOpacity }]}>
+                <View style={styles.scrollIndicatorInner}>
+                  <Ionicons name="chevron-down" size={24} color="#4285F4" />
+                  <Text style={styles.scrollIndicatorText}>Scroll for more</Text>
                 </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Phone: {selectedClinic.clinic_phone}</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedClinic.clinic_phone}
-                  </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Working Hours:</Text>
-                  <Text style={styles.detailValue}>
-                    {`${selectedClinic.clinic_opening_time} - ${selectedClinic.clinic_closing_time}` || 'N/A'}
-                  </Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Total Reviews:</Text>
-                  <Text style={styles.detailValue}>
-                    {selectedClinic.total_reviews ?? 'N/A'}
-                  </Text>
-                </View>
-
-                {/* Action Buttons */}
-                <TouchableOpacity
-                  style={styles.detailsButton}
-                  onPress={() => handleViewinTheMap()}
-                >
-                  <Text style={styles.detailsButtonText}>View in the Map</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => handleMakeAppointment(selectedClinic.id)} style={styles.appointmentButton}>
-                  <Text style={styles.appointmentButtonText}>
-                    Make an Appointment
-                  </Text>
-                </TouchableOpacity>
-              </>
+              </Animated.View>
             )}
           </View>
         </View>
@@ -420,6 +557,7 @@ const styles = StyleSheet.create({
     height: 300,
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative', // Added to position dots and counter
   },
   carouselImage: {
     width: width,
@@ -427,20 +565,45 @@ const styles = StyleSheet.create({
   },
   dotsContainer: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 20,
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingVertical: 8,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     marginHorizontal: 4,
   },
   activeDot: {
-    backgroundColor: '#4285F4',
+    backgroundColor: '#fff',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  bottomCardContainer: {
+    flex: 1,
+    position: 'relative',
   },
   bottomCard: {
     backgroundColor: '#fff',
@@ -469,9 +632,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#666',
   },
+  descriptionContainer: {
+    marginBottom: 20,
+  },
   descriptionText: {
     color: '#555',
-    marginBottom: 20,
+    lineHeight: 20,
+  },
+  descriptionCollapsed: {
+    maxHeight: 40, // Approximately 2 lines of text (reduced from 60)
+  },
+  showMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  showMoreText: {
+    color: '#4285F4',
+    fontWeight: '600',
+    marginRight: 5,
   },
   detailRow: {
     flexDirection: 'row',
@@ -512,6 +691,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center', 
     fontSize: 16,
+  },
+  scrollIndicator: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollIndicatorInner: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  scrollIndicatorText: {
+    marginLeft: 5,
+    color: '#4285F4',
+    fontWeight: '600',
   },
 });
 
