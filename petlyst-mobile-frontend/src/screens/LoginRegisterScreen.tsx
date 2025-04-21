@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, ActivityIndicator } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,18 +13,31 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [isVeterinarianTab, setIsVeterinarianTab] = useState(true);
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, state } = useAuth();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (state.userToken) {
+      // User is already logged in, navigate to main app
+      navigation.replace('Home');
+    }
+  }, [state.userToken, navigation]);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      return Alert.alert('Error', 'Please fill in both username and password.');
+      return Alert.alert('Error', 'Please fill in both email and password.');
     }
+    
+    setIsLoading(true);
     try {
       await signIn({ email, password });
-      Alert.alert('Success', 'You are now logged in!');
-    } catch (error) {
+      // Navigation will be handled by the useEffect above
+    } catch (error: any) {
       console.error(error);
-      Alert.alert('Error', 'Something went wrong.');
+      Alert.alert('Login Error', error.message || 'Failed to login. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -33,21 +46,24 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   }
 
   const handleRegister = async () => {
-
-    const isPasswordValid = validatePassword(password);
-
-    if (!email || !password) {
-      return Alert.alert('Error', 'Please fill in all areas.');
+    if (!email || !password || !name || !surname) {
+      return Alert.alert('Error', 'Please fill in all fields.');
     }
+    
+    const isPasswordValid = validatePassword(password);
     if (!isPasswordValid) {
       return Alert.alert('Error', 'Password does not meet the required criteria.');
     }
+    
+    setIsLoading(true);
     try {
       await signUp({ name, surname, email, password, user_type });
-      Alert.alert('Success', 'You are now registered!');
-    } catch (error) {
+      // Navigation will be handled by the useEffect above since we auto-login after signup
+    } catch (error: any) {
       console.error(error);
-      Alert.alert('Error', 'Something went wrong.');
+      Alert.alert('Registration Error', error.message || 'Failed to register. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,7 +71,6 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
     return regex.test(password);
   };
-
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -68,20 +83,36 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
       <Text style={styles.title}>Welcome!</Text>
 
       <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={() => setIsLoginTab(true)} style={[styles.tab, isLoginTab && styles.activeTab]}>
+        <TouchableOpacity 
+          onPress={() => setIsLoginTab(true)} 
+          style={[styles.tab, isLoginTab && styles.activeTab]}
+          disabled={isLoading}
+        >
           <Text style={[styles.tabText, isLoginTab && styles.activeTabText]}>Login</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setIsLoginTab(false)} style={[styles.tab, !isLoginTab && styles.activeTab]}>
+        <TouchableOpacity 
+          onPress={() => setIsLoginTab(false)} 
+          style={[styles.tab, !isLoginTab && styles.activeTab]}
+          disabled={isLoading}
+        >
           <Text style={[styles.tabText, !isLoginTab && styles.activeTabText]}>Register</Text>
         </TouchableOpacity>
       </View>
 
       {!isLoginTab && (
         <View style={styles.tabContainer}>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(true); setUserType('pet_owner')}} style={[styles.tab, isVeterinarianTab && styles.activeTab]}>
+          <TouchableOpacity 
+            onPress={() => {setIsVeterinarianTab(true); setUserType('pet_owner')}} 
+            style={[styles.tab, isVeterinarianTab && styles.activeTab]}
+            disabled={isLoading}
+          >
             <Text style={[styles.tabText, isVeterinarianTab && styles.activeTabText]}>Pet Owner</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(false); setUserType('veterinarian')}} style={[styles.tab, !isVeterinarianTab && styles.activeTab]}>
+          <TouchableOpacity 
+            onPress={() => {setIsVeterinarianTab(false); setUserType('veterinarian')}} 
+            style={[styles.tab, !isVeterinarianTab && styles.activeTab]}
+            disabled={isLoading}
+          >
             <Text style={[styles.tabText, !isVeterinarianTab && styles.activeTabText]}>Veterinarian</Text>
           </TouchableOpacity>
         </View>
@@ -93,6 +124,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           placeholder="Name"
           value={name}
           onChangeText={setName}
+          editable={!isLoading}
         />
       )}
       {!isLoginTab && (
@@ -101,6 +133,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           placeholder="Surname"
           value={surname}
           onChangeText={setSurname}
+          editable={!isLoading}
         />
       )}
       <TextInput
@@ -108,6 +141,9 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        editable={!isLoading}
       />
       <View style={styles.passwordContainer}>
         <TextInput
@@ -116,20 +152,35 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           secureTextEntry={!showPassword}
           value={password}
           onChangeText={setPassword}
+          editable={!isLoading}
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
           <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
         </TouchableOpacity>
       </View>
 
       {isLoginTab && (
-        <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
+        <TouchableOpacity 
+          style={styles.forgotPasswordButton} 
+          onPress={handlePasswordReset}
+          disabled={isLoading}
+        >
           <Text style={styles.forgotPasswordText}>Forgot password?</Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.loginButton} onPress={isLoginTab ? handleLogin : handleRegister}>
-        <Text style={styles.loginButtonText}>{isLoginTab ? 'Login' : 'Register'}</Text>
+      <TouchableOpacity 
+        style={[styles.loginButton, isLoading && styles.disabledButton]} 
+        onPress={isLoginTab ? handleLogin : handleRegister}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.loginButtonText}>
+            {isLoginTab ? 'Login' : 'Register'}
+          </Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -207,7 +258,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     alignSelf: 'flex-end',
     marginRight: 20,
-  
   },
   forgotPasswordText: {
     color: '#4285F4',
@@ -219,6 +269,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginHorizontal: 20,
+  },
+  disabledButton: {
+    backgroundColor: '#A0C4F8',
   },
   loginButtonText: {
     color: '#fff',
