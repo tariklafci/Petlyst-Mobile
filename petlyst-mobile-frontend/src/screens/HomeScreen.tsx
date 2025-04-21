@@ -60,6 +60,7 @@ const cardWidth = width * 0.9; // making the card take most of the width for ver
 const HomeScreen = ({ navigation }: { navigation: any }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [allClinics, setAllClinics] = useState<ClinicItem[]>([]);
+  const [filteredClinics, setFilteredClinics] = useState<ClinicItem[]>([]);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [bestFor, setBestFor] = useState('');
   
@@ -80,6 +81,22 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   useFocusEffect(() => {
     fetchSelectedPet();
   });
+
+  // Add effect to filter clinics when search query changes
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredClinics(allClinics);
+    } else {
+      const query = searchQuery.toLowerCase().trim();
+      const filtered = allClinics.filter(clinic => 
+        clinic.clinic_name.toLowerCase().includes(query) ||
+        (clinic.clinic_description && clinic.clinic_description.toLowerCase().includes(query)) ||
+        (clinic.clinic_address && clinic.clinic_address.toLowerCase().includes(query)) ||
+        (clinic.clinic_type && clinic.clinic_type.toLowerCase().includes(query))
+      );
+      setFilteredClinics(filtered);
+    }
+  }, [searchQuery, allClinics]);
 
   const fetchData = async () => {
     try {
@@ -125,6 +142,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       }));
 
       setAllClinics(transformed);
+      setFilteredClinics(transformed); // Initialize filtered clinics with all clinics
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -291,7 +309,13 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
           placeholder="Search on Petlyst"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* All Clinics Section */}
@@ -300,11 +324,18 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
           <Text style={styles.sectionTitle}>{bestFor}</Text>
         </View>
         <FlatList
-          data={allClinics}
+          data={filteredClinics}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderClinicCard}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyListContainer}>
+              <Ionicons name="search-outline" size={50} color="#ccc" />
+              <Text style={styles.emptyListText}>No clinics found</Text>
+              <Text style={styles.emptyListSubtext}>Try a different search term</Text>
+            </View>
           }
         />
       </View>
@@ -507,6 +538,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
+    color: '#333',
   },
   section: {
     marginBottom: 100,
@@ -726,6 +758,23 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     color: '#4285F4',
     fontWeight: '600',
+  },
+  emptyListContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyListText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 10,
+  },
+  emptyListSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
   },
 });
 
