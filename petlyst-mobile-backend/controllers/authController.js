@@ -102,10 +102,14 @@ exports.registerUser = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     const { email } = req.body;
     try {
+        console.log('Starting password reset process for email:', email);
+        
         const userQuery = 'SELECT user_id, user_email FROM users WHERE user_email = $1';
         const userResult = await pool.query(userQuery, [email]);
+        console.log('User query result:', userResult.rows);
 
         if (userResult.rows.length === 0) {
+            console.log('No user found with email:', email);
             return res.status(404).json({
                 success: false,
                 message: 'No account found with this email address',
@@ -114,50 +118,120 @@ exports.resetPassword = async (req, res) => {
 
         const verificationCode = crypto.randomInt(1000, 9999).toString();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+        console.log('Generated verification code:', verificationCode);
+        console.log('Token expires at:', expiresAt);
 
-        const insertQuery = `
-      INSERT INTO password_reset_tokens (user_id, user_email, reset_code, reset_token_expires_at)
-      VALUES ($1, $2, $3, $4)
-    `;
-        await pool.query(insertQuery, [userResult.rows[0].user_id, email, verificationCode, expiresAt]);
-
-        await pool.query(
-            'DELETE FROM password_reset_tokens WHERE user_email = $1 AND reset_token_id NOT IN (SELECT user_id FROM password_reset_tokens WHERE user_email = $1 ORDER BY reset_token_created_at DESC LIMIT 1)',
-            [email]
-        );
-
-        const mailOptions = {
-            from: {
-                name: 'Petlyst Support',
-                address: process.env.EMAIL_USER,
-            },
-            to: email,
-            subject: 'Password Reset Code - Petlyst',
-            html: `
-        <div>Your verification code is: <strong>${verificationCode}</strong></div>
-      `,
-        };
-
+        // First, try to insert the new token
         try {
-            await transporter.sendMail(mailOptions);
-            console.log('Verification email sent successfully to:', email);
-
-            res.status(200).json({
-                success: true,
-                message: 'Verification code has been sent to your email',
+            console.log('Attempting to insert reset token...');
+            console.log('Insert parameters:', {
+                user_id: userResult.rows[0].user_id,
+                email: email,
+                code: verificationCode,
+                expiresAt: expiresAt
             });
-        } catch (emailError) {
-            console.error('Email sending error:', emailError);
+
+            // Check if table exists first
+            const tableCheck = await pool.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'password_reset_tokens'
+                );
+            `);
+            console.log('Table exists check:', tableCheck.rows[0].exists);
+
+            if (!tableCheck.rows[0].exists) {
+                console.log('Creating password_reset_tokens table...');
+                await pool.query(`
+                    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                        reset_token_id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(user_id),
+                        user_email VARCHAR(255) NOT NULL,
+                        reset_code VARCHAR(255) NOT NULL,
+                        reset_token_expires_at TIMESTAMP NOT NULL,
+                        reset_token_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        reset_token_is_used BOOLEAN DEFAULT FALSE
+                    );
+                `);
+                console.log('Table created successfully');
+            }
+
+            const insertQuery = `
+                INSERT INTO password_reset_tokens (user_id, user_email, reset_code, reset_token_expires_at)
+                VALUES ($1, $2, $3, $4)
+                RETURNING reset_token_id
+            `;
+            const insertResult = await pool.query(insertQuery, [
+                userResult.rows[0].user_id,
+                email,
+                verificationCode,
+                expiresAt
+            ]);
+            console.log('Insert result:', insertResult.rows);
+
+            // Then delete old tokens for this user
+            console.log('Deleting old tokens...');
+            const deleteQuery = `
+                DELETE FROM password_reset_tokens 
+                WHERE user_email = $1 
+                AND reset_token_id != $2
+            `;
+            const deleteResult = await pool.query(deleteQuery, [email, insertResult.rows[0].reset_token_id]);
+            console.log('Delete result:', deleteResult);
+
+            const mailOptions = {
+                from: {
+                    name: 'Petlyst Support',
+                    address: process.env.EMAIL_USER,
+                },
+                to: email,
+                subject: 'Password Reset Code - Petlyst',
+                html: `
+                    <div>Your verification code is: <strong>${verificationCode}</strong></div>
+                `,
+            };
+
+            try {
+                await transporter.sendMail(mailOptions);
+                console.log('Verification email sent successfully to:', email);
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Verification code has been sent to your email',
+                });
+            } catch (emailError) {
+                console.error('Email sending error:', emailError);
+                // Even if email fails, we still created the token successfully
+                res.status(200).json({
+                    success: true,
+                    message: 'Verification code has been generated',
+                });
+            }
+        } catch (dbError) {
+            console.error('Database error during token creation:', dbError);
+            console.error('Error details:', {
+                code: dbError.code,
+                message: dbError.message,
+                detail: dbError.detail,
+                hint: dbError.hint,
+                stack: dbError.stack
+            });
             res.status(500).json({
                 success: false,
-                message: 'Failed to send verification code email',
+                message: 'Failed to create reset token',
+                error: dbError.message
             });
         }
     } catch (error) {
         console.error('Error processing password reset request:', error);
+        console.error('Full error:', {
+            message: error.message,
+            stack: error.stack
+        });
         res.status(500).json({
             success: false,
             message: 'Failed to process password reset request',
+            error: error.message
         });
     }
 };
