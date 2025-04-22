@@ -1,28 +1,24 @@
-import React, { createContext, useReducer, useMemo, ReactNode, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useReducer, useMemo, ReactNode, useContext } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 
 // Define the state type
 interface AuthState {
   userToken: string | null;
-  isLoading: boolean;
 }
 
 // Define action types
 type AuthAction =
   | { type: 'SIGN_IN'; token: string }
-  | { type: 'SIGN_OUT' }
-  | { type: 'SET_LOADING'; isLoading: boolean };
+  | { type: 'SIGN_OUT' };
 
 // Reducer function
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'SIGN_IN':
-      return { ...state, userToken: action.token, isLoading: false };
+      return { ...state, userToken: action.token };
     case 'SIGN_OUT':
-      return { ...state, userToken: null, isLoading: false };
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.isLoading };
+      return { ...state, userToken: null };
     default:
       return state;
   }
@@ -31,7 +27,6 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 // Initial state
 const initialState: AuthState = {
   userToken: null,
-  isLoading: true,
 };
 
 // Define context value type
@@ -60,26 +55,6 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Check for stored token on app startup
-  useEffect(() => {
-    const checkForStoredToken = async () => {
-      try {
-        dispatch({ type: 'SET_LOADING', isLoading: true });
-        const storedToken = await AsyncStorage.getItem('userToken');
-        if (storedToken) {
-          dispatch({ type: 'SIGN_IN', token: storedToken });
-        } else {
-          dispatch({ type: 'SET_LOADING', isLoading: false });
-        }
-      } catch (error) {
-        console.error('Error checking for stored token:', error);
-        dispatch({ type: 'SET_LOADING', isLoading: false });
-      }
-    };
-
-    checkForStoredToken();
-  }, []);
-
   const authContext = useMemo(() => ({
     signIn: async ({ email, password }: { email: string; password: string }) => {
       try {
@@ -95,8 +70,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         const { token, user_id } = await response.json();
-        await AsyncStorage.setItem('userToken', token);
-        await AsyncStorage.setItem('userId', user_id.toString());
+        await SecureStore.setItemAsync('userToken', token);
+        await SecureStore.setItemAsync('userId', user_id.toString());
         dispatch({ type: 'SIGN_IN', token });
       } catch (error: any) {
         console.error('signIn error:', error);
@@ -135,22 +110,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const err = await response.json();
           throw new Error(err.message || 'Sign up failed');
         }
-
-        // After successful registration, automatically log in the user
-        const loginResponse = await fetch('https://petlyst.com:3001/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (!loginResponse.ok) {
-          throw new Error('Auto-login after registration failed');
-        }
-
-        const { token, user_id } = await loginResponse.json();
-        await AsyncStorage.setItem('userToken', token);
-        await AsyncStorage.setItem('userId', user_id.toString());
-        dispatch({ type: 'SIGN_IN', token });
       } catch (error: any) {
         console.error('signUp error:', error);
         Alert.alert('Sign Up Error', error.message);
@@ -160,8 +119,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     signOut: async () => {
       try {
-        await AsyncStorage.removeItem('userToken');
-        await AsyncStorage.removeItem('userId');
+        await SecureStore.deleteItemAsync('userToken');
+        await SecureStore.deleteItemAsync('userId');
         dispatch({ type: 'SIGN_OUT' });
       } catch (error) {
         console.error('signOut error:', error);
