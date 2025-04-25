@@ -5,18 +5,11 @@ exports.createAppointment = async (req, res) => {
     const userId = req.user.sub;
 
     try {
-        // Log the incoming date values for debugging
-        console.log('Received appointment data:', {
-            appointment_date,
-            appointment_start_hour,
-            appointment_end_hour
-        });
 
         // Ensure dates are properly formatted for PostgreSQL
         // PostgreSQL expects 'YYYY-MM-DD' for dates
         const formattedDate = appointment_date.split('T')[0]; // Remove any time component if present
         
-        console.log('Formatted appointment date for database:', formattedDate);
 
         const insertQuery = `
       INSERT INTO appointments (
@@ -56,7 +49,6 @@ exports.createAppointment = async (req, res) => {
         ];
         
         const result = await pool.query(insertQuery, values);
-        console.log('Appointment created with data:', result.rows[0]);
 
         res
             .status(201)
@@ -72,7 +64,6 @@ exports.fetchAppointments = async (req, res) => {
     const { status } = req.query;
     
     try {
-        console.log(`Fetching appointments for user ${userId} with status: ${status || 'all'}`);
         
         // Build the query based on the filter status
         let queryText = `
@@ -105,17 +96,13 @@ exports.fetchAppointments = async (req, res) => {
         if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
             queryText += ` AND a.appointment_status = $2`;
             queryParams.push(status.toLowerCase());
-            console.log(`Applied status filter: ${status.toLowerCase()}`);
-        }
+                }
         
         // Add order by clause
         queryText += ` ORDER BY a.appointment_date ASC, a.appointment_start_hour ASC`;
         
-        console.log('Executing query:', queryText);
-        console.log('With parameters:', queryParams);
         
         const result = await pool.query(queryText, queryParams);
-        console.log(`Found ${result.rows.length} appointments`);
         
         // Format the response data
         const appointments = result.rows.map(appointment => {
