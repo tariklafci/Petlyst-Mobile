@@ -5,20 +5,21 @@ import { Alert } from 'react-native';
 // Define the state type
 interface AuthState {
   userToken: string | null;
+  user_type: string | null;
 }
 
 // Define action types
 type AuthAction =
-  | { type: 'SIGN_IN'; token: string }
+  | { type: 'SIGN_IN'; token: string; user_type: string }
   | { type: 'SIGN_OUT' };
 
 // Reducer function
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'SIGN_IN':
-      return { ...state, userToken: action.token };
+      return { ...state, userToken: action.token, user_type: action.user_type };
     case 'SIGN_OUT':
-      return { ...state, userToken: null };
+      return { ...state, userToken: null, user_type: null };
     default:
       return state;
   }
@@ -27,6 +28,7 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 // Initial state
 const initialState: AuthState = {
   userToken: null,
+  user_type: null,
 };
 
 // Define context value type
@@ -69,10 +71,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           throw new Error(err.message || 'Login failed');
         }
 
-        const { token, user_id } = await response.json();
+        const { token, user_id, user_type } = await response.json();
         await SecureStore.setItemAsync('userToken', token);
         await SecureStore.setItemAsync('userId', user_id.toString());
-        dispatch({ type: 'SIGN_IN', token });
+        await SecureStore.setItemAsync('userType', user_type);
+        dispatch({ type: 'SIGN_IN', token, user_type });
       } catch (error: any) {
         console.error('signIn error:', error);
         Alert.alert('Login Error', error.message);
@@ -121,6 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         await SecureStore.deleteItemAsync('userToken');
         await SecureStore.deleteItemAsync('userId');
+        await SecureStore.deleteItemAsync('userType');
         dispatch({ type: 'SIGN_OUT' });
       } catch (error) {
         console.error('signOut error:', error);

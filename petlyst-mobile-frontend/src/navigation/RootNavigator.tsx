@@ -19,6 +19,10 @@ import PasswordResetScreen from '../screens/PasswordResetScreen';
 import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 import EditPetScreen from '../screens/EditPetScreen';
 import MakeAppointmentScreen from '../screens/MakeAppointmentScreen';
+import VetProfileScreen from '../screens/VetProfileScreen';
+import VetDashboardScreen from '../screens/VetDashboardScreen';
+import AppointmentsScreen from '../screens/AppointmentsScreen';
+
 
 
 /* -------------------------------
@@ -83,33 +87,92 @@ function MainTabs() {
   );
 }
 
+function VetTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: '#4285F4',
+        tabBarInactiveTintColor: 'gray',
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'help-circle'; // fallback icon
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'compass' : 'compass-outline';
+          } else if (route.name === 'MyPet') {
+            iconName = focused ? 'paw' : 'paw-outline';
+          } else if (route.name === 'Inbox') {
+            iconName = focused ? 'mail' : 'mail-outline';
+          } else if (route.name === 'Profile') {
+            iconName = focused ? 'person' : 'person-outline';
+          }
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarStyle: {
+          height: 60,
+          paddingBottom: 5,
+          paddingTop: 5,
+        },
+      })}
+    >
+      <Tab.Screen
+        name="Home"
+        component={VetDashboardScreen}
+        options={{ tabBarLabel: 'Explore' }}
+      />
+      <Tab.Screen
+        name="MyPet"
+        component={AppointmentsScreen}
+        options={{ tabBarLabel: 'My Pet' }}
+      />
+      <Tab.Screen
+        name="Inbox"
+        component={VetProfileScreen}
+        options={{ tabBarLabel: 'Inbox' }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarLabel: 'Profile' }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 
 export default function RootNavigator() {
-  // Access the AuthContext to determine if userToken is set
   const { state } = useAuth();
 
   return (
     <NavigationContainer>
       <Stack.Navigator>
-      {state.userToken == null ? (
+        {state.userToken == null ? (
           <>
             <Stack.Screen name="LoginRegister" component={LoginRegisterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PasswordReset" component={PasswordResetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} options={{ headerShown: false }} />
-
           </>
-        ) : (
+        ) : state.user_type === 'pet_owner' ? (
           <>
-            <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }}/>
-            <Stack.Screen name="AddPet" component={AddPetScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="EditPet" component={EditPetScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="Meeting" component={MeetingScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }}/>
-            <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }}/>
-
+            <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="AddPet" component={AddPetScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="EditPet" component={EditPetScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Meeting" component={MeetingScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }} />
           </>
-        )}
+        ) : state.user_type === 'veterinarian' ? (
+          <>
+            <Stack.Screen name="VetTabs" component={VetTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Appointments" component={AppointmentsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="VetProfile" component={VetProfileScreen} options={{ headerShown: false }} />
+            {/* Add more veterinarian-specific screens here */}
+          </>
+        ) : null}
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+
