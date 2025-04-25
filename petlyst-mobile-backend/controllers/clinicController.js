@@ -104,12 +104,16 @@ exports.fetchClinics = async (req, res) => {
       }
 
       if (photo_id && s3_url) {
-        clinicMap.get(clinic_id).photos.push({
-          photo_id,
-          created_at,
-          s3_url,
-        });
+        const existingPhoto = clinicMap.get(clinic_id).photos.find(photo => photo.photo_id === photo_id);
+        if (!existingPhoto) {
+          clinicMap.get(clinic_id).photos.push({
+            photo_id,
+            created_at,
+            s3_url,
+          });
+        }
       }
+      
 
       if (phone_number && !clinicMap.get(clinic_id).phone_numbers.includes(phone_number)) {
         clinicMap.get(clinic_id).phone_numbers.push(phone_number);
