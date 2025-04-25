@@ -12,7 +12,7 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified';
+type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified' | 'rejected';
 type CreationStatus = 'complete' | 'incomplete';
 type ClinicType = 'veterinary_clinic' | 'animal_hospital';
 
@@ -34,8 +34,10 @@ interface Clinic {
   clinic_time_slots: number;
   is_open_24_7: boolean;
   clinic_type: ClinicType;
-  clinic_address: string;
+  address: string;
   slug: string;
+  phone_numbers: string[];
+  social_media: { platform: string, url: string }[];
 }
 
 const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
@@ -145,6 +147,18 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  const getSocialIcon = (platform: string): keyof typeof Ionicons.glyphMap => {
+    const platformLower = platform.toLowerCase();
+    if (platformLower.includes('facebook')) return 'logo-facebook';
+    if (platformLower.includes('instagram')) return 'logo-instagram';
+    if (platformLower.includes('twitter')) return 'logo-twitter';
+    if (platformLower.includes('linkedin')) return 'logo-linkedin';
+    if (platformLower.includes('youtube')) return 'logo-youtube';
+    if (platformLower.includes('tiktok')) return 'logo-tiktok';
+    if (platformLower.includes('website')) return 'globe-outline';
+    return 'link-outline';
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -200,7 +214,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
           </View>
           <View style={styles.addressBox}>
             <Text style={styles.addressLabel}>Address:</Text>
-            <Text style={styles.addressValue}>{clinic.clinic_address}</Text>
+            <Text style={styles.addressValue}>{clinic.address}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Show Email:</Text>
@@ -210,6 +224,58 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
             <Text style={styles.infoLabel}>Show Phone:</Text>
             <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
           </View>
+        </View>
+
+        {/* Phone Numbers */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="call-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Phone Numbers</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          {clinic.phone_numbers && clinic.phone_numbers.length > 0 ? (
+            clinic.phone_numbers.map((phone, index) => (
+              <View key={index} style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Phone {index + 1}:</Text>
+                <Text style={styles.infoValue}>{phone}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyMessage}>No phone numbers available</Text>
+          )}
+        </View>
+
+        {/* Social Media */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="globe-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Social Media</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          {clinic.social_media && clinic.social_media.length > 0 ? (
+            clinic.social_media.map((social, index) => (
+              <View key={index} style={styles.socialRow}>
+                <View style={styles.socialPlatform}>
+                  <Ionicons 
+                    name={getSocialIcon(social.platform)} 
+                    size={22} 
+                    color="#4285F4" 
+                  />
+                  <Text style={styles.socialName}>{social.platform}</Text>
+                </View>
+                <TouchableOpacity style={styles.socialLink}>
+                  <Text style={styles.socialLinkText} numberOfLines={1} ellipsizeMode="tail">
+                    {social.url}
+                  </Text>
+                  <Ionicons name="open-outline" size={18} color="#4285F4" />
+                </TouchableOpacity>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyMessage}>No social media accounts available</Text>
+          )}
         </View>
 
         {/* Hours & Availability */}
@@ -285,7 +351,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
           
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Time Slots:</Text>
-            <Text style={styles.infoValue}>{clinic.clinic_time_slots} per day</Text>
+            <Text style={styles.infoValue}>{clinic.clinic_time_slots} minutes per appointment</Text>
           </View>
         </View>
 
@@ -526,6 +592,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8
+  },
+  emptyMessage: {
+    fontSize: 15,
+    color: '#8e8e93',
+    fontStyle: 'italic',
+    paddingVertical: 8,
+    textAlign: 'center'
+  },
+  socialRow: {
+    marginVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingBottom: 8
+  },
+  socialPlatform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  socialName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1c1c1e',
+    marginLeft: 8,
+    textTransform: 'capitalize'
+  },
+  socialLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f5f7',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 4
+  },
+  socialLinkText: {
+    fontSize: 14,
+    color: '#4285F4',
+    flex: 1,
+    marginRight: 4
   }
 });
 
