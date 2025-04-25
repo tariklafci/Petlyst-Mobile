@@ -166,3 +166,33 @@ exports.fetchClinicsAppointment = async (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
   }
 };
+
+exports.fetchClinicsVeterinarian = async (req, res) => {
+  try {
+      const { veterinarian_id } = req.query;
+
+      // Validate clinic_id
+      if (!veterinarian_id) {
+          return res.status(400).json({ error: 'Veterinarian ID is required' });
+      }
+
+      const query = `
+          SELECT 
+              clinic_id,
+          FROM clinic_veterinarians
+          WHERE veterinarian_id = $1
+      `;
+
+      const result = await pool.query(query, [clinic_id]);
+
+      if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'Clinic not found' });
+      }
+
+      res.json(result.rows[0]); // Send clinic data as JSON
+
+  } catch (error) {
+      console.error('Error fetching clinic id:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
