@@ -60,113 +60,107 @@ exports.createAppointment = async (req, res) => {
 };
 
 exports.fetchAppointments = async (req, res) => {
-    const userId = req.user.sub;
-    const { status } = req.query;
-    
+    const userId    = req.user.sub;
+    const { status, clinic_id } = req.query;
+  
     try {
-        
-        // Build the query based on the filter status
-        let queryText = `
-            SELECT 
-                a.appointment_id,
-                a.appointment_date,
-                a.appointment_start_hour,
-                a.appointment_end_hour,
-                a.appointment_status,
-                a.video_meeting,
-                a.notes,
-                p.pet_name,
-                p.pet_species,
-                p.pet_breed,
-                p.pet_photo,
-                c.clinic_name,
-                c.clinic_address
-            FROM 
-                appointments a
-            JOIN 
-                pets p ON a.pet_id = p.pet_id
-            JOIN 
-                clinics c ON a.clinic_id = c.clinic_id
-            WHERE
-    `;
-
-    const params = [];
-    let idx = 1;
-
-    // if the client passed clinic_id, filter on that…
-    if (clinic_id) {
-      queryText += ` a.clinic_id = $${idx}`;
-      params.push(Number(clinic_id));
-    }
-    // otherwise default to the pet‐owner’s appointments
-    else {
-      queryText += ` a.pet_owner_id = $${idx}`;
-      params.push(userId);
-    }
-    idx++;
-    
-        // Add status filter if provided
-        const queryParams = [userId];
-        if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
-            queryText += ` AND a.appointment_status = $2`;
-            queryParams.push(status.toLowerCase());
-                }
-        
-        // Add order by clause
-        queryText += ` ORDER BY a.appointment_date ASC, a.appointment_start_hour ASC`;
-        
-        
-        const result = await pool.query(queryText, queryParams);
-        
-        // Format the response data
-        const appointments = result.rows.map(appointment => {
-            // Format the date for display
-            const date = new Date(appointment.appointment_date);
-            const formattedDate = date.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short', 
-                day: 'numeric'
-            });
-            
-            // Format start and end times for display
-            const startTime = new Date(appointment.appointment_start_hour);
-            const endTime = new Date(appointment.appointment_end_hour);
-            const formattedStartTime = startTime.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-            const formattedEndTime = endTime.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-            });
-            
-            return {
-                id: appointment.appointment_id,
-                date: formattedDate,
-                rawDate: appointment.appointment_date,
-                startTime: formattedStartTime,
-                endTime: formattedEndTime,
-                status: appointment.appointment_status,
-                isVideoMeeting: appointment.video_meeting,
-                notes: appointment.notes,
-                pet: {
-                    name: appointment.pet_name,
-                    species: appointment.pet_species,
-                    breed: appointment.pet_breed,
-                    photo: appointment.pet_photo
-                },
-                clinic: {
-                    name: appointment.clinic_name,
-                    address: appointment.clinic_address
-                }
-            };
+      // start building your SELECT…
+      let queryText = `
+        SELECT
+          a.appointment_id,
+          a.appointment_date,
+          a.appointment_start_hour,
+          a.appointment_end_hour,
+          a.appointment_status,
+          a.video_meeting,
+          a.notes,
+          p.pet_name,
+          p.pet_species,
+          p.pet_breed,
+          p.pet_photo,
+          c.clinic_id,
+          c.clinic_name,
+          c.clinic_address
+        FROM appointments a
+        JOIN pets    p ON a.pet_id    = p.pet_id
+        JOIN clinics c ON a.clinic_id = c.clinic_id
+        WHERE
+      `;
+  
+      const params = [];
+      let idx = 1;
+  
+      // if the client passed clinic_id, filter on that…
+      if (clinic_id) {
+        queryText += ` a.clinic_id = $${idx}`;
+        params.push(Number(clinic_id));
+      }
+      // otherwise default to the pet‐owner’s appointments
+      else {
+        queryText += ` a.pet_owner_id = $${idx}`;
+        params.push(userId);
+      }
+      idx++;
+  
+      // add status filter if present
+      if (
+        status &&
+        ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())
+      ) {
+        queryText += ` AND a.appointment_status = $${idx}`;
+        params.push(status.toLowerCase());
+        idx++;
+      }
+  
+      // finalize ordering
+      queryText += `
+        ORDER BY
+          a.appointment_date    ASC,
+          a.appointment_start_hour ASC
+      `;
+  
+      const { rows } = await pool.query(queryText, params);
+  
+      const appointments = rows.map(a => {
+        // …format exactly as you do today…
+        const date = new Date(a.appointment_date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric'
         });
-        
-        res.status(200).json({ appointments });
-    } catch (error) {
-        console.error('Error fetching appointments:', error);
-        res.status(500).json({ error: 'Failed to fetch appointments' });
+        const startTime = new Date(a.appointment_start_hour).toLocaleTimeString('en-US', {
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+        const endTime = new Date(a.appointment_end_hour).toLocaleTimeString('en-US', {
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+        return {
+          id:        a.appointment_id,
+          date:      formattedDate,
+          rawDate:   a.appointment_date,
+          startTime,
+          endTime,
+          status:    a.appointment_status,
+          isVideoMeeting: a.video_meeting,
+          notes:     a.notes,
+          pet: {
+            name:    a.pet_name,
+            species: a.pet_species,
+            breed:   a.pet_breed,
+            photo:   a.pet_photo
+          },
+          clinic: {
+            id:      a.clinic_id,
+            name:    a.clinic_name,
+            address: a.clinic_address
+          }
+        };
+      });
+  
+      res.status(200).json({ appointments });
     }
-};
+    catch (err) {
+      console.error('Error fetching appointments:', err);
+      res.status(500).json({ error: 'Failed to fetch appointments' });
+    }
+  };
+  
