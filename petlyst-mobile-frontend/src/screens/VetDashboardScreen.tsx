@@ -2,29 +2,27 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
-  Switch,
+  StyleSheet,
   TouchableOpacity,
-  Alert,
-  StyleSheet
+  ActivityIndicator,
+  StatusBar,
+  SafeAreaView
 } from 'react-native';
-import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { Picker } from '@react-native-picker/picker';
 import * as SecureStore from 'expo-secure-store';
-
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
-type CreationStatus     = 'DRAFT'   | 'SUBMITTED' | 'APPROVED';
-type ClinicType         = 'GENERAL' | 'SPECIALTY' | 'EMERGENCY';
+type CreationStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED';
+type ClinicType = 'GENERAL' | 'SPECIALTY' | 'EMERGENCY';
 
 interface Clinic {
   id: number;
-  clinic_name: string;
+  name: string;
   clinic_email: string;
   clinic_description: string;
-  opening_time: string;        // "HH:mm"
-  closing_time: string;        // "HH:mm"
+  opening_time: string;
+  closing_time: string;
   clinic_verification_status: VerificationStatus;
   establishment_year: number;
   show_phone_number: boolean;
@@ -32,7 +30,7 @@ interface Clinic {
   clinic_creation_status: CreationStatus;
   show_email_address: boolean;
   allow_online_meetings: boolean;
-  available_days: boolean[];   // [Sun,Mon,...,Sat]
+  available_days: boolean[];
   clinic_time_slots: number;
   is_open_24_7: boolean;
   clinic_type: ClinicType;
@@ -40,46 +38,20 @@ interface Clinic {
   slug: string;
 }
 
- const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
-
-
-  //–– Local state for every field (defaults to empty)
-  const [clinicName, setClinicName] = useState('');
-  const [clinicEmail, setClinicEmail] = useState('');
-  const [clinicDescription, setClinicDescription] = useState('');
-  const [clinicAddress, setClinicAddress] = useState('');
-  const [slug, setSlug] = useState('');
-  const [openingTime, setOpeningTime] = useState('09:00');
-  const [closingTime, setClosingTime] = useState('18:00');
-  const [showOpeningPicker, setShowOpeningPicker] = useState(false);
-  const [showClosingPicker, setShowClosingPicker] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('PENDING');
-  const [creationStatus, setCreationStatus] = useState<CreationStatus>('DRAFT');
-  const [clinicType, setClinicType] = useState<ClinicType>('GENERAL');
-  const [establishmentYear, setEstablishmentYear] = useState('');
-  const [clinicTimeSlots, setClinicTimeSlots] = useState('');
-  const [showPhoneNumber, setShowPhoneNumber] = useState(false);
-  const [allowDMs, setAllowDMs] = useState(false);
-  const [showEmailAddress, setShowEmailAddress] = useState(false);
-  const [allowOnlineMeetings, setAllowOnlineMeetings] = useState(false);
-  const [isOpen247, setIsOpen247] = useState(false);
-  const [availableDays, setAvailableDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
+  const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   useEffect(() => {
     fetchClinicId();
   }, []);
 
-
-
-
   const fetchClinicId = async () => {
     try {
+      setIsLoading(true);
       const token = await SecureStore.getItemAsync('userToken');
-      const veterinarian_id = await SecureStore.getItemAsync('veterinarianId');
+      const veterinarian_id = await SecureStore.getItemAsync('userId');
   
       if (!token) {
         return;
@@ -123,275 +95,432 @@ interface Clinic {
       if (!myClinic) {
         throw new Error('Clinic not found for this veterinarian');
       }
-  
-      // Step 4: Populate the fields
-      setClinicName(myClinic.clinic_name || '');
-      setClinicEmail(myClinic.clinic_email || '');
-      setClinicDescription(myClinic.clinic_description || '');
-      setClinicAddress(myClinic.clinic_address || '');
-      setSlug(myClinic.slug || '');
-      setOpeningTime(myClinic.opening_time || '09:00');
-      setClosingTime(myClinic.closing_time || '18:00');
-      setVerificationStatus(myClinic.clinic_verification_status);
-      setCreationStatus(myClinic.clinic_creation_status);
-      setClinicType(myClinic.clinic_type);
-      setEstablishmentYear(String(myClinic.establishment_year || ''));
-      setClinicTimeSlots(String(myClinic.clinic_time_slots || ''));
-      setShowPhoneNumber(!!myClinic.show_phone_number);
-      setAllowDMs(!!myClinic.allow_direct_messages);
-      setShowEmailAddress(!!myClinic.show_email_address);
-      setAllowOnlineMeetings(!!myClinic.allow_online_meetings);
-      setIsOpen247(!!myClinic.is_open_24_7);
-      setAvailableDays(myClinic.available_days || [false, false, false, false, false, false, false]);
-  
+
+      setClinic(myClinic);
     } catch (err: any) {
       console.error('Error fetching clinic info:', err);
     } finally {
+      setIsLoading(false);
     }
   };
-  
 
-  //–– Helper to format time
-  const handleTimeConfirm = (
-    date: Date,
-    setter: React.Dispatch<React.SetStateAction<string>>,
-    hidePicker: () => void
-  ) => {
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    setter(`${hh}:${mm}`);
-    hidePicker();
-  };
-
-  //–– Toggle one day
-  const toggleDay = (idx: number) => {
-    setAvailableDays(d =>
-      d.map((val, i) => (i === idx ? !val : val))
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4285F4" />
+        <Text style={styles.loadingText}>Loading your clinic data...</Text>
+      </SafeAreaView>
     );
+  }
+
+  if (!clinic) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={60} color="#ff6b6b" />
+        <Text style={styles.errorText}>Could not load clinic data</Text>
+        <TouchableOpacity 
+          style={styles.retryButton} 
+          onPress={fetchClinicId}
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const getStatusColor = (status: VerificationStatus) => {
+    switch (status) {
+      case 'VERIFIED': return '#34c759';
+      case 'PENDING': return '#ff9500';
+      case 'REJECTED': return '#ff3b30';
+      default: return '#8e8e93';
+    }
   };
 
-  //–– Save (you’ll wire this up when your PATCH endpoint is ready)
-  const handleSave = () => {
-    const payload = {
-      clinic_name: clinicName,
-      clinic_email: clinicEmail,
-      clinic_description: clinicDescription,
-      clinic_address: clinicAddress,
-      slug,
-      opening_time: openingTime,
-      closing_time: closingTime,
-      clinic_verification_status: verificationStatus,
-      clinic_creation_status: creationStatus,
-      clinic_type: clinicType,
-      establishment_year: Number(establishmentYear),
-      clinic_time_slots: Number(clinicTimeSlots),
-      show_phone_number: showPhoneNumber,
-      allow_direct_messages: allowDMs,
-      show_email_address: showEmailAddress,
-      allow_online_meetings: allowOnlineMeetings,
-      is_open_24_7: isOpen247,
-      available_days: availableDays
-    };
-    console.log('SAVE PAYLOAD >>>', payload);
-    Alert.alert('Saved (mock)', JSON.stringify(payload, null, 2));
+  const getClinicTypeIcon = (type: ClinicType) => {
+    switch (type) {
+      case 'GENERAL': return 'medkit-outline';
+      case 'SPECIALTY': return 'fitness-outline';
+      case 'EMERGENCY': return 'alert-circle-outline';
+      default: return 'medical-outline';
+    }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>Clinic Details</Text>
-
-      {/* -- name & email -- */}
-      <Text style={styles.label}>Name</Text>
-      <TextInput style={styles.input} value={clinicName} onChangeText={setClinicName} />
-
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        value={clinicEmail}
-        onChangeText={setClinicEmail}
-        keyboardType="email-address"
-      />
-
-      {/* -- description & address -- */}
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        value={clinicDescription}
-        onChangeText={setClinicDescription}
-        multiline
-      />
-
-      <Text style={styles.label}>Address</Text>
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        value={clinicAddress}
-        onChangeText={setClinicAddress}
-        multiline
-      />
-
-      {/* -- slug -- */}
-      <Text style={styles.label}>Slug</Text>
-      <TextInput style={styles.input} value={slug} onChangeText={setSlug} />
-
-      {/* -- times -- */}
-      <Text style={styles.label}>Open</Text>
-      <TouchableOpacity
-        style={styles.timeButton}
-        onPress={() => setShowOpeningPicker(true)}
-      >
-        <Text>{openingTime}</Text>
-      </TouchableOpacity>
-      <DateTimePickerModal
-        isVisible={showOpeningPicker}
-        mode="time"
-        onConfirm={date => handleTimeConfirm(date, setOpeningTime, () => setShowOpeningPicker(false))}
-        onCancel={() => setShowOpeningPicker(false)}
-      />
-
-      <Text style={styles.label}>Close</Text>
-      <TouchableOpacity
-        style={styles.timeButton}
-        onPress={() => setShowClosingPicker(true)}
-      >
-        <Text>{closingTime}</Text>
-      </TouchableOpacity>
-      <DateTimePickerModal
-        isVisible={showClosingPicker}
-        mode="time"
-        onConfirm={date => handleTimeConfirm(date, setClosingTime, () => setShowClosingPicker(false))}
-        onCancel={() => setShowClosingPicker(false)}
-      />
-
-      {/* -- enums -- */}
-      <Text style={styles.label}>Verification</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={verificationStatus}
-          onValueChange={v => setVerificationStatus(v as VerificationStatus)}
-        >
-          <Picker.Item label="Pending" value="PENDING" />
-          <Picker.Item label="Verified" value="VERIFIED" />
-          <Picker.Item label="Rejected" value="REJECTED" />
-        </Picker>
-      </View>
-
-      <Text style={styles.label}>Creation Status</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={creationStatus}
-          onValueChange={v => setCreationStatus(v as CreationStatus)}
-        >
-          <Picker.Item label="Draft" value="DRAFT" />
-          <Picker.Item label="Submitted" value="SUBMITTED" />
-          <Picker.Item label="Approved" value="APPROVED" />
-        </Picker>
-      </View>
-
-      <Text style={styles.label}>Type</Text>
-      <View style={styles.pickerWrapper}>
-        <Picker
-          selectedValue={clinicType}
-          onValueChange={v => setClinicType(v as ClinicType)}
-        >
-          <Picker.Item label="General" value="GENERAL" />
-          <Picker.Item label="Specialty" value="SPECIALTY" />
-          <Picker.Item label="Emergency" value="EMERGENCY" />
-        </Picker>
-      </View>
-
-      {/* -- numbers -- */}
-      <Text style={styles.label}>Year Est.</Text>
-      <TextInput
-        style={styles.input}
-        value={establishmentYear}
-        onChangeText={setEstablishmentYear}
-        keyboardType="numeric"
-      />
-
-      <Text style={styles.label}>Time Slots</Text>
-      <TextInput
-        style={styles.input}
-        value={clinicTimeSlots}
-        onChangeText={setClinicTimeSlots}
-        keyboardType="numeric"
-      />
-
-      {/* -- flags -- */}
-      {[
-        ['Show Phone', showPhoneNumber, setShowPhoneNumber],
-        ['Direct Messages', allowDMs, setAllowDMs],
-        ['Show Email', showEmailAddress, setShowEmailAddress],
-        ['Online Meetings', allowOnlineMeetings, setAllowOnlineMeetings],
-        ['Open 24/7', isOpen247, setIsOpen247]
-      ].map(([label, val, setter]) => (
-        <View style={styles.switchRow} key={label as string}>
-          <Text style={styles.label}>{label}</Text>
-          <Switch value={val as boolean} onValueChange={setter as any} />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.clinicName}>{clinic.name}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(clinic.clinic_verification_status) }]}>
+            <Text style={styles.statusText}>{clinic.clinic_verification_status}</Text>
+          </View>
         </View>
-      ))}
 
-      {/* -- available days -- */}
-      <Text style={styles.label}>Days</Text>
-      <View style={styles.daysRow}>
-        {daysOfWeek.map((d, i) => (
-          <TouchableOpacity
-            key={d}
-            style={[
-              styles.dayBox,
-              availableDays[i] && styles.dayBoxSelected
-            ]}
-            onPress={() => toggleDay(i)}
-          >
-            <Text style={ availableDays[i] ? styles.dayTextSelected : styles.dayText }>
-              {d}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Clinic Type & Year */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name={getClinicTypeIcon(clinic.clinic_type)} size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Clinic Information</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Clinic Type:</Text>
+            <Text style={styles.infoValue}>{clinic.clinic_type}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Established:</Text>
+            <Text style={styles.infoValue}>{clinic.establishment_year}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Status:</Text>
+            <Text style={styles.infoValue}>{clinic.clinic_creation_status}</Text>
+          </View>
+        </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Save Clinic</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {/* Contact & Address */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="location-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Contact & Location</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{clinic.clinic_email}</Text>
+          </View>
+          <View style={styles.addressBox}>
+            <Text style={styles.addressLabel}>Address:</Text>
+            <Text style={styles.addressValue}>{clinic.clinic_address}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Show Email:</Text>
+            <Text style={styles.infoValue}>{clinic.show_email_address ? 'Yes' : 'No'}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Show Phone:</Text>
+            <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
+          </View>
+        </View>
+
+        {/* Hours & Availability */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="time-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Hours & Availability</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          {clinic.is_open_24_7 ? (
+            <View style={styles.open24Badge}>
+              <Ionicons name="time" size={20} color="#fff" />
+              <Text style={styles.open24Text}>Open 24/7</Text>
+            </View>
+          ) : (
+            <View style={styles.hoursContainer}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Opening:</Text>
+                <Text style={styles.infoValue}>{clinic.opening_time}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Closing:</Text>
+                <Text style={styles.infoValue}>{clinic.closing_time}</Text>
+              </View>
+            </View>
+          )}
+          
+          <Text style={styles.daysLabel}>Available Days:</Text>
+          <View style={styles.daysRow}>
+            {daysOfWeek.map((day, i) => (
+              <View 
+                key={day} 
+                style={[
+                  styles.dayBox, 
+                  clinic.available_days[i] ? styles.dayBoxSelected : styles.dayBoxUnselected
+                ]}
+              >
+                <Text style={clinic.available_days[i] ? styles.dayTextSelected : styles.dayTextUnselected}>
+                  {day}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Services & Features */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="options-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>Features</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          
+          <View style={styles.featureRow}>
+            <View style={styles.feature}>
+              <Ionicons 
+                name={clinic.allow_direct_messages ? "checkmark-circle" : "close-circle"} 
+                size={24} 
+                color={clinic.allow_direct_messages ? "#34c759" : "#ff3b30"} 
+              />
+              <Text style={styles.featureText}>Direct Messages</Text>
+            </View>
+            <View style={styles.feature}>
+              <Ionicons 
+                name={clinic.allow_online_meetings ? "checkmark-circle" : "close-circle"} 
+                size={24} 
+                color={clinic.allow_online_meetings ? "#34c759" : "#ff3b30"} 
+              />
+              <Text style={styles.featureText}>Online Meetings</Text>
+            </View>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Time Slots:</Text>
+            <Text style={styles.infoValue}>{clinic.clinic_time_slots} per day</Text>
+          </View>
+        </View>
+
+        {/* Description */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="information-circle-outline" size={24} color="#4285F4" />
+            <Text style={styles.cardTitle}>About Our Clinic</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          <Text style={styles.description}>{clinic.clinic_description}</Text>
+        </View>
+
+        {/* Edit Button */}
+        <TouchableOpacity style={styles.editButton}>
+          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Text style={styles.editButtonText}>Edit Clinic Details</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  label: { fontSize: 16, marginTop: 15, marginBottom: 5 },
-  input: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 6,
-    padding: 10, backgroundColor: '#fafafa'
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f5f5f7'
   },
-  timeButton: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 6,
-    padding: 12, backgroundColor: '#fafafa', alignItems: 'center'
+  container: {
+    flex: 1,
+    padding: 16
   },
-  pickerWrapper: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 6, overflow: 'hidden'
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f7'
   },
-  switchRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginTop: 10
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#8e8e93'
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f7',
+    padding: 20
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 18,
+    color: '#333',
+    fontWeight: '500',
+    textAlign: 'center'
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#4285F4',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16
+  },
+  clinicName: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1c1c1e',
+    flex: 1
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 10
+  },
+  statusText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 12
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1c1c1e',
+    marginLeft: 8
+  },
+  cardDivider: {
+    height: 1,
+    backgroundColor: '#e6e6e6',
+    marginVertical: 8
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8
+  },
+  infoLabel: {
+    fontSize: 15,
+    color: '#8e8e93',
+    flex: 1
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#1c1c1e',
+    fontWeight: '500',
+    flex: 2,
+    textAlign: 'right'
+  },
+  addressBox: {
+    paddingVertical: 8
+  },
+  addressLabel: {
+    fontSize: 15,
+    color: '#8e8e93',
+    marginBottom: 4
+  },
+  addressValue: {
+    fontSize: 15,
+    color: '#1c1c1e',
+    lineHeight: 22
+  },
+  open24Badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34c759',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginVertical: 8
+  },
+  open24Text: {
+    color: 'white',
+    marginLeft: 6,
+    fontWeight: '600',
+    fontSize: 14
+  },
+  hoursContainer: {
+    marginVertical: 4
+  },
+  daysLabel: {
+    fontSize: 15,
+    color: '#8e8e93',
+    marginTop: 12,
+    marginBottom: 8
   },
   daysRow: {
-    flexDirection: 'row', flexWrap: 'wrap', marginTop: 5
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 4
   },
   dayBox: {
-    borderWidth: 1, borderColor: '#888', borderRadius: 4,
-    padding: 8, margin: 3
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   dayBoxSelected: {
-    backgroundColor: '#6c63ff', borderColor: '#6c63ff'
+    backgroundColor: '#4285F4'
   },
-  dayText: { color: '#333' },
-  dayTextSelected: { color: '#fff' },
-  saveButton: {
-    backgroundColor: '#6c63ff', padding: 15,
-    borderRadius: 6, alignItems: 'center', marginVertical: 30
+  dayBoxUnselected: {
+    backgroundColor: '#f2f2f7'
   },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  dayTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 13
+  },
+  dayTextUnselected: {
+    color: '#8e8e93',
+    fontSize: 13
+  },
+  featureRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 12
+  },
+  feature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1
+  },
+  featureText: {
+    marginLeft: 8,
+    fontSize: 15,
+    color: '#1c1c1e'
+  },
+  description: {
+    fontSize: 15,
+    color: '#1c1c1e',
+    lineHeight: 22,
+    paddingVertical: 4
+  },
+  editButton: {
+    backgroundColor: '#4285F4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginVertical: 16
+  },
+  editButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8
+  }
 });
 
 export default VetDashboardScreen;
