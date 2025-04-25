@@ -19,9 +19,9 @@ import PasswordResetScreen from '../screens/PasswordResetScreen';
 import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 import EditPetScreen from '../screens/EditPetScreen';
 import MakeAppointmentScreen from '../screens/MakeAppointmentScreen';
-import VetProfileScreen from '../screens/VetProfileScreen';
 import VetDashboardScreen from '../screens/VetDashboardScreen';
 import AppointmentsScreen from '../screens/AppointmentsScreen';
+import VetAppointmentScreen from '../screens/VetAppointmentScreen';
 
 
 
@@ -128,7 +128,7 @@ function VetTabs() {
       />
       <Tab.Screen
         name="Inbox"
-        component={VetProfileScreen}
+        component={VetAppointmentScreen}
         options={{ tabBarLabel: 'Inbox' }}
       />
       <Tab.Screen
@@ -167,7 +167,7 @@ export default function RootNavigator() {
             <Stack.Screen name="VetTabs" component={VetTabs} options={{ headerShown: false }} />
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Appointments" component={AppointmentsScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="VetProfile" component={VetProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
             {/* Add more veterinarian-specific screens here */}
           </>
         ) : null}

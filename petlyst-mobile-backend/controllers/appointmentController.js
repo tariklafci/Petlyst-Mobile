@@ -87,10 +87,24 @@ exports.fetchAppointments = async (req, res) => {
                 pets p ON a.pet_id = p.pet_id
             JOIN 
                 clinics c ON a.clinic_id = c.clinic_id
-            WHERE 
-                a.pet_owner_id = $1
-        `;
-        
+            WHERE
+    `;
+
+    const params = [];
+    let idx = 1;
+
+    // if the client passed clinic_id, filter on that…
+    if (clinic_id) {
+      queryText += ` a.clinic_id = $${idx}`;
+      params.push(Number(clinic_id));
+    }
+    // otherwise default to the pet‐owner’s appointments
+    else {
+      queryText += ` a.pet_owner_id = $${idx}`;
+      params.push(userId);
+    }
+    idx++;
+    
         // Add status filter if provided
         const queryParams = [userId];
         if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
