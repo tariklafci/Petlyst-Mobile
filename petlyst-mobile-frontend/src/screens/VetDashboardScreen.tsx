@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { Picker } from '@react-native-picker/picker';
+import * as SecureStore from 'expo-secure-store';
 
 
 type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
@@ -65,64 +66,39 @@ interface Clinic {
   const [availableDays, setAvailableDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  //–– Fetch clinics & relations on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        // 1) get clinic-vet relations
-        const relRes = await fetch('http://petlyst.com:3001/api/clinic_veterinarians');
-        const relData: { clinic_id: number; veterinarian_id: number }[] = await relRes.json();
 
-        // which clinics belong to me?
-        const myClinicIds = relData
-          .filter(r => r.veterinarian_id === veterinarianId)
-          .map(r => r.clinic_id);
-
-        if (myClinicIds.length === 0) {
-          Alert.alert('No Clinics', 'You are not assigned to any clinic.');
-          return;
-        }
-
-        // choose which clinic to load
-        const targetClinicId = paramClinicId && myClinicIds.includes(paramClinicId)
-          ? paramClinicId
-          : myClinicIds[0];
-
-        // 2) fetch all clinics
-        const clRes = await fetch('http://petlyst.com:3001/api/fetch-clinics');
-        const clinics: Clinic[] = await clRes.json();
-
-        const clinic = clinics.find(c => c.id === targetClinicId);
-        if (!clinic) {
-          Alert.alert('Error', 'Clinic data not found.');
-          return;
-        }
-
-        // populate state
-        setClinicName(clinic.clinic_name);
-        setClinicEmail(clinic.clinic_email);
-        setClinicDescription(clinic.clinic_description);
-        setClinicAddress(clinic.clinic_address);
-        setSlug(clinic.slug);
-        setOpeningTime(clinic.opening_time);
-        setClosingTime(clinic.closing_time);
-        setVerificationStatus(clinic.clinic_verification_status);
-        setCreationStatus(clinic.clinic_creation_status);
-        setClinicType(clinic.clinic_type);
-        setEstablishmentYear(String(clinic.establishment_year));
-        setClinicTimeSlots(String(clinic.clinic_time_slots));
-        setShowPhoneNumber(clinic.show_phone_number);
-        setAllowDMs(clinic.allow_direct_messages);
-        setShowEmailAddress(clinic.show_email_address);
-        setAllowOnlineMeetings(clinic.allow_online_meetings);
-        setIsOpen247(clinic.is_open_24_7);
-        setAvailableDays(clinic.available_days);
-      } catch (err) {
-        console.error(err);
-        Alert.alert('Fetch Error', 'Could not load clinic data.');
+  const fetchClinicId = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      
+      if (!token) {
+        setError('Authentication token not found. Please login again.');
+        return;
       }
-    })();
-  }, [veterinarianId, paramClinicId]);
+      
+      const response = await fetch(`https://petlyst.com:3001/api/fetch-clinic-veterinarians`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch appointments');
+      }
+      
+      setAppointments(data.appointments || []);
+    } catch (err) {
+      console.error('Error fetching appointments:', err);
+      setError('Failed to load appointments. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   //–– Helper to format time
   const handleTimeConfirm = (
