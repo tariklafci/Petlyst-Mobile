@@ -183,7 +183,7 @@ exports.fetchClinicsVeterinarian = async (req, res) => {
           WHERE veterinarian_id = $1
       `;
 
-      const result = await pool.query(query, [clinic_id]);
+      const result = await pool.query(query, [veterinarian_id]);
 
       if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Clinic not found' });
