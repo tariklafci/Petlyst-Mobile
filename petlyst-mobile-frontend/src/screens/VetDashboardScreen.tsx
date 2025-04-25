@@ -14,13 +14,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 
 type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified';
 type CreationStatus = 'complete' | 'incomplete';
-type ClinicType = 'veterinarian_clinic' | 'animal_hospital';
+type ClinicType = 'veterinary_clinic' | 'animal_hospital';
 
 interface Clinic {
   id: number;
   name: string;
   clinic_email: string;
-  clinic_description: string;
+  description: string;
   opening_time: string;
   closing_time: string;
   verification_status: VerificationStatus;
@@ -139,9 +139,8 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const getClinicTypeIcon = (type: ClinicType) => {
     switch (type) {
-      case 'GENERAL': return 'medkit-outline';
-      case 'SPECIALTY': return 'fitness-outline';
-      case 'EMERGENCY': return 'alert-circle-outline';
+      case 'animal_hospital': return 'medkit-outline';
+      case 'veterinary_clinic': return 'fitness-outline';
       default: return 'medical-outline';
     }
   };
@@ -168,7 +167,14 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
           
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Clinic Type:</Text>
-            <Text style={styles.infoValue}>{clinic.clinic_type}</Text>
+            {
+                clinic.clinic_type === 'animal_hospital' ? (
+                <Text style={styles.infoValue}>Animal Hospital</Text>
+            ) : (
+                <Text style={styles.infoValue}>Veterinary Clinic</Text>
+            )
+            }
+
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Established:</Text>
@@ -290,7 +296,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
             <Text style={styles.cardTitle}>About Our Clinic</Text>
           </View>
           <View style={styles.cardDivider} />
-          <Text style={styles.description}>{clinic.clinic_description}</Text>
+          <Text style={styles.description}>{clinic.description}</Text>
         </View>
 
         {/* Edit Button */}

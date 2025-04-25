@@ -27,10 +27,17 @@ exports.fetchClinics = async (req, res) => {
         c.clinic_type AS clinic_type,
         c.clinic_creation_status AS clinic_creation_status,
         cap.clinic_album_photo_id AS photo_id,
-        cap.clinic_album_photo_url AS s3_url
+        cap.clinic_album_photo_url AS s3_url,
+        cpn.phone_number AS phone_number,
+        csm.platform AS social_media_platform,
+        csm.url AS social_media_url
       FROM clinics AS c
       LEFT JOIN clinic_albums AS cap
         ON c.clinic_id = cap.clinic_id
+      LEFT JOIN clinic_phone_numbers AS cpn
+        ON c.clinic_id = cpn.clinic_id
+      LEFT JOIN clinic_social_media AS csm
+        ON c.clinic_id = csm.clinic_id
       ORDER BY c.clinic_id;
     `;
     const { rows } = await pool.query(query);
@@ -62,6 +69,9 @@ exports.fetchClinics = async (req, res) => {
         photo_id,
         s3_url,
         created_at,
+        phone_number,
+        social_media_platform,
+        social_media_url
       } = row;
 
       if (!clinicMap.has(clinic_id)) {
@@ -86,6 +96,8 @@ exports.fetchClinics = async (req, res) => {
           clinic_type: clinic_type,
           clinic_creation_status: clinic_creation_status,
           photos: [],
+          phone_numbers: [],
+          social_media: []
         };
         clinicMap.set(clinic_id, clinic);
         clinics.push(clinic);
@@ -97,6 +109,23 @@ exports.fetchClinics = async (req, res) => {
           created_at,
           s3_url,
         });
+      }
+
+      if (phone_number && !clinicMap.get(clinic_id).phone_numbers.includes(phone_number)) {
+        clinicMap.get(clinic_id).phone_numbers.push(phone_number);
+      }
+
+      if (social_media_platform && social_media_url) {
+        const existingSocialMedia = clinicMap.get(clinic_id).social_media.find(
+          sm => sm.platform === social_media_platform && sm.url === social_media_url
+        );
+        
+        if (!existingSocialMedia) {
+          clinicMap.get(clinic_id).social_media.push({
+            platform: social_media_platform,
+            url: social_media_url
+          });
+        }
       }
     }
 
