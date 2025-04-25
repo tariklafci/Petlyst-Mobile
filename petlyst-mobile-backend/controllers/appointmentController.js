@@ -158,7 +158,7 @@ exports.fetchAppointments = async (req, res) => {
 };
 
 exports.fetchAppointmentsClinic = async (req, res) => {
-    const userId = req.user.sub;
+    const clinicId = req.user.sub;
     const { status } = req.query;
     
     try {
@@ -190,7 +190,7 @@ exports.fetchAppointmentsClinic = async (req, res) => {
         `;
         
         // Add status filter if provided
-        const queryParams = [userId];
+        const queryParams = [clinicId];
         if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
             queryText += ` AND a.appointment_status = $2`;
             queryParams.push(status.toLowerCase());
