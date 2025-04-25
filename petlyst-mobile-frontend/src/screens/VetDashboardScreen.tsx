@@ -12,9 +12,9 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
-type VerificationStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
-type CreationStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED';
-type ClinicType = 'GENERAL' | 'SPECIALTY' | 'EMERGENCY';
+type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified';
+type CreationStatus = 'complete' | 'incomplete';
+type ClinicType = 'veterinarian_clinic' | 'animal_hospital';
 
 interface Clinic {
   id: number;
@@ -23,7 +23,7 @@ interface Clinic {
   clinic_description: string;
   opening_time: string;
   closing_time: string;
-  clinic_verification_status: VerificationStatus;
+  verification_status: VerificationStatus;
   establishment_year: number;
   show_phone_number: boolean;
   allow_direct_messages: boolean;
@@ -130,9 +130,9 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
 
   const getStatusColor = (status: VerificationStatus) => {
     switch (status) {
-      case 'VERIFIED': return '#34c759';
-      case 'PENDING': return '#ff9500';
-      case 'REJECTED': return '#ff3b30';
+      case 'verified': return '#34c759';
+      case 'pending': return '#ff9500';
+      case 'rejected': return '#ff3b30';
       default: return '#8e8e93';
     }
   };
@@ -153,8 +153,8 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.clinicName}>{clinic.name}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(clinic.clinic_verification_status) }]}>
-            <Text style={styles.statusText}>{clinic.clinic_verification_status}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(clinic.verification_status) }]}>
+            <Text style={styles.statusText}>{clinic.verification_status}</Text>
           </View>
         </View>
 
