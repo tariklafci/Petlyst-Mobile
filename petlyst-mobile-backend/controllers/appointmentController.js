@@ -158,12 +158,13 @@ exports.fetchAppointments = async (req, res) => {
 };
 
 exports.fetchAppointmentsClinic = async (req, res) => {
-    const clinicId = req.user.sub;
-    const { status } = req.query;
+    const { status, clinicId } = req.query;
+    
+    if (!clinicId) {
+        return res.status(400).json({ error: 'clinicId is required' });
+    }
     
     try {
-        
-        // Build the query based on the filter status
         let queryText = `
             SELECT 
                 a.appointment_id,
@@ -189,30 +190,25 @@ exports.fetchAppointmentsClinic = async (req, res) => {
                 a.clinic_id = $1
         `;
         
-        // Add status filter if provided
         const queryParams = [clinicId];
+        
         if (status && ['pending', 'confirmed', 'completed'].includes(status.toLowerCase())) {
             queryText += ` AND a.appointment_status = $2`;
             queryParams.push(status.toLowerCase());
-                }
+        }
         
-        // Add order by clause
         queryText += ` ORDER BY a.appointment_date ASC, a.appointment_start_hour ASC`;
-        
         
         const result = await pool.query(queryText, queryParams);
         
-        // Format the response data
         const appointments = result.rows.map(appointment => {
-            // Format the date for display
             const date = new Date(appointment.appointment_date);
             const formattedDate = date.toLocaleDateString('en-US', {
                 weekday: 'short',
-                month: 'short', 
+                month: 'short',
                 day: 'numeric'
             });
             
-            // Format start and end times for display
             const startTime = new Date(appointment.appointment_start_hour);
             const endTime = new Date(appointment.appointment_end_hour);
             const formattedStartTime = startTime.toLocaleTimeString('en-US', {
@@ -254,4 +250,5 @@ exports.fetchAppointmentsClinic = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch appointments' });
     }
 };
+
   

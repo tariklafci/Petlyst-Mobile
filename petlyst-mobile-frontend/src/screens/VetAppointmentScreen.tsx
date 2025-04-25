@@ -65,9 +65,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
   const fetchVetAppointments = async () => {
     try {
       setError(null);
-      const token = await SecureStore.getItemAsync('userToken');
-      const vetId = await SecureStore.getItemAsync('userId');
-      
+      const token = await SecureStore.getItemAsync('userToken');      
       if (!token) throw new Error('No auth token.');
       
       // Set veterinarian ID from SecureStore
@@ -107,7 +105,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
 
       // 2) fetch ALL appointments, then filter client-side
       const apptRes = await fetch(
-        'https://petlyst.com:3001/api/fetch-appointments-clinic',
+        `https://petlyst.com:3001/api/fetch-appointments-clinics?clinicId=${clinicId}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -124,7 +122,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
 
       // filter by clinic_id
       const myAppointments = (apptData.appointments || []).filter(a => {
-        return a.clinic.id === clinicId;
+        return Number(a.clinic.id) === Number(clinicId);
       });
 
       setAppointments(myAppointments);
