@@ -65,40 +65,91 @@ interface Clinic {
   const [isOpen247, setIsOpen247] = useState(false);
   const [availableDays, setAvailableDays] = useState<boolean[]>([false, false, false, false, false, false, false]);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+
+
+  useEffect(() => {
+    fetchClinicId();
+  }, []);
+
+
 
 
   const fetchClinicId = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      
+      const veterinarian_id = await SecureStore.getItemAsync('veterinarianId');
+  
       if (!token) {
-        setError('Authentication token not found. Please login again.');
         return;
       }
-      
-      const response = await fetch(`https://petlyst.com:3001/api/fetch-clinic-veterinarians`, {
+  
+      // Step 1: Get the clinic_id for this veterinarian
+      const clinicRes = await fetch(`https://petlyst.com:3001/api/fetch-clinic-veterinarian?veterinarian_id=${veterinarian_id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch appointments');
+  
+      const clinicData = await clinicRes.json();
+  
+      if (!clinicRes.ok) {
+        throw new Error(clinicData.error || 'Failed to fetch clinic id');
       }
-      
-      setAppointments(data.appointments || []);
-    } catch (err) {
-      console.error('Error fetching appointments:', err);
-      setError('Failed to load appointments. Please try again.');
+  
+      const clinic_id = clinicData.clinic_id;
+  
+      // Step 2: Fetch all clinics
+      const allClinicsRes = await fetch('https://petlyst.com:3001/api/fetch-clinics', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      const allClinics = await allClinicsRes.json();
+  
+      if (!allClinicsRes.ok) {
+        throw new Error(allClinics.error || 'Failed to fetch clinics');
+      }
+  
+      // Step 3: Find the clinic that matches the id
+      const myClinic = allClinics.find((clinic: Clinic) => clinic.id === clinic_id);
+  
+      if (!myClinic) {
+        throw new Error('Clinic not found for this veterinarian');
+      }
+  
+      // Step 4: Populate the fields
+      setClinicName(myClinic.clinic_name || '');
+      setClinicEmail(myClinic.clinic_email || '');
+      setClinicDescription(myClinic.clinic_description || '');
+      setClinicAddress(myClinic.clinic_address || '');
+      setSlug(myClinic.slug || '');
+      setOpeningTime(myClinic.opening_time || '09:00');
+      setClosingTime(myClinic.closing_time || '18:00');
+      setVerificationStatus(myClinic.clinic_verification_status);
+      setCreationStatus(myClinic.clinic_creation_status);
+      setClinicType(myClinic.clinic_type);
+      setEstablishmentYear(String(myClinic.establishment_year || ''));
+      setClinicTimeSlots(String(myClinic.clinic_time_slots || ''));
+      setShowPhoneNumber(!!myClinic.show_phone_number);
+      setAllowDMs(!!myClinic.allow_direct_messages);
+      setShowEmailAddress(!!myClinic.show_email_address);
+      setAllowOnlineMeetings(!!myClinic.allow_online_meetings);
+      setIsOpen247(!!myClinic.is_open_24_7);
+      setAvailableDays(myClinic.available_days || [false, false, false, false, false, false, false]);
+  
+    } catch (err: any) {
+      console.error('Error fetching clinic info:', err);
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
+  
 
   //–– Helper to format time
   const handleTimeConfirm = (
