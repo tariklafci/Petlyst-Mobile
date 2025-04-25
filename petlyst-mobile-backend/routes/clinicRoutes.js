@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { fetchClinics, fetchClinicsAppointment } = require('../controllers/clinicController');
+const { fetchClinics, fetchClinicsAppointment, fetchClinicsVeterinarian } = require('../controllers/clinicController');
 const authenticateToken = require('../middlewares/authenticateToken');
 
 
