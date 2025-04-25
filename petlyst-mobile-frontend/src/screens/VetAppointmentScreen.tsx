@@ -107,7 +107,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
 
       // 2) fetch ALL appointments, then filter client-side
       const apptRes = await fetch(
-        'https://petlyst.com:3001/api/fetch-appointments',
+        'https://petlyst.com:3001/api/fetch-appointments-clinic',
         {
           headers: {
             'Content-Type': 'application/json',
