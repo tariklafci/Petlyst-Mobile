@@ -40,7 +40,7 @@ interface Clinic {
   social_media: { platform: string, url: string }[];
 }
 
-const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
+ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -97,7 +97,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
       if (!myClinic) {
         throw new Error('Clinic not found for this veterinarian');
       }
-
+  
       setClinic(myClinic);
     } catch (err: any) {
       console.error('Error fetching clinic info:', err);
@@ -162,7 +162,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.container}>
+    <ScrollView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.clinicName}>{clinic.name}</Text>
@@ -224,14 +224,14 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
             <Text style={styles.infoLabel}>Show Phone:</Text>
             <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
           </View>
-        </View>
+      </View>
 
         {/* Phone Numbers */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="call-outline" size={24} color="#4285F4" />
             <Text style={styles.cardTitle}>Phone Numbers</Text>
-          </View>
+      </View>
           <View style={styles.cardDivider} />
           
           {clinic.phone_numbers && clinic.phone_numbers.length > 0 ? (
@@ -244,7 +244,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
           ) : (
             <Text style={styles.emptyMessage}>No phone numbers available</Text>
           )}
-        </View>
+      </View>
 
         {/* Social Media */}
         <View style={styles.card}>
@@ -305,21 +305,21 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
           )}
           
           <Text style={styles.daysLabel}>Available Days:</Text>
-          <View style={styles.daysRow}>
+      <View style={styles.daysRow}>
             {daysOfWeek.map((day, i) => (
               <View 
                 key={day} 
-                style={[
-                  styles.dayBox, 
+            style={[
+              styles.dayBox,
                   clinic.available_days[i] ? styles.dayBoxSelected : styles.dayBoxUnselected
-                ]}
-              >
+            ]}
+          >
                 <Text style={clinic.available_days[i] ? styles.dayTextSelected : styles.dayTextUnselected}>
                   {day}
-                </Text>
+            </Text>
               </View>
-            ))}
-          </View>
+        ))}
+      </View>
         </View>
 
         {/* Services & Features */}
@@ -369,8 +369,8 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
         <TouchableOpacity style={styles.editButton}>
           <Ionicons name="create-outline" size={20} color="#fff" />
           <Text style={styles.editButtonText}>Edit Clinic Details</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </TouchableOpacity>
+    </ScrollView>
     </SafeAreaView>
   );
 };
