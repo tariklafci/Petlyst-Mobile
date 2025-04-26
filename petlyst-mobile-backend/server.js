@@ -13,8 +13,8 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const app = express();
 const PORT = process.env.PORT;
 
-const privateKey = fs.readFileSync('/home/ubuntu/privkey1.pem', 'utf8');
-const certificate = fs.readFileSync('/home/ubuntu/fullchain1.pem', 'utf8');
+const privateKey = fs.readFileSync('/home/ubuntu/cert/privkey1.pem', 'utf8');
+const certificate = fs.readFileSync('/home/ubuntu/cert/fullchain1.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
 
 // Middleware
