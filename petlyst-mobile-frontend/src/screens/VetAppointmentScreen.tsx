@@ -79,7 +79,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
 
       // 1) fetch your clinic relations
       const relRes = await fetch(
-        'https://petlyst.com:3001/api/fetch-clinic-veterinarian?veterinarian_id=' + vetId,
+        `https://petlyst.com:3001/api/fetch-clinic-veterinarian?veterinarian_id=${vetId}`,
         { 
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -95,6 +95,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
       
       const relData = await relRes.json();
       const clinicId = relData.clinic_id;
+      console.log(`{clinicId}`);
 
       if (!clinicId) {
         setAppointments([]);
@@ -103,6 +104,7 @@ const VetAppointmentScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
 
+      console.log('clinicId being sent:', clinicId);
       // 2) fetch ALL appointments, then filter client-side
       const apptRes = await fetch(
         `https://petlyst.com:3001/api/fetch-appointments-clinics?clinicId=${clinicId}`,
