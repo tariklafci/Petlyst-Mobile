@@ -6,7 +6,8 @@ exports.createAppointment = async (req, res) => {
     const userId = req.user.sub;
     const meeting_url = generator.generate({
         length: 20,
-        numbers: true
+        numbers: true,
+        uppercase: false,
     });
 
     try {
