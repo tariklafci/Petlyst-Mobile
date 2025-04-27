@@ -15,7 +15,7 @@ exports.createConference = async (req, res) => {
          appointment_end_hour
        FROM appointments
        WHERE meeting_url = $1`,
-      [`https://meeting.petlyst.com/${name}`] // adjust if needed
+      [name] // adjust if needed
     );
 
     if (rowCount === 0) {
