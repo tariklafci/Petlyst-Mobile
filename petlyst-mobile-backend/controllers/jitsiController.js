@@ -25,14 +25,19 @@ exports.createConference = async (req, res) => {
       return res.status(403).send('Video meeting not enabled');
     }
 
-    const now = new Date();
-    const startTime = new Date(appointment_start_hour);
-    const endTime = new Date(appointment_end_hour);
+    const nowUtc = moment.utc();  // current UTC
 
-    // If current time is NOT between start and end time, deny
-    if (now < startTime || now > endTime) {
-      return res.status(403).send('Meeting not active at this time');
-    }
+    // ✨ fixed parsing:
+    const startMoment = moment.tz(moment(appointment_start_hour).format('YYYY-MM-DD HH:mm:ss'), 'Europe/Istanbul');
+    const endMoment = moment.tz(moment(appointment_end_hour).format('YYYY-MM-DD HH:mm:ss'), 'Europe/Istanbul');
+
+    console.log("Now UTC:", nowUtc.format());
+    console.log("Start UTC:", startMoment.clone().utc().format());
+    console.log("End UTC:", endMoment.clone().utc().format());
+
+if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
+  return res.status(403).send('Meeting not active at this time');
+}
 
     const durationSec = Math.max(0, Math.floor((endTime - startTime) / 1000));
     const isoStart = startTime.toISOString();
