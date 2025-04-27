@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Animatable from 'react-native-animatable';
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
@@ -14,6 +15,12 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const { signIn, signUp } = useAuth();
+  const [passwordValidations, setPasswordValidations] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    number: false,
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -51,6 +58,17 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
+  const handlePasswordChange = (password: string) => {
+    setPassword(password);
+  
+    setPasswordValidations({
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+    });
+  };
+
   const validatePassword = (password: string) => {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
     return regex.test(password);
@@ -76,16 +94,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         </TouchableOpacity>
       </View>
 
-      {!isLoginTab && (
-        <View style={styles.tabContainer}>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(true); setUserType('pet_owner')}} style={[styles.tab, isVeterinarianTab && styles.activeTab]}>
-            <Text style={[styles.tabText, isVeterinarianTab && styles.activeTabText]}>Pet Owner</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(false); setUserType('veterinarian')}} style={[styles.tab, !isVeterinarianTab && styles.activeTab]}>
-            <Text style={[styles.tabText, !isVeterinarianTab && styles.activeTabText]}>Veterinarian</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      
 
       {!isLoginTab && (
         <TextInput
@@ -115,12 +124,66 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           placeholder="Password"
           secureTextEntry={!showPassword}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
         </TouchableOpacity>
       </View>
+
+      {!isLoginTab && (
+        <View style={styles.passwordCriteriaContainer}>
+          <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
+
+          {/* Rule 1 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.length && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
+              • At least 8 characters
+            </Text>
+          </View>
+
+          {/* Rule 2 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.uppercase && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
+              • At least one uppercase letter
+            </Text>
+          </View>
+
+          {/* Rule 3 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.lowercase && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
+              • At least one lowercase letter
+            </Text>
+          </View>
+
+          {/* Rule 4 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.number && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
+              • At least one number
+            </Text>
+          </View>
+        </View>
+      )}
 
       {isLoginTab && (
         <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
@@ -225,6 +288,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  passwordCriteriaContainer: {
+    marginBottom: 15,
+    marginHorizontal: 20,
+  },
+  passwordCriteriaTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333',
+  },
+  passwordCriteriaText: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  criteriaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+
+  validText: {
+    color: 'green',
+    fontWeight: 'bold',
+  },
+  
+  
 });
 
 export default LoginRegisterScreen;
