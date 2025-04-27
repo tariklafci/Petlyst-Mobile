@@ -205,7 +205,7 @@ exports.fetchClinicsAppointment = async (req, res) => {
 
 exports.fetchClinicsVeterinarian = async (req, res) => {
   try {
-    const veterinarian_id = Number(req.query.veterinarianId);
+    const veterinarian_id = Number(req.query.veterinarian_id);
 
     if (!veterinarian_id) {
       return res.status(400).json({ error: 'Veterinarian ID is required' });
