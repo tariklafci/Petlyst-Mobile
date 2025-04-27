@@ -38,8 +38,8 @@ exports.createConference = async (req, res) => {
     const isoStart = startTime.toISOString();
 
     return res.json({
-      id: appointment_id,
-      name: appointment_id, // careful: check what you expect
+      id:         appointment_id,
+      name,
       mail_owner: mail_owner || 'service@meeting.petlyst.com',
       start_time: isoStart,
       duration: durationSec
