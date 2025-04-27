@@ -1,5 +1,5 @@
 // controllers/jitsiController.js
-const pool = require('../db');
+const pool = require('../config/db');
 
 exports.createConference = async (req, res) => {
   const { name /* roomName */, start_time, mail_owner } = req.body;
