@@ -39,7 +39,7 @@ exports.createConference = async (req, res) => {
 
     return res.json({
       id: appointment_id,
-      name: appointment_id, // careful: check what you expect
+      name,
       mail_owner: mail_owner || 'service@meeting.petlyst.com',
       start_time: isoStart,
       duration: durationSec
