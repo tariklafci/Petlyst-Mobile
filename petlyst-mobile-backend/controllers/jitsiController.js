@@ -1,7 +1,8 @@
 const pool = require('../config/db');
 
-// Istanbul is always +1 hour ahead of Frankfurt in April
-const TURKEY_OFFSET_MINUTES_FROM_FRANKFURT = 60; // 1 hour * 60 mins
+// Istanbul is UTC+3 normally (standard time), 
+// or UTC+3 all year if no DST changes (Turkey does not use DST now).
+const ISTANBUL_OFFSET_MINUTES = -180; // minus because getTimezoneOffset returns negative for ahead-of-UTC
 
 exports.createConference = async (req, res) => {
   const { name, start_time, mail_owner } = req.body;
@@ -15,7 +16,7 @@ exports.createConference = async (req, res) => {
          appointment_end_hour
        FROM appointments
        WHERE meeting_url = $1`,
-      [name] // adjust if needed
+      [`https://meeting.petlyst.com/${name}`]  // <-- CAREFUL: build the full URL if your DB stores full meeting_url
     );
 
     if (rowCount === 0) {
@@ -32,19 +33,17 @@ exports.createConference = async (req, res) => {
 
     const now = new Date();
 
-    const startTime = new Date(appointment_start_hour);
-    const endTime = new Date(appointment_end_hour);
+    // Create "virtual UTC" versions of start/end assuming they are Istanbul local times
+    const startTime = new Date(new Date(appointment_start_hour).getTime() - ISTANBUL_OFFSET_MINUTES * 60000);
+    const endTime   = new Date(new Date(appointment_end_hour).getTime() - ISTANBUL_OFFSET_MINUTES * 60000);
 
-    // Shift server time to "Istanbul perspective" (+1 hour)
-    const nowInTurkey = new Date(now.getTime() + TURKEY_OFFSET_MINUTES_FROM_FRANKFURT * 60000);
+    console.log('Now UTC:', now.toISOString());
+    console.log('Adjusted StartTime:', startTime.toISOString());
+    console.log('Adjusted EndTime:', endTime.toISOString());
 
-    console.log('Now (server Frankfurt time):', now.toISOString());
-    console.log('Now (adjusted Turkey view):', nowInTurkey.toISOString());
-    console.log('Appointment Start (Frankfurt time):', startTime.toISOString());
-    console.log('Appointment End (Frankfurt time):', endTime.toISOString());
-
-    if (nowInTurkey < startTime || nowInTurkey > endTime) {
-      console.log('Current Istanbul time is NOT within appointment window');
+    // If current time is NOT between start and end time, deny
+    if (now < startTime || now > endTime) {
+      console.log('Current UTC time is not within Istanbul appointment window');
       return res.status(403).send('Meeting not active at this time');
     }
 
@@ -53,7 +52,7 @@ exports.createConference = async (req, res) => {
 
     return res.json({
       id:         appointment_id,
-      name,                     // room name exactly as Prosody requested
+      name,                     // must match the original room name
       mail_owner: mail_owner || 'service@meeting.petlyst.com',
       start_time: isoStart,
       duration:   durationSec
