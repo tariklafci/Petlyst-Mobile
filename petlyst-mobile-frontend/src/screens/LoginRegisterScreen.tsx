@@ -2,17 +2,23 @@ import React, { useState, useContext } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import * as Animatable from 'react-native-animatable';
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
   const [surname, setSurname] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isValid, setIsValid] = useState(false);
   const [user_type, setUserType] = useState('pet_owner');
   const [isVeterinarianTab, setIsVeterinarianTab] = useState(true);
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordValidations, setPasswordValidations] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+  });
   const { signIn, signUp } = useAuth();
 
   const handleLogin = async () => {
@@ -56,6 +62,15 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     return regex.test(password);
   };
 
+  const handlePasswordChange = (text: string) => {
+    setPassword(text);
+    setPasswordValidations({
+      length: text.length >= 8,
+      uppercase: /[A-Z]/.test(text),
+      lowercase: /[a-z]/.test(text),
+      number: /[0-9]/.test(text),
+    });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -115,12 +130,66 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           placeholder="Password"
           secureTextEntry={!showPassword}
           value={password}
-          onChangeText={setPassword}
+          onChangeText={handlePasswordChange}
         />
         <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
           <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
         </TouchableOpacity>
       </View>
+
+      {!isLoginTab && (
+        <View style={styles.passwordCriteriaContainer}>
+          <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
+
+          {/* Rule 1 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.length && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
+              • At least 8 characters
+            </Text>
+          </View>
+
+          {/* Rule 2 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.uppercase && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
+              • At least one uppercase letter
+            </Text>
+          </View>
+
+          {/* Rule 3 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.lowercase && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
+              • At least one lowercase letter
+            </Text>
+          </View>
+
+          {/* Rule 4 */}
+          <View style={styles.criteriaRow}>
+            {passwordValidations.number && (
+              <Animatable.View animation="bounceIn" duration={800}>
+                <Ionicons name="checkmark-circle" size={20} color="green" />
+              </Animatable.View>
+            )}
+            <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
+              • At least one number
+            </Text>
+          </View>
+        </View>
+      )}
 
       {isLoginTab && (
         <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
@@ -224,6 +293,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  passwordCriteriaContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  passwordCriteriaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  criteriaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  passwordCriteriaText: {
+    marginLeft: 10,
+    color: 'gray',
+  },
+  validText: {
+    color: 'green',
   },
 });
 
