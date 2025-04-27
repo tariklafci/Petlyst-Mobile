@@ -16,7 +16,7 @@ exports.createConference = async (req, res) => {
          appointment_end_hour
        FROM appointments
        WHERE meeting_url = $1`,
-      [`https://meeting.petlyst.com/${name}`]  // <-- CAREFUL: build the full URL if your DB stores full meeting_url
+      [name]  // <-- CAREFUL: build the full URL if your DB stores full meeting_url
     );
 
     if (rowCount === 0) {
