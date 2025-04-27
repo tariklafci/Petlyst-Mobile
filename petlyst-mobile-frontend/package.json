@@ -15,6 +15,7 @@
     "expo-location": "~18.0.4",
     "expo-screen-orientation": "~8.0.3",
     "expo-secure-store": "~14.0.0",
+    "generate-password": "^1.7.1",
     "react": "18.3.1",
     "react-native": "0.76.7",
     "react-native-animatable": "^1.4.0",
