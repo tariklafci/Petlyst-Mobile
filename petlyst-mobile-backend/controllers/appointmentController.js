@@ -37,7 +37,7 @@ exports.createAppointment = async (req, res) => {
         $6::timestamp without time zone, 
         $7::date, 
         $8, 
-        $9
+        $9,
         $10
       )
       RETURNING *;
