@@ -26,7 +26,8 @@ exports.createAppointment = async (req, res) => {
         appointment_end_hour, 
         appointment_date, 
         clinic_id, 
-        pet_owner_id
+        pet_owner_id,
+        meeting_url
       )
       VALUES (
         $1, 
