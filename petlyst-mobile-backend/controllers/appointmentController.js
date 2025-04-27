@@ -1,8 +1,13 @@
 const pool = require('../config/db');
+const generator = require ('generate-password');
 
 exports.createAppointment = async (req, res) => {
     const { video_meeting, pet_id, appointment_start_hour, appointment_status, notes, appointment_end_hour, appointment_date, clinic_id } = req.body;
     const userId = req.user.sub;
+    const meeting_url = generator.generate({
+        length: 20,
+        numbers: true
+    });
 
     try {
 
@@ -33,6 +38,7 @@ exports.createAppointment = async (req, res) => {
         $7::date, 
         $8, 
         $9
+        $10
       )
       RETURNING *;
     `;
@@ -45,7 +51,8 @@ exports.createAppointment = async (req, res) => {
             appointment_end_hour, 
             formattedDate, // Use the formatted date
             clinic_id, 
-            userId
+            userId,
+            meeting_url
         ];
         
         const result = await pool.query(insertQuery, values);
