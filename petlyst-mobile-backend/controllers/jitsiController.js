@@ -30,9 +30,9 @@ exports.createConference = async (req, res) => {
     const endTime = new Date(appointment_end_hour);
 
     // If current time is NOT between start and end time, deny
-    /*if (now < startTime || now > endTime) {
+    if (now < startTime || now > endTime) {
       return res.status(403).send('Meeting not active at this time');
-    }*/
+    }
 
     const durationSec = Math.max(0, Math.floor((endTime - startTime) / 1000));
     const isoStart = startTime.toISOString();
