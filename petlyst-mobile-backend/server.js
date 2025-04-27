@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const petRoutes = require('./routes/petRoutes');
 const clinicRoutes = require('./routes/clinicRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
+const jitsiRoutes = require('./routes/jitsi');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -19,6 +20,7 @@ const credentials = { key: privateKey, cert: certificate };
 
 // Middleware
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 
 // Use routes
@@ -26,6 +28,7 @@ app.use('/api', authRoutes);
 app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
 app.use('/api', appointmentRoutes);
+app.use('/jitsi', jitsiRoutes);
 
 const httpsServer = https.createServer(credentials, app);
 
