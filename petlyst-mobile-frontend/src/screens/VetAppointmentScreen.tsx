@@ -60,7 +60,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
   
       const token = await SecureStore.getItemAsync('userToken');
       const userId = await SecureStore.getItemAsync('userId');
-      
+            
       if (!token) {
         setError('Authentication token not found. Please login again.');
         setIsLoading(false);
