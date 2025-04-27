@@ -2,7 +2,7 @@ const pool = require('../config/db');
 const moment = require('moment-timezone');
 
 exports.createConference = async (req, res) => {
-  const { name, start_time, mail_owner } = req.body;
+  const { name, mail_owner } = req.body;
 
   try {
     const { rowCount, rows } = await pool.query(
@@ -26,22 +26,28 @@ exports.createConference = async (req, res) => {
       return res.status(403).send('Video meeting not enabled');
     }
 
-    const nowUtc = moment.utc();  // current UTC
+    const nowUtc = moment.utc(); // server current UTC time
 
-    // ✨ fixed parsing:
-    const startMoment = moment.tz(moment(appointment_start_hour).format('YYYY-MM-DD HH:mm:ss'), 'Europe/Istanbul');
-    const endMoment = moment.tz(moment(appointment_end_hour).format('YYYY-MM-DD HH:mm:ss'), 'Europe/Istanbul');
+    // Correctly parse as Turkey time, then work in UTC
+    const startMoment = moment.tz(
+      moment(appointment_start_hour).format('YYYY-MM-DD HH:mm:ss'),
+      'Europe/Istanbul'
+    );
+    const endMoment = moment.tz(
+      moment(appointment_end_hour).format('YYYY-MM-DD HH:mm:ss'),
+      'Europe/Istanbul'
+    );
 
     console.log("Now UTC:", nowUtc.format());
     console.log("Start UTC:", startMoment.clone().utc().format());
     console.log("End UTC:", endMoment.clone().utc().format());
 
-if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
-  return res.status(403).send('Meeting not active at this time');
-}
+    if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
+      return res.status(403).send('Meeting not active at this time');
+    }
 
-    const durationSec = Math.max(0, Math.floor((endTime - startTime) / 1000));
-    const isoStart = startTime.toISOString();
+    const durationSec = Math.max(0, endMoment.diff(startMoment, 'seconds'));
+    const isoStart = startMoment.clone().utc().toISOString();
 
     return res.json({
       id: appointment_id,
