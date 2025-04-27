@@ -54,6 +54,7 @@ interface Clinic {
       setIsLoading(true);
       const token = await SecureStore.getItemAsync('userToken');
       const veterinarian_id = await SecureStore.getItemAsync('userId');
+      console.log(`Veterinarian ID: ${veterinarian_id}`)
   
       if (!token) {
         return;
@@ -347,8 +348,8 @@ interface Clinic {
               />
               <Text style={styles.featureText}>Online Meetings</Text>
             </View>
-          </View>
-          
+      </View>
+
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Time Slots:</Text>
             <Text style={styles.infoValue}>{clinic.clinic_time_slots} minutes per appointment</Text>
