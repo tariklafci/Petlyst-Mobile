@@ -1,3 +1,5 @@
+//notificationHelper.js
+
 const fetch = require('node-fetch');
 const cron = require('node-cron');
 const { pool } = require('../config/db'); // adjust your db pool path
