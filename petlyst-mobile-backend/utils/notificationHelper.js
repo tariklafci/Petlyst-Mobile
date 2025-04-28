@@ -65,11 +65,11 @@ async function notifyTodayAppointments() {
 
       // Fetch expo tokens for this pet owner
       const { rows: tokensResult } = await client.query(
-        'SELECT user_expo_token FROM user_tokens WHERE user_id = $1',
+        'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
         [pet_owner_id]
       );
 
-      const expoTokens = tokensResult.map(row => row.user_expo_token);
+      const expoTokens = tokensResult.map(row => row.user_token_expo);
 
       // Format time nicely for the notification
       const time = new Date(appointment_start_hour).toLocaleTimeString('tr-TR', {
