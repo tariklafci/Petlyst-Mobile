@@ -11,7 +11,7 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
-      "package": "com.tlafci.petlystmobilefrontend",
+      "package": "com.petlyst.tariklafci",
       "googleServicesFile": "./google-services.json"
     },
     "owner": "tlafci",
