@@ -4,7 +4,7 @@ const router = express.Router();
 const { testSendAppointmentNotifications } = require('../controllers/notificationController');
 
 
-router.get('/api/test-notifications', testSendAppointmentNotifications);
+router.get('/test-notifications', testSendAppointmentNotifications);
 
 module.exports = router;
 
