@@ -80,7 +80,7 @@ async function notifyTodayAppointments() {
       });
 
       const title = "Appointment Reminder";
-      const body = `You have an appointment today at {time}`;
+      const body = `You have an appointment today at ${time}`;
 
       await sendPushNotifications(expoTokens, title, body);
     }
