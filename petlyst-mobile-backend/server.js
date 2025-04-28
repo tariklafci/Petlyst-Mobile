@@ -10,6 +10,7 @@ const petRoutes = require('./routes/petRoutes');
 const clinicRoutes = require('./routes/clinicRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const jitsiRoutes = require('./routes/jitsiRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -29,6 +30,7 @@ app.use('/api', petRoutes);
 app.use('/api', clinicRoutes);
 app.use('/api', appointmentRoutes);
 app.use('/api', jitsiRoutes);
+app.use('/api', notificationRoutes);
 
 const httpsServer = https.createServer(credentials, app);
 
