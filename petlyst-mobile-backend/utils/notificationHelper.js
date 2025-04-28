@@ -95,4 +95,10 @@ cron.schedule('0 5 * * *', () => {
   notifyTodayAppointments();
 });
 
+module.exports = {
+    notifyTodayAppointments,
+    sendPushNotifications
+  };
+  
+
 console.log('Appointment reminder service scheduled.');
