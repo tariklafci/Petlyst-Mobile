@@ -278,4 +278,41 @@ exports.verifyResetCode = async (req, res) => {
             message: 'Failed to reset password',
         });
     }
+
+};
+
+exports.addExpoToken = async (req, res) => {
+    const client = await pool.connect(); // Get a dedicated connection
+
+    try {
+        const expoToken = req.body;
+        const userId = req.user.sub;
+
+        await client.query('BEGIN'); // Start transaction
+
+        // Check if expo_token already exists
+        const existingUser = await client.query('SELECT user_expo_token FROM users WHERE user_id = $1', [userId]);
+        if (existingUser.rows.length > 0) {
+            await client.query('ROLLBACK'); // Rollback transaction if token exists
+            return res.status(400).json({ message: 'Token already exists.' });
+        }
+
+        // Insert into users table
+        const userResult = await client.query(
+            'INSERT INTO users (user_expo_token) VALUES ($1) RETURNING *;'
+            [expoToken]
+        );
+
+
+        await client.query('COMMIT'); // Commit the transaction
+        client.release(); // Release the connection
+
+        return res.json({ message: 'Token inserted successfully' });
+
+    } catch (error) {
+        await client.query('ROLLBACK'); // Rollback transaction if an error occurs
+        client.release(); // Release the connection
+        console.error('Error inserting token:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
 };

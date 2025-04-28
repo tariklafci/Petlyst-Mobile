@@ -3,6 +3,7 @@ import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dime
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
+import * as SecureStore from 'expo-secure-store';
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
@@ -21,6 +22,42 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   });
   const { signIn, signUp } = useAuth();
 
+  const handleSendNotificationToken = async () => {
+    const token = await SecureStore.getItemAsync('expoToken');
+
+    if (token == null) {
+      Alert.alert('Error', 'Expo token was not found. Please re-open the app.');
+      return;
+    }
+
+    try {
+      const expoToken = await SecureStore.getItemAsync('expoToken');
+      const userToken = await SecureStore.getItemAsync('userToken');
+      if (!expoToken && !userToken) {
+        Alert.alert('Error', 'No token found. Please re-open the app in again.');
+        return;
+      }
+
+      const response = await fetch('https://petlyst.com:3001/api/add-expo-token', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${userToken}`
+        },
+        body: expoToken
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert('Success', data.message);
+      } else {
+        Alert.alert('Error', data.error);
+      }
+    } catch (error) {
+      console.error('Error updating expo token:', error);
+      Alert.alert('Error', 'Something went wrong.');
+    }
+  };
+  
   const handleLogin = async () => {
     if (!email || !password) {
       return Alert.alert('Error', 'Please fill in both username and password.');
@@ -28,6 +65,8 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     try {
       await signIn({ email, password });
       Alert.alert('Success', 'You are now logged in!');
+      handleSendNotificationToken();
+
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Something went wrong.');
