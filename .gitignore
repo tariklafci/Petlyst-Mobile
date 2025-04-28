@@ -4,3 +4,4 @@ petlyst-mobile-frontend/node_modules/
 petlyst-mobile-frontend/.expo/
 petlyst-mobile-frontend/eas.json
 petlyst-mobile-frontend/android/gradle.properties
+google-services.json

@@ -11,13 +11,14 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
-      "package": "com.tlafci.petlystmobilefrontend"
+      "package": "com.tlafci.petlystmobilefrontend",
+      "googleServicesFile": "./google-services.json"
     },
+    "owner": "tlafci",
     "extra": {
       "eas": {
-        "projectId": "7eb19353-8e0c-42fc-aa05-e4a322353a4c"
+        "projectId": "dd6d79a7-cffd-41c2-9f55-2162b41137d1"
       }
-    },
-    "owner": "tlafci"
+    }
   }
 }
