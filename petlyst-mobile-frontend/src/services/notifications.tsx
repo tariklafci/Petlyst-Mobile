@@ -2,6 +2,8 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
 
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
   if (Platform.OS === 'android') {
@@ -31,6 +33,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     console.log('Expo Push Token:', token);
+    await SecureStore.setItemAsync('expoToken', token);
     return token;
   } else {
     console.warn('Must use physical device for Push Notifications');
