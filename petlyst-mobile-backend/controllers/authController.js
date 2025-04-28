@@ -299,29 +299,23 @@ exports.addExpoToken = async (req, res) => {
   
       await client.query('BEGIN');
   
-      // Check if user exists and already has a token
-      const existingUser = await client.query(
-        'SELECT user_expo_token FROM users WHERE user_id = $1',
-        [userId]
+      // Check if the token already exists for this user
+      const existingToken = await client.query(
+        'SELECT * FROM user_tokens WHERE user_id = $1 AND user_expo_token = $2',
+        [userId, expoToken]
       );
   
-      if (existingUser.rows.length > 0 && existingUser.rows[0].user_expo_token) {
+      if (existingToken.rows.length > 0) {
         await client.query('ROLLBACK');
         client.release();
-        return res.status(400).json({ message: 'Expo token already exists.' });
+        return res.status(200).json({ message: 'Expo token already exists for this user.' });
       }
   
-      // Update the user row to add the expo token
-      const updateUserResult = await client.query(
-        'UPDATE users SET user_expo_token = $1 WHERE user_id = $2 RETURNING *;',
-        [expoToken, userId]
+      // Insert the new token
+      await client.query(
+        'INSERT INTO user_tokens (user_id, user_expo_token) VALUES ($1, $2)',
+        [userId, expoToken]
       );
-  
-      if (updateUserResult.rowCount === 0) {
-        await client.query('ROLLBACK');
-        client.release();
-        return res.status(404).json({ message: 'User not found.' });
-      }
   
       await client.query('COMMIT');
       client.release();
@@ -333,4 +327,5 @@ exports.addExpoToken = async (req, res) => {
       console.error('Error inserting expo token:', error);
       return res.status(500).json({ message: 'Server error' });
     }
-  };  
+  };
+    
