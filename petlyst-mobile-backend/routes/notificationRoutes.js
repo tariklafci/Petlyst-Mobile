@@ -1,6 +1,8 @@
 const express = require('express');
-const { testSendAppointmentNotifications } = require('../controllers/notificationController');
 const router = express.Router();
+
+const { testSendAppointmentNotifications } = require('../controllers/notificationController');
+
 
 app.get('/api/test-notifications', testSendAppointmentNotifications);
 
