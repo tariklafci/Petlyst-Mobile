@@ -43,7 +43,9 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         headers: {
           Authorization: `Bearer ${userToken}`
         },
-        body: expoToken
+        body: JSON.stringify({
+          expoToken: expoToken
+        })
       });
 
       const data = await response.json();
