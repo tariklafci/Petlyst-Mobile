@@ -23,42 +23,42 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const { signIn, signUp } = useAuth();
 
   const handleSendNotificationToken = async () => {
-    const token = await SecureStore.getItemAsync('expoToken');
-
-    if (token == null) {
-      Alert.alert('Error', 'Expo token was not found. Please re-open the app.');
-      return;
-    }
-
     try {
       const expoToken = await SecureStore.getItemAsync('expoToken');
       const userToken = await SecureStore.getItemAsync('userToken');
-      if (!expoToken && !userToken) {
-        Alert.alert('Error', 'No token found. Please re-open the app in again.');
+  
+      if (!expoToken) {
+        Alert.alert('Error', 'Expo token was not found. Please re-open the app.');
         return;
       }
-
+  
+      if (!userToken) {
+        Alert.alert('Error', 'User token was not found. Please re-open the app.');
+        return;
+      }
+  
       const response = await fetch('https://petlyst.com:3001/api/add-expo-token', {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${userToken}`
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          expoToken: expoToken
-        })
+        body: JSON.stringify({ expoToken })
       });
-
+  
       const data = await response.json();
+  
       if (response.ok) {
         Alert.alert('Success', data.message);
       } else {
-        Alert.alert('Error', data.error);
+        Alert.alert('Error', data.message || 'Unknown error occurred.');
       }
     } catch (error) {
       console.error('Error updating expo token:', error);
-      Alert.alert('Error', 'Something went wrong.');
+      Alert.alert('Error', 'Something went wrong. Please try again later.');
     }
   };
+  
   
   const handleLogin = async () => {
     if (!email || !password) {

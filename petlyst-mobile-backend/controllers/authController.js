@@ -282,41 +282,55 @@ exports.verifyResetCode = async (req, res) => {
 };
 
 exports.addExpoToken = async (req, res) => {
-    const client = await pool.connect(); // Get a dedicated connection
-    console.log("It is inside addExpoToken api")
-
+    const client = await pool.connect();
+    console.log("Inside addExpoToken API");
+  
     try {
-        const { expoToken } = req.body;
-        const userId = req.user.sub;
-
-        console.log(`Expo token is: ${expoToken}`)
-        console.log(`User id is: ${userId}`)
-
-        await client.query('BEGIN'); // Start transaction
-
-        // Check if expo_token already exists
-        const existingUser = await client.query('SELECT user_expo_token FROM users WHERE user_id = $1', [userId]);
-        if (existingUser.rows.length > 0) {
-            await client.query('ROLLBACK'); // Rollback transaction if token exists
-            return res.status(400).json({ message: 'Token already exists.' });
-        }
-
-        // Insert into users table
-        const userResult = await client.query(
-            'INSERT INTO users (user_expo_token) VALUES ($1) RETURNING *;'
-            [expoToken]
-        );
-
-
-        await client.query('COMMIT'); // Commit the transaction
-        client.release(); // Release the connection
-
-        return res.json({ message: 'Token inserted successfully' });
-
+      const { expoToken } = req.body;
+      const userId = req.user.sub;
+  
+      if (!expoToken) {
+        client.release();
+        return res.status(400).json({ message: 'Expo token is required.' });
+      }
+  
+      console.log(`Expo token is: ${expoToken}`);
+      console.log(`User ID is: ${userId}`);
+  
+      await client.query('BEGIN');
+  
+      // Check if user exists and already has a token
+      const existingUser = await client.query(
+        'SELECT user_expo_token FROM users WHERE user_id = $1',
+        [userId]
+      );
+  
+      if (existingUser.rows.length > 0 && existingUser.rows[0].user_expo_token) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({ message: 'Expo token already exists.' });
+      }
+  
+      // Update the user row to add the expo token
+      const updateUserResult = await client.query(
+        'UPDATE users SET user_expo_token = $1 WHERE user_id = $2 RETURNING *;',
+        [expoToken, userId]
+      );
+  
+      if (updateUserResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(404).json({ message: 'User not found.' });
+      }
+  
+      await client.query('COMMIT');
+      client.release();
+  
+      return res.json({ message: 'Expo token added successfully.' });
     } catch (error) {
-        await client.query('ROLLBACK'); // Rollback transaction if an error occurs
-        client.release(); // Release the connection
-        console.error('Error inserting token:', error);
-        return res.status(500).json({ message: 'Server error' });
+      await client.query('ROLLBACK');
+      client.release();
+      console.error('Error inserting expo token:', error);
+      return res.status(500).json({ message: 'Server error' });
     }
-};
+  };  
