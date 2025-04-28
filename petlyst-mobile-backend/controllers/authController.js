@@ -289,6 +289,9 @@ exports.addExpoToken = async (req, res) => {
         const expoToken = req.body;
         const userId = req.user.sub;
 
+        console.log(`Expo token is: ${expoToken}`)
+        console.log(`User id is: ${userId}`)
+
         await client.query('BEGIN'); // Start transaction
 
         // Check if expo_token already exists
