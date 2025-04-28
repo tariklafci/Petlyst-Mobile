@@ -55,7 +55,7 @@ async function notifyTodayAppointments() {
       SELECT appointment_id, pet_owner_id, appointment_start_hour
       FROM appointments
       WHERE appointment_date = $1
-        AND appointment_status = 'pending'
+        AND appointment_status = 'confirmed'
     `, [todayDate]);
 
     console.log('Found appointments:', appointments.length);
