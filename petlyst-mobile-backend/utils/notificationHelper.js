@@ -2,7 +2,7 @@
 
 const fetch = require('node-fetch');
 const cron = require('node-cron');
-const { pool } = require('../config/db'); // adjust your db pool path
+const pool = require('../config/db');
 
 // Send notification to multiple expo tokens
 async function sendPushNotifications(expoTokens, title, body) {
