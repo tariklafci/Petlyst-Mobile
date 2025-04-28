@@ -301,7 +301,7 @@ exports.addExpoToken = async (req, res) => {
   
       // Check if the token already exists for this user
       const existingToken = await client.query(
-        'SELECT * FROM user_tokens WHERE user_id = $1 AND user_expo_token = $2',
+        'SELECT * FROM user_tokens WHERE user_id = $1 AND user_token_expo = $2',
         [userId, expoToken]
       );
   
@@ -313,7 +313,7 @@ exports.addExpoToken = async (req, res) => {
   
       // Insert the new token
       await client.query(
-        'INSERT INTO user_tokens (user_id, user_expo_token) VALUES ($1, $2)',
+        'INSERT INTO user_tokens (user_id, user_token_expo) VALUES ($1, $2)',
         [userId, expoToken]
       );
   
