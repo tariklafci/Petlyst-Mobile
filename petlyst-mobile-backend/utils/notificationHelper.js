@@ -5,6 +5,8 @@ const cron = require('node-cron');
 const pool = require('../config/db');
 
 // Send notification to multiple expo tokens
+const EXPO_ACCESS_TOKEN = process.env.EXPO_ACCESS_TOKEN
+
 async function sendPushNotifications(expoTokens, title, body) {
   if (expoTokens.length === 0) return;
 
@@ -22,7 +24,8 @@ async function sendPushNotifications(expoTokens, title, body) {
       headers: {
         'Accept': 'application/json',
         'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${EXPO_ACCESS_TOKEN}`
       },
       body: JSON.stringify(messages)
     });
@@ -30,7 +33,6 @@ async function sendPushNotifications(expoTokens, title, body) {
     const data = await response.json();
     console.log('Expo push response:', data);
 
-    // OPTIONAL: handle invalid tokens here and clean your DB if needed
   } catch (error) {
     console.error('Error sending push notifications:', error);
   }
