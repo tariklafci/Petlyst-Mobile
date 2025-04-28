@@ -16,6 +16,6 @@ router.post('/reset-password', resetPassword);
 router.post('/verify-reset', verifyResetCode);
 
 // PATCH /api/add-expo-token
-router.patch('/add-expo-token', authenticateToken, editPet);
+router.patch('/add-expo-token', authenticateToken, addExpoToken);
 
 module.exports = router;
