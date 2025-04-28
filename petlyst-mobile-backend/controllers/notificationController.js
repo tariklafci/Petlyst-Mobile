@@ -1,3 +1,5 @@
+const {notifyTodayAppointments} = require('../utils/notificationHelper');
+
 exports.testSendAppointmentNotifications = async (req, res) => {
     try {
       await notifyTodayAppointments(); // This is the same function your cron calls!
