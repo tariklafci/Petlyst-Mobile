@@ -286,7 +286,7 @@ exports.addExpoToken = async (req, res) => {
     console.log("It is inside addExpoToken api")
 
     try {
-        const expoToken = req.body;
+        const { expoToken } = req.body;
         const userId = req.user.sub;
 
         console.log(`Expo token is: ${expoToken}`)
