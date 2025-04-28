@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const authenticateToken = require('../middlewares/authenticateToken');
 const { loginUser, registerUser, resetPassword, verifyResetCode, addExpoToken } = require('../controllers/authController');
 
 // POST /api/login
