@@ -1,4 +1,4 @@
-const {notifyTodayAppointments} = require('../utils/notificationHelper');
+const { notifyTodayAppointments } = require('../utils/notificationHelper');
 
 exports.testSendAppointmentNotifications = async (req, res) => {
   try {
