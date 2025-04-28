@@ -283,6 +283,7 @@ exports.verifyResetCode = async (req, res) => {
 
 exports.addExpoToken = async (req, res) => {
     const client = await pool.connect(); // Get a dedicated connection
+    console.log("It is inside addExpoToken api")
 
     try {
         const expoToken = req.body;
