@@ -37,7 +37,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
   
-      const response = await fetch('https://petlyst.com:3001/api/add-expo-token', {
+      const response = await fetch('http://192.168.84.209:3001/api/add-expo-token', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${userToken}`,

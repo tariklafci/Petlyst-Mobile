@@ -15,9 +15,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const app = express();
 const PORT = process.env.PORT;
 
-const privateKey = fs.readFileSync('/home/ubuntu/certs/privkey1.pem', 'utf8');
-const certificate = fs.readFileSync('/home/ubuntu/certs/fullchain1.pem', 'utf8');
-const credentials = { key: privateKey, cert: certificate };
+//const privateKey = fs.readFileSync('/home/ubuntu/certs/privkey1.pem', 'utf8');
+//const certificate = fs.readFileSync('/home/ubuntu/certs/fullchain1.pem', 'utf8');
+//const credentials = { key: privateKey, cert: certificate };
 
 // Middleware
 app.use(bodyParser.json());
@@ -32,9 +32,13 @@ app.use('/api', appointmentRoutes);
 app.use('/api', jitsiRoutes);
 app.use('/api', notificationRoutes);
 
-const httpsServer = https.createServer(credentials, app);
+//const httpsServer = https.createServer(credentials, app);
 
-httpsServer.listen(PORT, () => {
-  console.log(`Server is running on https://petlyst.com:${PORT}`);
+/*httpsServer.listen(PORT, () => {
+  console.log(`Server is running on http://192.168.84.209:${PORT}`);
+});*/
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://192.168.84.209:${PORT}`);
 });
 

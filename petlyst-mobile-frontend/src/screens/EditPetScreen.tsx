@@ -84,7 +84,7 @@ export default function EditPetScreen({ route, navigation }: EditPetScreenProps)
         } as any);
       }
 
-      const response = await fetch('https://petlyst.com:3001/api/edit-pet', {
+      const response = await fetch('http://192.168.84.209:3001/api/edit-pet', {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`
