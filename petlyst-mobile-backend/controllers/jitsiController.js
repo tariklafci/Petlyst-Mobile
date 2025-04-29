@@ -38,9 +38,6 @@ exports.createConference = async (req, res) => {
       'Europe/Istanbul'
     );
 
-    console.log("Now UTC:", nowUtc.format());
-    console.log("Start UTC:", startMoment.clone().utc().format());
-    console.log("End UTC:", endMoment.clone().utc().format());
 
     if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
       return res.status(403).send('Meeting not active at this time');
