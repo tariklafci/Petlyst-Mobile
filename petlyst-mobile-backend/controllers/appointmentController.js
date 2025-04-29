@@ -4,11 +4,14 @@ const generator = require ('generate-password');
 exports.createAppointment = async (req, res) => {
     const { video_meeting, pet_id, appointment_start_hour, appointment_status, notes, appointment_end_hour, appointment_date, clinic_id } = req.body;
     const userId = req.user.sub;
+
     const meeting_url = generator.generate({
-        length: 20,
+        length: 15,
         numbers: true,
         uppercase: false,
-    });
+        lowercase: false,
+      }).match(/.{1,3}/g)?.join('-') ?? '';
+      
 
     try {
 
@@ -54,7 +57,7 @@ exports.createAppointment = async (req, res) => {
             formattedDate, // Use the formatted date
             clinic_id, 
             userId,
-            meeting_url
+            "Room-ID-"+meeting_url
         ];
         
         const result = await pool.query(insertQuery, values);
@@ -84,7 +87,7 @@ exports.fetchAppointments = async (req, res) => {
                 a.appointment_status,
                 a.video_meeting,
                 a.notes,
-                a.meeting_url
+                a.meeting_url,
                 p.pet_name,
                 p.pet_species,
                 p.pet_breed,
@@ -147,7 +150,7 @@ exports.fetchAppointments = async (req, res) => {
                 status: appointment.appointment_status,
                 isVideoMeeting: appointment.video_meeting,
                 notes: appointment.notes,
-                meeting_url: meeting_url,
+                meeting_url: appointment.meeting_url,
                 pet: {
                     name: appointment.pet_name,
                     species: appointment.pet_species,
@@ -259,6 +262,37 @@ exports.fetchAppointmentsClinic = async (req, res) => {
     } catch (error) {
         console.error('Error fetching appointments:', error);
         res.status(500).json({ error: 'Failed to fetch appointments' });
+    }
+};
+
+exports.cancelPendingAppointment = async (req, res) => {
+    try {
+        const { appointment_id, appointment_status } = req.body;
+        const userId = req.user.sub;
+
+        const updateQuery = `
+            UPDATE appointments
+            SET appointment_status = $1
+            WHERE appointment_id = $2 AND pet_owner_id = $3
+            RETURNING *;
+        `;
+        const values = [appointment_status, appointment_id, userId];
+
+        const result = await pool.query(updateQuery, values);
+
+        // If no rows were returned, the appointment might not exist or the user is unauthorized
+        if (!result.rows.length) {
+            return res.status(404).json({ error: 'Appointment not found or unauthorized' });
+        }
+
+        res.status(200).json({
+            message: 'Appointment updated successfully',
+            appointment: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Error updating appointment:', error);
+        res.status(500).json({ error: 'Failed to update appointment' });
     }
 };
 
