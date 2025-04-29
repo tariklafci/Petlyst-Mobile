@@ -73,7 +73,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         return null;
       }
   
-      const response = await fetch(`https://petlyst.com:3001/api/fetch-clinic-veterinarian?veterinarian_id=${userId}`, {
+      const response = await fetch(`http://192.168.84.209:3001/api/fetch-clinic-veterinarian?veterinarian_id=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
       }
       
       // Fix endpoint to match backend route (clinics instead of clinic)
-      const response = await fetch(`https://petlyst.com:3001/api/fetch-appointments-clinics?clinicId=${clinicId}${status ? `&status=${status}` : ''}`, {
+      const response = await fetch(`http://192.168.84.209:3001/api/fetch-appointments-clinics?clinicId=${clinicId}${status ? `&status=${status}` : ''}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         return false;
       }
       
-      const response = await fetch(`https://petlyst.com:3001/api/update-appointment-status`, {
+      const response = await fetch(`http://192.168.84.209:3001/api/update-appointment-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

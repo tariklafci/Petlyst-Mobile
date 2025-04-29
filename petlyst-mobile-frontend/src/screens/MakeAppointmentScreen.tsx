@@ -152,7 +152,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         Alert.alert('Error', 'No token found. Please log in again.');
         return;
       }
-      const response = await fetch('https://petlyst.com:3001/api/fetch-pets', {
+      const response = await fetch('http://192.168.84.209:3001/api/fetch-pets', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -353,7 +353,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         appointment_status: 'pending'
       };
       
-      const response = await fetch('https://petlyst.com:3001/api/create-appointment', {
+      const response = await fetch('http://192.168.84.209:3001/api/create-appointment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

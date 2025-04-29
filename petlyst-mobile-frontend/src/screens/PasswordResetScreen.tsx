@@ -13,7 +13,7 @@ const PasswordResetScreen = ({ navigation }: { navigation: any }) => {
 
     try {
       setLoading(true);
-      const response = await fetch('https://petlyst.com:3001/api/reset-password', {
+      const response = await fetch('http://192.168.84.209:3001/api/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

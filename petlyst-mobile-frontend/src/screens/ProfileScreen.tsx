@@ -62,7 +62,7 @@ const ProfileScreen = ({ navigation }: any) => {
         return;
       }
       
-      const response = await fetch(`https://petlyst.com:3001/api/fetch-appointments?status=${status}`, {
+      const response = await fetch(`http://192.168.84.209:3001/api/fetch-appointments?status=${status}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
