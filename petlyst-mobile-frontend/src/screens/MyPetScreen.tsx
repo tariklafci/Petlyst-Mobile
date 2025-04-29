@@ -207,15 +207,36 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
 
   const calculateAge = (birth_date: Date | null): string => {
     if (!birth_date) return 'Unknown';
+  
     const birth = new Date(birth_date);
     const now = new Date();
-    let age = now.getFullYear() - birth.getFullYear();
-    const monthDiff = now.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-      age -= 1;
+  
+    let years = now.getFullYear() - birth.getFullYear();
+    let months = now.getMonth() - birth.getMonth();
+  
+    if (now.getDate() < birth.getDate()) {
+      months -= 1; // not a full month yet
     }
-    return `${age} ${age === 1 ? 'year' : 'years'}`;
+  
+    if (months < 0) {
+      years -= 1;
+      months += 12;
+    }
+  
+    const yearPart = years > 0 ? `${years} ${years === 1 ? 'year' : 'years'}` : '';
+    const monthPart = months > 0 ? `${months} ${months === 1 ? 'month' : 'months'}` : '';
+  
+    if (yearPart && monthPart) {
+      return `${yearPart} ${monthPart}`;
+    } else if (yearPart) {
+      return yearPart;
+    } else if (monthPart) {
+      return monthPart;
+    } else {
+      return 'Less than a month';
+    }
   };
+  
 
   const selectFirstPet = async (id: number, name: string) => {
     try {
