@@ -41,7 +41,7 @@ interface Appointment {
   clinic: Clinic;
 }
 
-const ProfileScreen = ({ navigation }: any) => {
+const AppointmentScreen = ({ navigation }: any) => {
   const [selectedIndex, setSelectedIndex] = useState(0); // Default selection (Pending)
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -483,4 +483,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen;
+export default AppointmentScreen;

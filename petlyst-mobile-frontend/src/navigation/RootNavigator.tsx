@@ -9,7 +9,7 @@ import LoginRegisterScreen from '../screens/LoginRegisterScreen';
 import MyPetScreen from '../screens/MyPetScreen';
 import HomeScreen from '../screens/HomeScreen';
 import InboxScreen from '../screens/InboxScreen';
-import ProfileScreen from '../screens/ProfileScreen';
+import AppointmentScreen from '../screens/AppointmentScreen';
 import AddPetScreen from '../screens/AddPetScreen';
 import MeetingScreen from '../screens/MeetingScreen';
 import MapScreen from '../screens/MapScreen';
@@ -20,7 +20,6 @@ import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 import EditPetScreen from '../screens/EditPetScreen';
 import MakeAppointmentScreen from '../screens/MakeAppointmentScreen';
 import VetDashboardScreen from '../screens/VetDashboardScreen';
-import AppointmentsScreen from '../screens/AppointmentsScreen';
 import VetAppointmentScreen from '../screens/VetAppointmentScreen';
 
 
@@ -49,10 +48,10 @@ function MainTabs() {
             iconName = focused ? 'compass' : 'compass-outline';
           } else if (route.name === 'MyPet') {
             iconName = focused ? 'paw' : 'paw-outline';
-          } else if (route.name === 'Inbox') {
-            iconName = focused ? 'mail' : 'mail-outline';
+          } else if (route.name === 'Appointment') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
+            iconName = focused ? 'menu' : 'menu-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -74,13 +73,13 @@ function MainTabs() {
         options={{ tabBarLabel: 'My Pet' }}
       />
       <Tab.Screen
-        name="Inbox"
-        component={InboxScreen}
-        options={{ tabBarLabel: 'Inbox' }}
+        name="Appointment"
+        component={AppointmentScreen}
+        options={{ tabBarLabel: 'Appointments' }}
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={AppointmentScreen}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
@@ -102,7 +101,7 @@ function VetTabs() {
             iconName = focused ? 'compass' : 'compass-outline';
           } else if (route.name === 'MyPet') {
             iconName = focused ? 'paw' : 'paw-outline';
-          } else if (route.name === 'Inbox') {
+          } else if (route.name === 'Appointment') {
             iconName = focused ? 'mail' : 'mail-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
@@ -123,7 +122,7 @@ function VetTabs() {
       />
       <Tab.Screen
         name="MyPet"
-        component={AppointmentsScreen}
+        component={AppointmentScreen}
         options={{ tabBarLabel: 'My Pet' }}
       />
       <Tab.Screen
@@ -133,7 +132,7 @@ function VetTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={AppointmentScreen}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
@@ -166,7 +165,7 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="VetTabs" component={VetTabs} options={{ headerShown: false }} />
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Appointments" component={AppointmentsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
             {/* Add more veterinarian-specific screens here */}
           </>
