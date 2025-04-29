@@ -296,4 +296,49 @@ exports.cancelPendingAppointment = async (req, res) => {
     }
 };
 
+exports.updateAppointmentStatus = async (req, res) => {
+    try {
+        const { appointment_id, appointment_status } = req.body;
+        const veterinarian_id = req.user.sub;
+
+        // First, find the clinic the veterinarian belongs to
+        const clinicQuery = `
+            SELECT clinic_id
+            FROM clinic_veterinarians
+            WHERE veterinarian_id = $1
+        `;
+        const clinicResult = await pool.query(clinicQuery, [veterinarian_id]);
+
+        if (clinicResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Clinic not found for the veterinarian.' });
+        }
+
+        const clinic_id = clinicResult.rows[0].clinic_id;
+
+        // Now, update the appointment status
+        const updateQuery = `
+            UPDATE appointments
+            SET appointment_status = $1
+            WHERE appointment_id = $2 AND clinic_id = $3
+            RETURNING *;
+        `;
+        const values = [appointment_status, appointment_id, clinic_id];
+
+        const updateResult = await pool.query(updateQuery, values);
+
+        if (updateResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Appointment not found or unauthorized to update.' });
+        }
+
+        res.status(200).json({
+            message: 'Appointment updated successfully',
+            appointment: updateResult.rows[0]
+        });
+    } catch (error) {
+        console.error('Error updating appointment:', error);
+        res.status(500).json({ error: 'Failed to update appointment' });
+    }
+};
+
+
   
