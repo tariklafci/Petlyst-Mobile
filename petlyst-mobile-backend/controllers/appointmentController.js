@@ -84,6 +84,7 @@ exports.fetchAppointments = async (req, res) => {
                 a.appointment_status,
                 a.video_meeting,
                 a.notes,
+                a.meeting_url
                 p.pet_name,
                 p.pet_species,
                 p.pet_breed,
@@ -146,6 +147,7 @@ exports.fetchAppointments = async (req, res) => {
                 status: appointment.appointment_status,
                 isVideoMeeting: appointment.video_meeting,
                 notes: appointment.notes,
+                meeting_url: meeting_url,
                 pet: {
                     name: appointment.pet_name,
                     species: appointment.pet_species,
