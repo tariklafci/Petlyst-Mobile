@@ -214,7 +214,6 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     const clinic_time_slots = selectedClinic?.clinic_time_slots;
     const clinic_is_open_24_7 = selectedClinic?.clinic_is_open_24_7;
     navigation.navigate('MakeAppointment', { clinic_id: clinicId, clinic_time_slots});
-    console.log(`${clinicId} + ${clinic_time_slots} + ${clinic_is_open_24_7}`);
     setModalVisible(false);
   };
 
@@ -263,7 +262,6 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       if (!event || !event.nativeEvent || 
           !event.nativeEvent.layoutMeasurement || 
           !event.nativeEvent.contentSize) {
-        console.log('Missing required properties for scroll check');
         return;
       }
       

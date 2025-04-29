@@ -31,7 +31,6 @@ async function sendPushNotifications(expoTokens, title, body) {
     });
 
     const data = await response.json();
-    console.log('Expo push response:', data);
 
   } catch (error) {
     console.error('Error sending push notifications:', error);
@@ -41,7 +40,6 @@ async function sendPushNotifications(expoTokens, title, body) {
 // Main function to check appointments and notify users
 async function notifyTodayAppointments() {
   const client = await pool.connect();
-  console.log('Running appointment notification job at', new Date().toISOString());
 
   try {
     const today = new Date();
@@ -50,7 +48,6 @@ async function notifyTodayAppointments() {
     const dd = String(today.getUTCDate()).padStart(2, '0');
     const todayDate = `${yyyy}-${mm}-${dd}`; // Format YYYY-MM-DD
 
-    console.log('Checking appointments for date:', todayDate);
 
     // Fetch today's appointments
     const { rows: appointments } = await client.query(`
@@ -60,7 +57,6 @@ async function notifyTodayAppointments() {
         AND appointment_status = 'confirmed'
     `, [todayDate]);
 
-    console.log('Found appointments:', appointments.length);
 
     for (const appointment of appointments) {
       const { pet_owner_id, appointment_start_hour } = appointment;
@@ -102,5 +98,3 @@ module.exports = {
     sendPushNotifications
   };
   
-
-console.log('Appointment reminder service scheduled.');

@@ -95,7 +95,6 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         return null;
       }
   
-      console.log('Fetched clinic_id:', data.clinic_id);
       setClinicId(data.clinic_id);
   
       return data.clinic_id;
@@ -116,7 +115,6 @@ const VetAppointmentScreen = ({ navigation }: any) => {
   const fetchAppointments = async (status = statusOptions[selectedIndex]) => {
     try {
       if (!clinicId) {
-        console.log('No clinic ID available, skipping appointment fetch');
         return;
       }
       

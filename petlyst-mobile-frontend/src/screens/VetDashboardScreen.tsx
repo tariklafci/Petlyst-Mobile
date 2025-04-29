@@ -54,7 +54,6 @@ interface Clinic {
       setIsLoading(true);
       const token = await SecureStore.getItemAsync('userToken');
       const veterinarian_id = await SecureStore.getItemAsync('userId');
-      console.log(`Veterinarian ID: ${veterinarian_id}`)
   
       if (!token) {
         return;

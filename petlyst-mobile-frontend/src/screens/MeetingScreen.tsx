@@ -35,7 +35,6 @@ const MeetingScreen = ({ route, navigation }: { route: any; navigation: any }) =
   renderLoading={() => <ActivityIndicator size="large" color="#0000ff" />}
   allowsInlineMediaPlayback={true}
   onPermissionRequest={(event) => {
-    console.log('WebView is requesting permissions for:', event.resources);
     event.grant(); // Explicitly grant requested permissions
   }}
 />

@@ -102,14 +102,11 @@ exports.registerUser = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     const { email } = req.body;
     try {
-        console.log('Starting password reset process for email:', email);
         
         const userQuery = 'SELECT user_id, user_email FROM users WHERE user_email = $1';
         const userResult = await pool.query(userQuery, [email]);
-        console.log('User query result:', userResult.rows);
 
         if (userResult.rows.length === 0) {
-            console.log('No user found with email:', email);
             return res.status(404).json({
                 success: false,
                 message: 'No account found with this email address',
@@ -118,18 +115,9 @@ exports.resetPassword = async (req, res) => {
 
         const verificationCode = crypto.randomInt(1000, 9999).toString();
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-        console.log('Generated verification code:', verificationCode);
-        console.log('Token expires at:', expiresAt);
 
         // First, try to insert the new token
         try {
-            console.log('Attempting to insert reset token...');
-            console.log('Insert parameters:', {
-                user_id: userResult.rows[0].user_id,
-                email: email,
-                code: verificationCode,
-                expiresAt: expiresAt
-            });
 
             // Check if table exists first
             const tableCheck = await pool.query(`
@@ -138,10 +126,8 @@ exports.resetPassword = async (req, res) => {
                     WHERE table_name = 'password_reset_tokens'
                 );
             `);
-            console.log('Table exists check:', tableCheck.rows[0].exists);
 
             if (!tableCheck.rows[0].exists) {
-                console.log('Creating password_reset_tokens table...');
                 await pool.query(`
                     CREATE TABLE IF NOT EXISTS password_reset_tokens (
                         reset_token_id SERIAL PRIMARY KEY,
@@ -153,7 +139,6 @@ exports.resetPassword = async (req, res) => {
                         reset_token_is_used BOOLEAN DEFAULT FALSE
                     );
                 `);
-                console.log('Table created successfully');
             }
 
             const insertQuery = `
@@ -167,17 +152,14 @@ exports.resetPassword = async (req, res) => {
                 verificationCode,
                 expiresAt
             ]);
-            console.log('Insert result:', insertResult.rows);
 
             // Then delete old tokens for this user
-            console.log('Deleting old tokens...');
             const deleteQuery = `
                 DELETE FROM password_reset_tokens 
                 WHERE user_email = $1 
                 AND reset_token_id != $2
             `;
             const deleteResult = await pool.query(deleteQuery, [email, insertResult.rows[0].reset_token_id]);
-            console.log('Delete result:', deleteResult);
 
             const mailOptions = {
                 from: {
@@ -193,7 +175,6 @@ exports.resetPassword = async (req, res) => {
 
             try {
                 await transporter.sendMail(mailOptions);
-                console.log('Verification email sent successfully to:', email);
 
                 res.status(200).json({
                     success: true,
@@ -283,7 +264,6 @@ exports.verifyResetCode = async (req, res) => {
 
 exports.addExpoToken = async (req, res) => {
     const client = await pool.connect();
-    console.log("Inside addExpoToken API");
   
     try {
       const { expoToken } = req.body;
@@ -293,9 +273,6 @@ exports.addExpoToken = async (req, res) => {
         client.release();
         return res.status(400).json({ message: 'Expo token is required.' });
       }
-  
-      console.log(`Expo token is: ${expoToken}`);
-      console.log(`User ID is: ${userId}`);
   
       await client.query('BEGIN');
   

@@ -86,7 +86,6 @@ exports.editPet = async (req, res) => {
         if (req.file) {
             // Optionally, you can use a pet identifier or other field for naming the file.
             photo = await uploadFileToS3(req.file, userId, pet_name);
-            console.log("editPet uploadFileTOS3 if'inin içine girdi")
         }
 
         // Build the UPDATE query dynamically.
@@ -158,7 +157,6 @@ exports.deletePet = async (req, res) => {
         const appointmentsResult = await pool.query(appointmentsQuery, [id]);
         const appointmentCount = parseInt(appointmentsResult.rows[0].count);
 
-        console.log(`Found ${appointmentCount} appointments for pet ID ${id}`);
 
         // If appointments exist, prevent deletion
         if (appointmentCount > 0) {
@@ -185,7 +183,6 @@ exports.deletePet = async (req, res) => {
             // Commit the transaction
             await pool.query('COMMIT');
 
-            console.log(`Pet with ID ${id} successfully deleted`);
             res.status(200).json({
                 message: 'Pet deleted successfully',
                 pet: deleteResult.rows[0],
