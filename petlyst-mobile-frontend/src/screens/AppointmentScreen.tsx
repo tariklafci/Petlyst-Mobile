@@ -37,6 +37,7 @@ interface Appointment {
   status: string;
   isVideoMeeting: boolean;
   notes: string;
+  meeting_url: string;
   pet: Pet;
   clinic: Clinic;
 }
@@ -110,13 +111,123 @@ const AppointmentScreen = ({ navigation }: any) => {
     }, [selectedIndex])
   );
 
+  // Add function to cancel an appointment
+  const cancelAppointment = async (appointmentId: number) => {
+    try {
+      setIsLoading(true);
+      const token = await SecureStore.getItemAsync('userToken');
+      
+      if (!token) {
+        setError('Authentication token not found. Please login again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`http://192.168.84.209:3001/api/cancel-pending-appointment`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          appointment_status: 'canceled'
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error('Failed to cancel appointment');
+      }
+      
+      Alert.alert('Success', 'Appointment has been canceled');
+      
+      // Refresh the appointments list
+      fetchAppointments(statusOptions[selectedIndex]);
+    } catch (err) {
+      console.error('Error canceling appointment:', err);
+      Alert.alert('Error', 'Failed to cancel appointment. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Add function to fetch treatment details for completed appointments
+  const fetchTreatmentDetails = async (appointmentId: number) => {
+    try {
+      setIsLoading(true);
+      const token = await SecureStore.getItemAsync('userToken');
+      
+      if (!token) {
+        setError('Authentication token not found. Please login again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`http://192.168.84.209:3001/api/fetch-treatments?appointment_id=${appointmentId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch treatment details');
+      }
+      
+      // Navigate to a treatment details screen or display treatments
+      // You might want to create a TreatmentDetailsScreen or show in a modal
+      // For now, I'll just show the data in an alert
+      if (data.treatments && data.treatments.length > 0) {
+        Alert.alert(
+          'Treatment Details',
+          `Retrieved ${data.treatments.length} treatment(s) for this appointment.`
+        );
+        // Navigate to treatment details screen if you have one
+        // navigation.navigate('TreatmentDetails', { treatments: data.treatments });
+      } else {
+        Alert.alert('No Treatments', 'No treatment records found for this appointment.');
+      }
+      
+    } catch (err) {
+      console.error('Error fetching treatment details:', err);
+      Alert.alert('Error', 'Failed to fetch treatment details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to show confirmation dialog for canceling an appointment
+  const confirmCancelAppointment = (appointmentId: number) => {
+    Alert.alert(
+      'Cancel Appointment',
+      'Are you sure you want to cancel this appointment?',
+      [
+        {
+          text: 'No',
+          style: 'cancel'
+        },
+        {
+          text: 'Yes',
+          onPress: () => cancelAppointment(appointmentId)
+        }
+      ],
+      { cancelable: false }
+    );
+  };
+
   // Render each appointment card
   const renderAppointmentCard = ({ item }: { item: Appointment }) => (
     <TouchableOpacity 
       style={styles.appointmentCard}
       onPress={() => {
-        // Navigate to appointment details screen if you have one
-        // navigation.navigate('AppointmentDetails', { appointmentId: item.id });
+        // For completed appointments, fetch treatment details
+        if (item.status === 'completed') {
+          fetchTreatmentDetails(item.id);
+        }
       }}
     >
       <View style={styles.cardHeader}>
@@ -169,6 +280,41 @@ const AppointmentScreen = ({ navigation }: any) => {
           <Text style={styles.notesText}>{item.notes}</Text>
         </>
       )}
+
+      {/* Action buttons based on status */}
+      <View style={styles.actionButtonsContainer}>
+        {/* For pending appointments: Add cancel button */}
+        {item.status === 'pending' && (
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.cancelButton]}
+            onPress={() => confirmCancelAppointment(item.id)}
+          >
+            <Ionicons name="close-outline" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        )}
+        
+        {/* For active appointments with video meetings: Add join meeting button */}
+        {item.status === 'confirmed' && item.isVideoMeeting && item.meeting_url && (
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.videoButton]}
+            onPress={() => navigation.navigate('Meeting', { meetingUrl: item.meeting_url })}
+          >
+            <Ionicons name="videocam" size={16} color="#fff" />
+            <Text style={styles.actionButtonText}>Join Video Meeting</Text>
+          </TouchableOpacity>
+        )}
+        
+        {/* For completed appointments: Add view details hint */}
+        {item.status === 'completed' && (
+          <View style={styles.viewDetailsContainer}>
+            <Text style={styles.viewDetailsText}>
+              Tap to view treatment details
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#3498db" />
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
@@ -480,6 +626,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  cancelButton: {
+    backgroundColor: '#e74c3c',
+  },
+  videoButton: {
+    backgroundColor: '#3498db',
+  },
+  viewDetailsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  viewDetailsText: {
+    color: '#3498db',
+    fontSize: 14,
+    marginRight: 4,
   },
 });
 

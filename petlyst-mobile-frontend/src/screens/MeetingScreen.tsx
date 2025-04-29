@@ -4,9 +4,11 @@ import { Camera } from 'expo-camera';
 import { View, StyleSheet, ActivityIndicator, Platform, PermissionsAndroid, Alert } from 'react-native';
 
 const MeetingScreen = ({ route, navigation }: { route: any; navigation: any }) => {
-  const { room } = route.params; // Retrieve room name from navigation params
+  //const { meeting_url } = route.params; // Retrieve room name from navigation params
+  const meeting_url = route?.params?.meetingUrl;
+  console.log(`${meeting_url}`)
 
-  const meetingUrl = `meeting.petlyst.com/10#config.deeplinking.disabled=true`;
+  const meetingUrl = `meeting.petlyst.com/`+`${meeting_url}`+`#config.deeplinking.disabled=true`;
 
   const requestPermissions = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();
