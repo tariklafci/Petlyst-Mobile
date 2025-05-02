@@ -8,6 +8,6 @@ const authenticateToken = require('../middlewares/authenticateToken');
 router.get('/fetch-clinics', fetchClinics);
 router.get('/fetch-clinic-info-appointments', authenticateToken, fetchClinicsAppointment);
 router.get('/fetch-clinic-veterinarian', authenticateToken, fetchClinicsVeterinarian);
-router.get('/fetch-clinic-coordinates', authenticateToken, fetchClinicCoordinates);
+router.get('/fetch-clinic-coordinates', fetchClinicCoordinates);
 
 module.exports = router;
