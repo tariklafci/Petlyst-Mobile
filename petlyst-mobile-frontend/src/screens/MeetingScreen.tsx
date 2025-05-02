@@ -8,7 +8,7 @@ const MeetingScreen = ({ route, navigation }: { route: any; navigation: any }) =
   const meeting_url = route?.params?.meetingUrl;
   console.log(`${meeting_url}`)
 
-  const meetingUrl = `meeting.petlyst.com/`+`${meeting_url}`+`#config.deeplinking.disabled=true`;
+  const meetingUrl = `https://meeting.petlyst.com/`+`${meeting_url}`+`#config.deeplinking.disabled=true`;
 
   const requestPermissions = async () => {
     const { status } = await Camera.requestCameraPermissionsAsync();

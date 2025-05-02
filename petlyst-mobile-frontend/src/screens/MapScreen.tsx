@@ -1,104 +1,118 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
 import * as Linking from 'expo-linking';
-import * as Location from 'expo-location';
 
-const MapScreen = ({ route }: { route: any}) => {
-  const { address = '' } = route.params || {}; // Default to empty string
-  const [location, setLocation] = useState(null);
-  const [errorMessage, setErrorMessage] = useState('');
+type ClinicData = {
+  province: string;
+  district: string;
+  clinic_address: string;
+  latitude: number;
+  longitude: number;
+};
+
+const MapScreen = ({ route }: { route: any }) => {
+  const { clinic_id = '' } = route.params || {};
+  const [clinicData, setClinicData] = useState<ClinicData | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    if (!address) {
-      setErrorMessage('No address provided.');
+    if (!clinic_id) {
+      setErrorMessage('No clinic ID provided.');
+      setLoading(false);
       return;
     }
 
-    const fetchCoordinates = async () => {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        setErrorMessage('Location permissions denied.');
-        return;
-      }
+    const fetchClinicCoordinates = async () => {
+      try {
+        const response = await fetch('https://petlyst.com:3001/api/fetch-clinic-coordinates', {
+          method: 'POST', // switched to POST to send a JSON body
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clinic_id }),
+        });
 
-      const coords = await getCoordinates(address);
-      if (coords) {
-        setLocation(coords);
-      } else {
-        setErrorMessage('Unable to fetch coordinates.');
+        const data = await response.json();
+
+        if (response.ok) {
+          // expect: { province, district, clinic_address, latitude, longitude }
+          setClinicData(data);
+        } else {
+          setErrorMessage(data.error || 'Failed to fetch clinic data.');
+        }
+      } catch (error) {
+        console.error('Error fetching clinic data:', error);
+        setErrorMessage('An unexpected error occurred. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchCoordinates();
-  }, [address]);
-
-  const requestLocationPermission = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.warn('Location permission not granted');
-      return false;
-    }
-    return true;
-  };
+    fetchClinicCoordinates();
+  }, [clinic_id]);
 
   const openMaps = () => {
-    if (location) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`;
-      Linking.openURL(url).catch(err => console.error('Error opening maps', err));
-    } else {
-      console.warn('Location not available yet.');
+    if (clinicData) {
+      const { latitude, longitude } = clinicData;
+      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      Linking.openURL(url).catch(err => {
+        console.error('Error opening maps', err);
+        Alert.alert('Error', 'Unable to open map application.');
+      });
     }
   };
 
-  async function getCoordinates(address) {
-    try {
-      const [location] = await Location.geocodeAsync(address);
-      return location; // Return the location object
-    } catch (error) {
-      console.warn('Error fetching coordinates:', error);
-    }
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Loading clinic location...</Text>
+      </View>
+    );
   }
-
-  const latitudeDelta = 0.0922;
-  const longitudeDelta = 0.0421;
 
   if (errorMessage) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centered}>
         <Text style={styles.errorText}>{errorMessage}</Text>
       </View>
     );
   }
 
+  if (!clinicData) {
+    return null; // should never happen
+  }
+
+  const { province, district, clinic_address, latitude, longitude } = clinicData;
+  const region: Region = {
+    latitude,
+    longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+
   return (
     <View style={styles.container}>
-      {location ? (
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: location.latitude,
-            longitude: location.longitude,
-            latitudeDelta,
-            longitudeDelta,
-          }}
-        >
-          <Marker
-            coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
-            }}
-            title="Clinic Location"
-            description="This is the clinic location"
-          />
-        </MapView>
-      ) : (
-        <Text style={styles.loadingText}>Fetching location...</Text>
-      )}
+      <View style={styles.infoCard}>
+        <Text style={styles.label}>Province:</Text>
+        <Text style={styles.value}>{province}</Text>
+        <Text style={styles.label}>District:</Text>
+        <Text style={styles.value}>{district}</Text>
+        <Text style={styles.label}>Address:</Text>
+        <Text style={styles.value}>{clinic_address}</Text>
+      </View>
+
+      <MapView style={styles.map} initialRegion={region}>
+        <Marker
+          coordinate={{ latitude, longitude }}
+          title="Clinic Location"
+          description={clinic_address}
+        />
+      </MapView>
 
       <View style={styles.buttonView}>
         <TouchableOpacity style={styles.button} onPress={openMaps}>
-          <Text style={styles.text}>Take Address Descriptor</Text>
+          <Text style={styles.buttonText}>Open in Google Maps</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -106,45 +120,61 @@ const MapScreen = ({ route }: { route: any}) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1 },
+  infoCard: {
+    padding: 12,
+    backgroundColor: '#fff',
+    elevation: 2,
+    margin: 10,
+    borderRadius: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 4,
+  },
+  value: {
+    fontSize: 16,
+    color: '#555',
   },
   map: {
-    width: '100%',
-    height: '80%',
+    flex: 1,
+    marginHorizontal: 10,
+    borderRadius: 8,
   },
   buttonView: {
-    height: 60,
-    justifyContent: 'center',
+    padding: 10,
     alignItems: 'center',
-    marginTop: 10,
   },
   button: {
     backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 6,
     width: '90%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  centered: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  text: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   loadingText: {
-    flex: 1,
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 18,
-    color: 'gray',
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
   errorText: {
-    flex: 1,
-    textAlign: 'center',
-    textAlignVertical: 'center',
     fontSize: 18,
     color: 'red',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });
 

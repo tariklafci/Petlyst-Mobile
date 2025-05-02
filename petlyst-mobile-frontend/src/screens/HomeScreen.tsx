@@ -179,10 +179,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   };
 
   const handleViewinTheMap = async () => {
-    const address = selectedClinic?.clinic_address;
+    const clinicId = selectedClinic?.id;
     
     setModalVisible(false);
-    navigation.navigate('MapScreen', { address }); // Pass the location string
+    navigation.navigate('MapScreen', { clinic_id: clinicId, }); // Pass the location string
   };
 
   const renderClinicCard = ({ item, index }: { item: ClinicItem, index: number }) => {
