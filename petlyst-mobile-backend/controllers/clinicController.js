@@ -233,7 +233,7 @@ exports.fetchClinicsVeterinarian = async (req, res) => {
 
 exports.fetchClinicCoordinates = async (req, res) => {
   try {
-    const { clinic_id } = req.body;
+    const { clinic_id } = req.query;
 
     if (!clinic_id) {
       return res.status(400).json({ error: 'Clinic ID is required' });
