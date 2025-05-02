@@ -13,10 +13,15 @@ import {
   TextInput,
   Switch,
   StyleSheet,
+  StatusBar,
+  Platform,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Animatable from 'react-native-animatable';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Pet {
   id: number;
@@ -172,7 +177,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         Alert.alert('Error', 'No token found. Please log in again.');
         return;
       }
-      const response = await fetch('http://192.168.84.209:3001/api/fetch-pets', {
+      const response = await fetch('http://192.168.0.101:3001/api/fetch-pets', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -373,7 +378,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         appointment_status: 'pending'
       };
       
-      const response = await fetch('http://192.168.84.209:3001/api/create-appointment', {
+      const response = await fetch('http://192.168.0.101:3001/api/create-appointment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -450,81 +455,122 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="#333" />
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        style={styles.headerGradient}
+      >
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Appointment Details</Text>
+        <Text style={styles.headerTitle}>Book Appointment</Text>
         <View style={{ width: 24 }} />
-      </View>
+      </LinearGradient>
 
       {isLoadingPets ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007bff" />
+          <ActivityIndicator size="large" color="#6c63ff" />
           <Text style={styles.loadingText}>Loading your pets...</Text>
         </View>
       ) : pets.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="paw-outline" size={60} color="#007bff" />
+        <Animatable.View
+          animation="fadeIn"
+          duration={800}
+          style={styles.emptyContainer}
+        >
+          <Ionicons name="paw-outline" size={60} color="#6c63ff" style={{ opacity: 0.5 }} />
           <Text style={styles.emptyText}>No Pets Found</Text>
           <Text style={styles.emptySubText}>
             To proceed with booking an appointment, you need to add a pet to your profile first.
           </Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddPet')}>
-            <Text style={styles.addButtonText}>Add a Pet</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.contentContainer}>
-          {/* Which Pet? */}
-          <Text style={styles.sectionTitle}>Which Pet?</Text>
-          <TouchableOpacity style={styles.petCard} onPress={handlePetCardPress}>
-            {selectedPet ? (
-              <>
-                <Image
-                  source={selectedPet.imageUrl ? { uri: selectedPet.imageUrl } : require('../../assets/splash-icon.png')}
-                  style={styles.petImage}
-                />
-                <View style={styles.petInfo}>
-                  <Text style={styles.petName}>{selectedPet.name}</Text>
-                  <Text style={styles.petDetails}>{selectedPet.age} - {selectedPet.breed}</Text>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.petName}>Select a pet</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Which Date? */}
-          <Text style={styles.sectionTitle}>Which Date?</Text>
-          <FlatList
-            data={days}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id}
-            renderItem={renderDayItem}
-            contentContainerStyle={styles.daysList}
-          />
-
-          {/* Time slots (split into two columns) */}
-          <View style={styles.timeSlotsContainer}>
-            <View style={styles.timeColumn}>
-              {leftSlots.map(time => renderTimeButton(time, 'left'))}
-            </View>
-            <View style={styles.timeColumn}>
-              {rightSlots.map(time => renderTimeButton(time, 'right'))}
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.completeButton, (!selectedPet || !selectedTime) && styles.completeButtonDisabled]}
-            onPress={handleCompleteAppointment}
-            disabled={!selectedPet || !selectedTime}
+          <TouchableOpacity 
+            style={styles.addButton} 
+            onPress={() => navigation.navigate('AddPet')}
           >
-            <Text style={styles.completeButtonText}>Complete Appointment</Text>
+            <LinearGradient
+              colors={['#6c63ff', '#3b5998']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.addButtonGradient}
+            >
+              <Text style={styles.addButtonText}>Add a Pet</Text>
+            </LinearGradient>
           </TouchableOpacity>
-        </ScrollView>
+        </Animatable.View>
+      ) : (
+        <Animatable.View
+          animation="fadeInUp"
+          duration={800}
+          style={styles.contentContainer}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContentContainer}>
+            {/* Which Pet? */}
+            <Text style={styles.sectionTitle}>Which Pet?</Text>
+            <TouchableOpacity style={styles.petCard} onPress={handlePetCardPress}>
+              {selectedPet ? (
+                <>
+                  <Image
+                    source={selectedPet.imageUrl ? { uri: selectedPet.imageUrl } : require('../../assets/splash-icon.png')}
+                    style={styles.petImage}
+                  />
+                  <View style={styles.petInfo}>
+                    <Text style={styles.petName}>{selectedPet.name}</Text>
+                    <Text style={styles.petDetails}>{selectedPet.age} - {selectedPet.breed}</Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.petName}>Select a pet</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Which Date? */}
+            <Text style={styles.sectionTitle}>Which Date?</Text>
+            <FlatList
+              data={days}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              renderItem={renderDayItem}
+              contentContainerStyle={styles.daysList}
+            />
+
+            {/* Time slots (split into two columns) */}
+            <View style={styles.timeSlotsContainer}>
+              <View style={styles.timeColumn}>
+                {leftSlots.map(time => renderTimeButton(time, 'left'))}
+              </View>
+              <View style={styles.timeColumn}>
+                {rightSlots.map(time => renderTimeButton(time, 'right'))}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.completeButton, 
+                (!selectedPet || !selectedTime) && styles.completeButtonDisabled
+              ]}
+              onPress={handleCompleteAppointment}
+              disabled={!selectedPet || !selectedTime}
+            >
+              <LinearGradient
+                colors={['#6c63ff', '#3b5998']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.completeButtonGradient,
+                  (!selectedPet || !selectedTime) && { opacity: 0.7 }
+                ]}
+              >
+                <Text style={styles.completeButtonText}>Complete Appointment</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </ScrollView>
+        </Animatable.View>
       )}
 
       {/* Pet Selection Modal */}
@@ -655,23 +701,43 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
 
 export default AppointmentDetailsScreen;
 
+const { width, height } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f9f9f9',
   },
-  header: {
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 25,
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
+  },
+  contentContainer: {
+    flex: 1,
+    marginTop: -20,
+    backgroundColor: '#f9f9f9',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+  },
+  scrollContentContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 25,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -689,6 +755,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    marginTop: 30,
   },
   emptyText: {
     fontSize: 24,
@@ -705,38 +772,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   addButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+    marginTop: 20,
+  },
+  addButtonGradient: {
     paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
     fontSize: 16,
-    textAlign: 'center',
-  },
-  contentContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
+    fontWeight: '600',
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     color: '#333',
-    textAlign: 'center',
   },
   petCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 16,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
   petImage: {
@@ -744,7 +816,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#f0f0ff',
   },
   petInfo: {
     flex: 1,
@@ -765,14 +837,14 @@ const styles = StyleSheet.create({
   dayItem: {
     width: 50,
     height: 60,
-    borderRadius: 8,
-    backgroundColor: '#F6F9FD',
+    borderRadius: 12,
+    backgroundColor: '#f0f0ff',
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dayItemSelected: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#6c63ff',
   },
   dayName: {
     fontSize: 13,
@@ -798,20 +870,20 @@ const styles = StyleSheet.create({
   timeColumn: {
     width: '48%',
     borderWidth: 1,
-    borderColor: '#DDE7F0',
+    borderColor: '#e0e0ff',
     borderRadius: 12,
     borderStyle: 'dashed',
     padding: 8,
   },
   timeSlot: {
-    backgroundColor: '#F6F9FD',
+    backgroundColor: '#f0f0ff',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 8,
   },
   timeSlotSelected: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#6c63ff',
   },
   timeText: {
     fontSize: 14,
@@ -823,13 +895,20 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     marginTop: 24,
-    backgroundColor: '#007bff',
-    paddingVertical: 16,
     borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  completeButtonGradient: {
+    paddingVertical: 15,
     alignItems: 'center',
   },
   completeButtonDisabled: {
-    backgroundColor: '#A5C7F0',
+    opacity: 0.7,
   },
   completeButtonText: {
     color: '#FFF',

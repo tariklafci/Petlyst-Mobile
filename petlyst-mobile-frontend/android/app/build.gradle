@@ -86,9 +86,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.tlafci.petlystmobilefrontend'
+    namespace 'com.petlyst.tariklafci'
     defaultConfig {
-        applicationId 'com.tlafci.petlystmobilefrontend'
+        applicationId 'com.petlyst.tariklafci'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -118,7 +118,6 @@ android {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
-            signingConfig signingConfigs.release
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -183,3 +182,5 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+apply plugin: 'com.google.gms.google-services'

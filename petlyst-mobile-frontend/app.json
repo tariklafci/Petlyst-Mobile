@@ -12,13 +12,21 @@
     },
     "android": {
       "package": "com.petlyst.tariklafci",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC_rh7mWIKjeqok-k1kDvProctfwZlOU4I"
+        }
+      }
     },
     "owner": "tlafci",
     "extra": {
       "eas": {
         "projectId": "dd6d79a7-cffd-41c2-9f55-2162b41137d1"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.petlyst.tariklafci"
     }
   }
 }

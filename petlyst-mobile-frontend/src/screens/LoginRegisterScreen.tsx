@@ -1,9 +1,10 @@
 import React, { useState, useContext } from 'react';
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar } from 'react-native';
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
@@ -37,7 +38,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
   
-      const response = await fetch('http://192.168.84.209:3001/api/add-expo-token', {
+      const response = await fetch('http://192.168.0.101:3001/api/add-expo-token', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${userToken}`,
@@ -114,134 +115,220 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F5F7FB" />
-      <Image
-        source={require('../../assets/petlyst-logo.jpeg')}
-        style={styles.image}
-      />
-
-      <Text style={styles.title}>Welcome!</Text>
-
-      <View style={styles.tabContainer}>
-        <TouchableOpacity onPress={() => setIsLoginTab(true)} style={[styles.tab, isLoginTab && styles.activeTab]}>
-          <Text style={[styles.tabText, isLoginTab && styles.activeTabText]}>Login</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setIsLoginTab(false)} style={[styles.tab, !isLoginTab && styles.activeTab]}>
-          <Text style={[styles.tabText, !isLoginTab && styles.activeTabText]}>Register</Text>
-        </TouchableOpacity>
-      </View>
-
-      {!isLoginTab && (
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
+      
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        style={styles.gradientHeader}
+      >
+        <Image
+          source={require('../../assets/petlyst-logo.jpeg')}
+          style={styles.logo}
+        />
+        <Animatable.Text 
+          animation="fadeIn" 
+          duration={800} 
+          style={styles.welcomeText}
+        >
+          Welcome to Petlyst
+        </Animatable.Text>
+      </LinearGradient>
+      
+      <Animatable.View 
+        animation="fadeInUp"
+        duration={800}
+        style={styles.formContainer}
+      >
         <View style={styles.tabContainer}>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(true); setUserType('pet_owner')}} style={[styles.tab, isVeterinarianTab && styles.activeTab]}>
-            <Text style={[styles.tabText, isVeterinarianTab && styles.activeTabText]}>Pet Owner</Text>
+          <TouchableOpacity 
+            onPress={() => setIsLoginTab(true)} 
+            style={[styles.tab, isLoginTab && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, isLoginTab && styles.activeTabText]}>Login</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {setIsVeterinarianTab(false); setUserType('veterinarian')}} style={[styles.tab, !isVeterinarianTab && styles.activeTab]}>
-            <Text style={[styles.tabText, !isVeterinarianTab && styles.activeTabText]}>Veterinarian</Text>
+          <TouchableOpacity 
+            onPress={() => setIsLoginTab(false)} 
+            style={[styles.tab, !isLoginTab && styles.activeTab]}
+          >
+            <Text style={[styles.tabText, !isLoginTab && styles.activeTabText]}>Register</Text>
           </TouchableOpacity>
         </View>
-      )}
 
-      {!isLoginTab && (
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-        />
-      )}
-      {!isLoginTab && (
-        <TextInput
-          style={styles.input}
-          placeholder="Surname"
-          value={surname}
-          onChangeText={setSurname}
-        />
-      )}
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder="Password"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={handlePasswordChange}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
-        </TouchableOpacity>
-      </View>
+        <ScrollView 
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {!isLoginTab && (
+            <View style={styles.typeTabContainer}>
+              <TouchableOpacity 
+                onPress={() => {setIsVeterinarianTab(true); setUserType('pet_owner')}} 
+                style={[styles.typeTab, isVeterinarianTab && styles.activeTypeTab]}
+              >
+                <Ionicons name="paw" size={18} color={isVeterinarianTab ? "#6c63ff" : "#999"} />
+                <Text style={[styles.typeTabText, isVeterinarianTab && styles.activeTypeTabText]}>Pet Owner</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => {setIsVeterinarianTab(false); setUserType('veterinarian')}} 
+                style={[styles.typeTab, !isVeterinarianTab && styles.activeTypeTab]}
+              >
+                <Ionicons name="medkit" size={18} color={!isVeterinarianTab ? "#6c63ff" : "#999"} />
+                <Text style={[styles.typeTabText, !isVeterinarianTab && styles.activeTypeTabText]}>Veterinarian</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
-      {!isLoginTab && (
-        <View style={styles.passwordCriteriaContainer}>
-          <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
-
-          {/* Rule 1 */}
-          <View style={styles.criteriaRow}>
-            {passwordValidations.length && (
-              <Animatable.View animation="bounceIn" duration={800}>
-                <Ionicons name="checkmark-circle" size={20} color="green" />
-              </Animatable.View>
-            )}
-            <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
-              • At least 8 characters
-            </Text>
+          {!isLoginTab && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Name</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your name"
+                  value={name}
+                  onChangeText={setName}
+                  placeholderTextColor="#aaa"
+                />
+              </View>
+            </View>
+          )}
+          
+          {!isLoginTab && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Surname</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your surname"
+                  value={surname}
+                  onChangeText={setSurname}
+                  placeholderTextColor="#aaa"
+                />
+              </View>
+            </View>
+          )}
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#aaa"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your password"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={handlePasswordChange}
+                placeholderTextColor="#aaa"
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Rule 2 */}
-          <View style={styles.criteriaRow}>
-            {passwordValidations.uppercase && (
-              <Animatable.View animation="bounceIn" duration={800}>
-                <Ionicons name="checkmark-circle" size={20} color="green" />
-              </Animatable.View>
-            )}
-            <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
-              • At least one uppercase letter
-            </Text>
-          </View>
+          {!isLoginTab && (
+            <View style={styles.passwordCriteriaContainer}>
+              <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
 
-          {/* Rule 3 */}
-          <View style={styles.criteriaRow}>
-            {passwordValidations.lowercase && (
-              <Animatable.View animation="bounceIn" duration={800}>
-                <Ionicons name="checkmark-circle" size={20} color="green" />
-              </Animatable.View>
-            )}
-            <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
-              • At least one lowercase letter
-            </Text>
-          </View>
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.length ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.length ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
+                  • At least 8 characters
+                </Text>
+              </View>
 
-          {/* Rule 4 */}
-          <View style={styles.criteriaRow}>
-            {passwordValidations.number && (
-              <Animatable.View animation="bounceIn" duration={800}>
-                <Ionicons name="checkmark-circle" size={20} color="green" />
-              </Animatable.View>
-            )}
-            <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
-              • At least one number
-            </Text>
-          </View>
-        </View>
-      )}
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.uppercase ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.uppercase ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
+                  • At least one uppercase letter
+                </Text>
+              </View>
 
-      {isLoginTab && (
-        <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
-          <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-        </TouchableOpacity>
-      )}
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.lowercase ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.lowercase ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
+                  • At least one lowercase letter
+                </Text>
+              </View>
 
-      <TouchableOpacity style={styles.loginButton} onPress={isLoginTab ? handleLogin : handleRegister}>
-        <Text style={styles.loginButtonText}>{isLoginTab ? 'Login' : 'Register'}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.number ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.number ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
+                  • At least one number
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {isLoginTab && (
+            <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            style={styles.submitButton} 
+            onPress={isLoginTab ? handleLogin : handleRegister}
+          >
+            <LinearGradient
+              colors={['#6c63ff', '#3b5998']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.submitButtonText}>
+                {isLoginTab ? 'Login' : 'Register'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
+      </Animatable.View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -250,111 +337,191 @@ const { height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: '#F5F7FB',
-    paddingHorizontal: 0,
+    flex: 1,
+    backgroundColor: '#f9f9f9',
   },
-  image: {
-    width: width,
-    height: height * 0.3,
-    resizeMode: 'cover',
+  gradientHeader: {
+    height: height * 0.35,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     marginBottom: 20,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  welcomeText: {
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    paddingBottom: 50,
+  },
+  formContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    marginTop: -50,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 25,
+    paddingTop: 30,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  scrollView: {
+    flex: 1,
   },
   tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    marginBottom: 25,
+    borderRadius: 15,
+    backgroundColor: '#f0f0f0',
+    padding: 5,
   },
   tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 20,
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 10,
   },
   activeTab: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
   tabText: {
     fontSize: 16,
-    color: '#777',
+    color: '#888',
+    fontWeight: '500',
   },
   activeTabText: {
+    color: '#6c63ff',
     fontWeight: 'bold',
-    color: '#000',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'left',
-    marginBottom: 20,
-    paddingHorizontal: 20,
+  typeTabContainer: {
+    flexDirection: 'row',
+    marginBottom: 25,
+    justifyContent: 'space-between',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginBottom: 15,
+  typeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 5,
     borderRadius: 10,
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
+    backgroundColor: '#f5f5f5',
   },
-  passwordContainer: {
+  activeTypeTab: {
+    backgroundColor: '#f0f0ff',
+    borderWidth: 1,
+    borderColor: '#e0e0ff',
+  },
+  typeTabText: {
+    marginLeft: 8,
+    color: '#777',
+    fontWeight: '500',
+  },
+  activeTypeTabText: {
+    color: '#6c63ff',
+    fontWeight: 'bold',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
     backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    marginHorizontal: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  passwordInput: {
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
     flex: 1,
-    paddingVertical: 10,
-  },
-  forgotPasswordButton:{
-    marginBottom: 20,
-    alignSelf: 'flex-end',
-    marginRight: 20,
-  
-  },
-  forgotPasswordText: {
-    color: '#4285F4',
-    textAlign: 'right',
-  },
-  loginButton: {
-    backgroundColor: '#4285F4',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginHorizontal: 20,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333',
   },
   passwordCriteriaContainer: {
-    marginHorizontal: 20,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 15,
     marginBottom: 20,
   },
   passwordCriteriaTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 10,
+    color: '#333',
   },
   criteriaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   passwordCriteriaText: {
     marginLeft: 10,
-    color: 'gray',
+    color: '#777',
+    fontSize: 14,
   },
   validText: {
     color: 'green',
+    fontWeight: '500',
+  },
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 25,
+  },
+  forgotPasswordText: {
+    color: '#6c63ff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  submitButton: {
+    marginBottom: 30,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  buttonGradient: {
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 

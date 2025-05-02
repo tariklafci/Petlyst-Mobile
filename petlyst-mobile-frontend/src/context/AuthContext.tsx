@@ -60,7 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const authContext = useMemo(() => ({
     signIn: async ({ email, password }: { email: string; password: string }) => {
       try {
-        const response = await fetch('http://192.168.84.209:3001/api/login', {
+        const response = await fetch('http://192.168.0.101:3001/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       user_type: string;
     }) => {
       try {
-        const response = await fetch('http://192.168.84.209:3001/api/register', {
+        const response = await fetch('http://192.168.0.101:3001/api/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

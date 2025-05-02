@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
+  Dimensions
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Animatable from 'react-native-animatable';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified' | 'rejected';
 type CreationStatus = 'complete' | 'incomplete';
@@ -40,7 +43,7 @@ interface Clinic {
   social_media: { platform: string, url: string }[];
 }
 
- const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
+const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -60,7 +63,7 @@ interface Clinic {
       }
   
       // Step 1: Get the clinic_id for this veterinarian
-      const clinicRes = await fetch(`http://192.168.84.209:3001/api/fetch-clinic-veterinarian?veterinarian_id=${veterinarian_id}`, {
+      const clinicRes = await fetch(`http://192.168.0.101:3001/api/fetch-clinic-veterinarian?veterinarian_id=${veterinarian_id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +80,7 @@ interface Clinic {
       const clinic_id = clinicData.clinic_id;
   
       // Step 2: Fetch all clinics
-      const allClinicsRes = await fetch('http://192.168.84.209:3001/api/fetch-clinics', {
+      const allClinicsRes = await fetch('http://192.168.0.101:3001/api/fetch-clinics', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -109,7 +112,8 @@ interface Clinic {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4285F4" />
+        <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
+        <ActivityIndicator size="large" color="#6c63ff" />
         <Text style={styles.loadingText}>Loading your clinic data...</Text>
       </SafeAreaView>
     );
@@ -118,14 +122,17 @@ interface Clinic {
   if (!clinic) {
     return (
       <SafeAreaView style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color="#ff6b6b" />
-        <Text style={styles.errorText}>Could not load clinic data</Text>
-        <TouchableOpacity 
-          style={styles.retryButton} 
-          onPress={fetchClinicId}
-        >
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
+        <Animatable.View animation="fadeIn" duration={800} style={styles.errorContent}>
+          <Ionicons name="alert-circle-outline" size={60} color="#ff6b6b" />
+          <Text style={styles.errorText}>Could not load clinic data</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={fetchClinicId}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </Animatable.View>
       </SafeAreaView>
     );
   }
@@ -161,228 +168,290 @@ interface Clinic {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-    <ScrollView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.clinicName}>{clinic.name}</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
+      
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>{clinic.name}</Text>
           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(clinic.verification_status) }]}>
             <Text style={styles.statusText}>{clinic.verification_status}</Text>
           </View>
         </View>
-
-        {/* Clinic Type & Year */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name={getClinicTypeIcon(clinic.clinic_type)} size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Clinic Information</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Clinic Type:</Text>
-            {
-                clinic.clinic_type === 'animal_hospital' ? (
-                <Text style={styles.infoValue}>Animal Hospital</Text>
-            ) : (
-                <Text style={styles.infoValue}>Veterinary Clinic</Text>
-            )
-            }
-
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Established:</Text>
-            <Text style={styles.infoValue}>{clinic.establishment_year}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Status:</Text>
-            <Text style={styles.infoValue}>{clinic.clinic_creation_status}</Text>
-          </View>
-        </View>
-
-        {/* Contact & Address */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="location-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Contact & Location</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email:</Text>
-            <Text style={styles.infoValue}>{clinic.clinic_email}</Text>
-          </View>
-          <View style={styles.addressBox}>
-            <Text style={styles.addressLabel}>Address:</Text>
-            <Text style={styles.addressValue}>{clinic.address}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Show Email:</Text>
-            <Text style={styles.infoValue}>{clinic.show_email_address ? 'Yes' : 'No'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Show Phone:</Text>
-            <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
-          </View>
-      </View>
-
-        {/* Phone Numbers */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="call-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Phone Numbers</Text>
-      </View>
-          <View style={styles.cardDivider} />
-          
-          {clinic.phone_numbers && clinic.phone_numbers.length > 0 ? (
-            clinic.phone_numbers.map((phone, index) => (
-              <View key={index} style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Phone {index + 1}:</Text>
-                <Text style={styles.infoValue}>{phone}</Text>
+      </LinearGradient>
+      
+      <Animatable.View 
+        animation="fadeInUp"
+        duration={800}
+        style={styles.contentContainer}
+      >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Clinic Type & Year */}
+          <Animatable.View animation="fadeInUp" delay={100} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name={getClinicTypeIcon(clinic.clinic_type)} size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Clinic Information</Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyMessage}>No phone numbers available</Text>
-          )}
-      </View>
+              <View style={styles.cardDivider} />
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Clinic Type:</Text>
+                {
+                  clinic.clinic_type === 'animal_hospital' ? (
+                    <Text style={styles.infoValue}>Animal Hospital</Text>
+                  ) : (
+                    <Text style={styles.infoValue}>Veterinary Clinic</Text>
+                  )
+                }
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Established:</Text>
+                <Text style={styles.infoValue}>{clinic.establishment_year}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Status:</Text>
+                <Text style={styles.infoValue}>{clinic.clinic_creation_status}</Text>
+              </View>
+            </View>
+          </Animatable.View>
 
-        {/* Social Media */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="globe-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Social Media</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          
-          {clinic.social_media && clinic.social_media.length > 0 ? (
-            clinic.social_media.map((social, index) => (
-              <View key={index} style={styles.socialRow}>
-                <View style={styles.socialPlatform}>
-                  <Ionicons 
-                    name={getSocialIcon(social.platform)} 
-                    size={22} 
-                    color="#4285F4" 
-                  />
-                  <Text style={styles.socialName}>{social.platform}</Text>
+          {/* Contact & Address */}
+          <Animatable.View animation="fadeInUp" delay={200} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="location-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Contact & Location</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{clinic.clinic_email}</Text>
+              </View>
+              <View style={styles.addressBox}>
+                <Text style={styles.addressLabel}>Address:</Text>
+                <Text style={styles.addressValue}>{clinic.address}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Show Email:</Text>
+                <Text style={styles.infoValue}>{clinic.show_email_address ? 'Yes' : 'No'}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Show Phone:</Text>
+                <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
+              </View>
+            </View>
+          </Animatable.View>
+
+          {/* Phone Numbers */}
+          <Animatable.View animation="fadeInUp" delay={300} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="call-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Phone Numbers</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              
+              {clinic.phone_numbers && clinic.phone_numbers.length > 0 ? (
+                clinic.phone_numbers.map((phone, index) => (
+                  <View key={index} style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Phone {index + 1}:</Text>
+                    <Text style={styles.infoValue}>{phone}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyMessage}>No phone numbers available</Text>
+              )}
+            </View>
+          </Animatable.View>
+
+          {/* Social Media */}
+          <Animatable.View animation="fadeInUp" delay={400} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="globe-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Social Media</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              
+              {clinic.social_media && clinic.social_media.length > 0 ? (
+                clinic.social_media.map((social, index) => (
+                  <View key={index} style={styles.socialRow}>
+                    <View style={styles.socialPlatform}>
+                      <Ionicons 
+                        name={getSocialIcon(social.platform)} 
+                        size={22} 
+                        color="#6c63ff" 
+                      />
+                      <Text style={styles.socialName}>{social.platform}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.socialLink}>
+                      <Text style={styles.socialLinkText} numberOfLines={1} ellipsizeMode="tail">
+                        {social.url}
+                      </Text>
+                      <Ionicons name="open-outline" size={18} color="#6c63ff" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyMessage}>No social media accounts available</Text>
+              )}
+            </View>
+          </Animatable.View>
+
+          {/* Hours & Availability */}
+          <Animatable.View animation="fadeInUp" delay={500} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="time-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Hours & Availability</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              
+              {clinic.is_open_24_7 ? (
+                <View style={styles.open24Badge}>
+                  <Ionicons name="time" size={20} color="#fff" />
+                  <Text style={styles.open24Text}>Open 24/7</Text>
                 </View>
-                <TouchableOpacity style={styles.socialLink}>
-                  <Text style={styles.socialLinkText} numberOfLines={1} ellipsizeMode="tail">
-                    {social.url}
-                  </Text>
-                  <Ionicons name="open-outline" size={18} color="#4285F4" />
-                </TouchableOpacity>
+              ) : (
+                <View style={styles.hoursContainer}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Opening:</Text>
+                    <Text style={styles.infoValue}>{clinic.opening_time}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Closing:</Text>
+                    <Text style={styles.infoValue}>{clinic.closing_time}</Text>
+                  </View>
+                </View>
+              )}
+              
+              <Text style={styles.daysLabel}>Available Days:</Text>
+              <View style={styles.daysRow}>
+                {daysOfWeek.map((day, i) => (
+                  <View 
+                    key={day} 
+                    style={[
+                      styles.dayBox,
+                      clinic.available_days[i] ? styles.dayBoxSelected : styles.dayBoxUnselected
+                    ]}
+                  >
+                    <Text style={clinic.available_days[i] ? styles.dayTextSelected : styles.dayTextUnselected}>
+                      {day}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyMessage}>No social media accounts available</Text>
-          )}
-        </View>
-
-        {/* Hours & Availability */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="time-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Hours & Availability</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          
-          {clinic.is_open_24_7 ? (
-            <View style={styles.open24Badge}>
-              <Ionicons name="time" size={20} color="#fff" />
-              <Text style={styles.open24Text}>Open 24/7</Text>
             </View>
-          ) : (
-            <View style={styles.hoursContainer}>
+          </Animatable.View>
+
+          {/* Services & Features */}
+          <Animatable.View animation="fadeInUp" delay={600} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="options-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>Features</Text>
+              </View>
+              <View style={styles.cardDivider} />
+              
+              <View style={styles.featureRow}>
+                <View style={styles.feature}>
+                  <Ionicons 
+                    name={clinic.allow_direct_messages ? "checkmark-circle" : "close-circle"} 
+                    size={24} 
+                    color={clinic.allow_direct_messages ? "#34c759" : "#ff3b30"} 
+                  />
+                  <Text style={styles.featureText}>Direct Messages</Text>
+                </View>
+                <View style={styles.feature}>
+                  <Ionicons 
+                    name={clinic.allow_online_meetings ? "checkmark-circle" : "close-circle"} 
+                    size={24} 
+                    color={clinic.allow_online_meetings ? "#34c759" : "#ff3b30"} 
+                  />
+                  <Text style={styles.featureText}>Online Meetings</Text>
+                </View>
+              </View>
+
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Opening:</Text>
-                <Text style={styles.infoValue}>{clinic.opening_time}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Closing:</Text>
-                <Text style={styles.infoValue}>{clinic.closing_time}</Text>
+                <Text style={styles.infoLabel}>Time Slots:</Text>
+                <Text style={styles.infoValue}>{clinic.clinic_time_slots} minutes per appointment</Text>
               </View>
             </View>
-          )}
-          
-          <Text style={styles.daysLabel}>Available Days:</Text>
-      <View style={styles.daysRow}>
-            {daysOfWeek.map((day, i) => (
-              <View 
-                key={day} 
-            style={[
-              styles.dayBox,
-                  clinic.available_days[i] ? styles.dayBoxSelected : styles.dayBoxUnselected
-            ]}
-          >
-                <Text style={clinic.available_days[i] ? styles.dayTextSelected : styles.dayTextUnselected}>
-                  {day}
-            </Text>
+          </Animatable.View>
+
+          {/* Description */}
+          <Animatable.View animation="fadeInUp" delay={700} duration={500}>
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Ionicons name="information-circle-outline" size={24} color="#6c63ff" />
+                <Text style={styles.cardTitle}>About Our Clinic</Text>
               </View>
-        ))}
-      </View>
-        </View>
-
-        {/* Services & Features */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="options-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>Features</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          
-          <View style={styles.featureRow}>
-            <View style={styles.feature}>
-              <Ionicons 
-                name={clinic.allow_direct_messages ? "checkmark-circle" : "close-circle"} 
-                size={24} 
-                color={clinic.allow_direct_messages ? "#34c759" : "#ff3b30"} 
-              />
-              <Text style={styles.featureText}>Direct Messages</Text>
+              <View style={styles.cardDivider} />
+              <Text style={styles.description}>{clinic.description}</Text>
             </View>
-            <View style={styles.feature}>
-              <Ionicons 
-                name={clinic.allow_online_meetings ? "checkmark-circle" : "close-circle"} 
-                size={24} 
-                color={clinic.allow_online_meetings ? "#34c759" : "#ff3b30"} 
-              />
-              <Text style={styles.featureText}>Online Meetings</Text>
-            </View>
-      </View>
+          </Animatable.View>
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Time Slots:</Text>
-            <Text style={styles.infoValue}>{clinic.clinic_time_slots} minutes per appointment</Text>
-          </View>
-        </View>
-
-        {/* Description */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="information-circle-outline" size={24} color="#4285F4" />
-            <Text style={styles.cardTitle}>About Our Clinic</Text>
-          </View>
-          <View style={styles.cardDivider} />
-          <Text style={styles.description}>{clinic.description}</Text>
-        </View>
-
-        {/* Edit Button */}
-        <TouchableOpacity style={styles.editButton}>
-          <Ionicons name="create-outline" size={20} color="#fff" />
-          <Text style={styles.editButtonText}>Edit Clinic Details</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          {/* Edit Button */}
+          <Animatable.View animation="fadeInUp" delay={800} duration={500}>
+            <TouchableOpacity style={styles.editButton}>
+              <LinearGradient
+                colors={['#6c63ff', '#3b5998']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.editButtonGradient}
+              >
+                <Ionicons name="create-outline" size={20} color="#fff" />
+                <Text style={styles.editButtonText}>Edit Clinic Details</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animatable.View>
+        </ScrollView>
+      </Animatable.View>
     </SafeAreaView>
   );
 };
+
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f5f5f7'
   },
-  container: {
+  headerGradient: {
+    paddingTop: 20,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 30,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
     flex: 1,
-    padding: 16
+  },
+  contentContainer: {
+    flex: 1,
+    marginTop: -20,
+    backgroundColor: '#f5f5f7',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+  },
+  scrollView: {
+    flex: 1,
+    padding: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -402,6 +471,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f7',
     padding: 20
   },
+  errorContent: {
+    alignItems: 'center',
+  },
   errorText: {
     marginTop: 10,
     fontSize: 18,
@@ -411,27 +483,20 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 20,
-    backgroundColor: '#4285F4',
+    backgroundColor: '#6c63ff',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 8
+    borderRadius: 12,
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600'
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16
-  },
-  clinicName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    flex: 1
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -446,7 +511,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     padding: 16,
     shadowColor: '#000',
@@ -511,7 +576,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#34c759',
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignSelf: 'flex-start',
     marginVertical: 8
   },
@@ -543,7 +608,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   dayBoxSelected: {
-    backgroundColor: '#4285F4'
+    backgroundColor: '#6c63ff'
   },
   dayBoxUnselected: {
     backgroundColor: '#f2f2f7'
@@ -579,13 +644,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   editButton: {
-    backgroundColor: '#4285F4',
+    marginVertical: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  editButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
-    borderRadius: 10,
-    marginVertical: 16
   },
   editButtonText: {
     color: 'white',
@@ -623,13 +695,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#f5f5f7',
-    borderRadius: 6,
+    borderRadius: 12,
     padding: 8,
     marginTop: 4
   },
   socialLinkText: {
     fontSize: 14,
-    color: '#4285F4',
+    color: '#6c63ff',
     flex: 1,
     marginRight: 4
   }
