@@ -102,7 +102,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('http://192.168.0.101:3001/api/fetch-clinics');
+      const response = await fetch('https://petlyst.com:3001/api/fetch-clinics');
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server returned error:', errorText);
