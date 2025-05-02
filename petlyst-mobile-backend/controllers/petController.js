@@ -153,9 +153,14 @@ exports.deletePet = async (req, res) => {
         const { pet_name: petName, pet_photo: petImgUrl } = pet;
 
         // Check for existing appointments for this pet
-        const appointmentsQuery = `SELECT COUNT(*) FROM appointments WHERE pet_id = $1`;
+        const appointmentsQuery = `
+            SELECT COUNT(*) 
+            FROM appointments 
+            WHERE pet_id = $1 AND (appointment_status = 'confirmed' OR appointment_status = 'pending')
+            `;
         const appointmentsResult = await pool.query(appointmentsQuery, [id]);
         const appointmentCount = parseInt(appointmentsResult.rows[0].count);
+
 
 
         // If appointments exist, prevent deletion

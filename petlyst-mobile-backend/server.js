@@ -35,10 +35,10 @@ app.use('/api', notificationRoutes);
 //const httpsServer = https.createServer(credentials, app);
 
 /*httpsServer.listen(PORT, () => {
-  console.log(`Server is running on http://192.168.84.209:${PORT}`);
+  console.log(`Server is running on http://192.168.0.101:${PORT}`);
 });*/
 
 app.listen(PORT, () => {
-  console.log(`Server is running on http://192.168.84.209:${PORT}`);
+  console.log(`Server is running on http://192.168.0.101:${PORT}`);
 });
 

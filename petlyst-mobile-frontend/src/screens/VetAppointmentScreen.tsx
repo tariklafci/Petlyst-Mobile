@@ -10,11 +10,15 @@ import {
   ActivityIndicator, 
   RefreshControl,
   Alert,
-  Platform
+  Platform,
+  StatusBar,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
+import * as Animatable from 'react-native-animatable';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Pet {
   name: string;
@@ -73,7 +77,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         return null;
       }
   
-      const response = await fetch(`http://192.168.84.209:3001/api/fetch-clinic-veterinarian?veterinarian_id=${userId}`, {
+      const response = await fetch(`http://192.168.0.101:3001/api/fetch-clinic-veterinarian?veterinarian_id=${userId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +132,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
       }
       
       // Fix endpoint to match backend route (clinics instead of clinic)
-      const response = await fetch(`http://192.168.84.209:3001/api/fetch-appointments-clinics?clinicId=${clinicId}${status ? `&status=${status}` : ''}`, {
+      const response = await fetch(`http://192.168.0.101:3001/api/fetch-appointments-clinics?clinicId=${clinicId}${status ? `&status=${status}` : ''}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -207,7 +211,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         return false;
       }
       
-      const response = await fetch(`http://192.168.84.209:3001/api/update-appointment-status`, {
+      const response = await fetch(`http://192.168.0.101:3001/api/update-appointment-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -270,7 +274,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
   };
 
   // Render each appointment card
-  const renderAppointmentCard = ({ item }: { item: Appointment }) => {
+  const renderAppointmentCard = ({ item, index }: { item: Appointment, index: number }) => {
     // Create badge style based on status
     const badgeStyle = {
       paddingHorizontal: 10,
@@ -280,7 +284,7 @@ const VetAppointmentScreen = ({ navigation }: any) => {
         item.status === 'pending' ? '#f39c12' :
         item.status === 'confirmed' ? '#27ae60' :
         item.status === 'canceled' ? '#e74c3c' :
-        item.status === 'completed' ? '#3498db' :
+        item.status === 'completed' ? '#6c63ff' :
         '#8e8e93'
     };
 
@@ -294,91 +298,100 @@ const VetAppointmentScreen = ({ navigation }: any) => {
     // Determine the status display text
     const statusText = item.status === 'confirmed' ? 'Active' : 
                        item.status.charAt(0).toUpperCase() + item.status.slice(1);
+    
+    // Add animation with stagger effect based on index
+    const animationDelay = index * 100;
 
     return (
-      <TouchableOpacity 
-        style={styles.appointmentCard}
-        onPress={() => {
-          // Navigation logic if needed
-        }}
+      <Animatable.View
+        animation="fadeInUp"
+        duration={500}
+        delay={animationDelay}
       >
-        <View style={styles.cardHeader}>
-          <View style={styles.clinicIconContainer}>
-            <Ionicons name="medkit-outline" size={20} color="#007bff" />
-          </View>
-          <View style={styles.headerInfo}>
-            <Text style={styles.clinicName}>{item.clinic.name}</Text>
-            <Text style={styles.appointmentDate}>{item.date} • {item.startTime} - {item.endTime}</Text>
-          </View>
-          {item.isVideoMeeting && (
-            <View style={styles.videoContainer}>
-              <Ionicons name="videocam" size={20} color="#007bff" />
+        <TouchableOpacity 
+          style={styles.appointmentCard}
+          onPress={() => {
+            // Navigation logic if needed
+          }}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.clinicIconContainer}>
+              <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
             </View>
-          )}
-        </View>
-        
-        <View style={styles.divider} />
-        
-        <View style={styles.petSection}>
-          <View style={styles.petInfo}>
-            <Image 
-              source={item.pet.photo ? { uri: item.pet.photo } : require('../../assets/splash-icon.png')} 
-              style={styles.petImage as any} 
-            />
-            <View>
-              <Text style={styles.petName}>{item.pet.name}</Text>
-              <Text style={styles.petBreed}>{item.pet.species} • {item.pet.breed}</Text>
+            <View style={styles.headerInfo}>
+              <Text style={styles.clinicName}>{item.clinic.name}</Text>
+              <Text style={styles.appointmentDate}>{item.date} • {item.startTime} - {item.endTime}</Text>
+            </View>
+            {item.isVideoMeeting && (
+              <View style={styles.videoContainer}>
+                <Ionicons name="videocam" size={20} color="#6c63ff" />
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.divider} />
+          
+          <View style={styles.petSection}>
+            <View style={styles.petInfo}>
+              <Image 
+                source={item.pet.photo ? { uri: item.pet.photo } : require('../../assets/splash-icon.png')} 
+                style={styles.petImage as any} 
+              />
+              <View>
+                <Text style={styles.petName}>{item.pet.name}</Text>
+                <Text style={styles.petBreed}>{item.pet.species} • {item.pet.breed}</Text>
+              </View>
+            </View>
+            
+            <View style={badgeStyle}>
+              <Text style={textStyle}>
+                {statusText}
+              </Text>
             </View>
           </View>
           
-          <View style={badgeStyle}>
-            <Text style={textStyle}>
-              {statusText}
-            </Text>
-          </View>
-        </View>
-        
-        {item.notes && (
-          <>
-            <View style={styles.divider} />
-            <Text style={styles.notesTitle}>Notes:</Text>
-            <Text style={styles.notesText}>{item.notes}</Text>
-          </>
-        )}
-
-        {/* Action buttons based on status */}
-        <View style={styles.actionButtonsContainer}>
-          {item.status === 'pending' && (
+          {item.notes && (
             <>
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.acceptButton]}
-                onPress={() => showConfirmationDialog(item.id, item.status, 'confirmed')}
-              >
-                <Ionicons name="checkmark-outline" size={16} color="#fff" />
-                <Text style={styles.actionButtonText}>Accept</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => showConfirmationDialog(item.id, item.status, 'canceled')}
-              >
-                <Ionicons name="close-outline" size={16} color="#fff" />
-                <Text style={styles.actionButtonText}>Decline</Text>
-              </TouchableOpacity>
+              <View style={styles.divider} />
+              <Text style={styles.notesTitle}>Notes:</Text>
+              <Text style={styles.notesText}>{item.notes}</Text>
             </>
           )}
-          
-          {item.status === 'confirmed' && (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.completeButton]}
-              onPress={() => showConfirmationDialog(item.id, item.status, 'completed')}
-            >
-              <Ionicons name="checkmark-done-outline" size={16} color="#fff" />
-              <Text style={styles.actionButtonText}>Mark as Completed</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
+
+          {/* Action buttons based on status */}
+          <View style={styles.actionButtonsContainer}>
+            {item.status === 'pending' && (
+              <>
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.acceptButton]}
+                  onPress={() => showConfirmationDialog(item.id, item.status, 'confirmed')}
+                >
+                  <Ionicons name="checkmark-outline" size={16} color="#fff" />
+                  <Text style={styles.actionButtonText}>Accept</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, styles.cancelButton]}
+                  onPress={() => showConfirmationDialog(item.id, item.status, 'canceled')}
+                >
+                  <Ionicons name="close-outline" size={16} color="#fff" />
+                  <Text style={styles.actionButtonText}>Decline</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            
+            {item.status === 'confirmed' && (
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.completeButton]}
+                onPress={() => showConfirmationDialog(item.id, item.status, 'completed')}
+              >
+                <Ionicons name="checkmark-done-outline" size={16} color="#fff" />
+                <Text style={styles.actionButtonText}>Mark as Completed</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animatable.View>
     );
   };
 
@@ -387,8 +400,12 @@ const VetAppointmentScreen = ({ navigation }: any) => {
     if (isLoading) return null;
     
     return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="calendar-outline" size={80} color="#ccc" />
+      <Animatable.View 
+        animation="fadeIn" 
+        duration={800}
+        style={styles.emptyContainer}
+      >
+        <Ionicons name="calendar-outline" size={80} color="#6c63ff" style={{ opacity: 0.5 }} />
         <Text style={styles.emptyTitle}>No {displayOptions[selectedIndex]} Appointments</Text>
         <Text style={styles.emptyText}>
           {selectedIndex === 0 
@@ -397,120 +414,164 @@ const VetAppointmentScreen = ({ navigation }: any) => {
               ? "You don't have any active appointments at the moment."
               : "You don't have any completed appointments yet."}
         </Text>
-      </View>
+      </Animatable.View>
     );
   };
 
   return (
-    <View style={styles.mainContainer}>
-      <Text style={styles.appointmentsText}>Clinic Appointments</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
       
-      {/* Status tabs */}
-      <View style={styles.segmentContainer}>
-        {displayOptions.map((option, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.segment,
-              selectedIndex === index && styles.selectedSegment,
-            ]}
-            onPress={() => handleTabChange(index)}
-          >
-            <Text
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        style={styles.headerGradient}
+      >
+        <Text style={styles.headerTitle}>Clinic Appointments</Text>
+        <Text style={styles.headerSubtitle}>Manage your veterinary practice schedule</Text>
+      </LinearGradient>
+      
+      <Animatable.View 
+        animation="fadeInUp"
+        duration={800}
+        style={styles.contentContainer}
+      >
+        {/* Status tabs */}
+        <View style={styles.segmentContainer}>
+          {displayOptions.map((option, index) => (
+            <TouchableOpacity
+              key={index}
               style={[
-                styles.text,
-                selectedIndex === index && styles.selectedText,
+                styles.segment,
+                selectedIndex === index && styles.selectedSegment,
               ]}
+              onPress={() => handleTabChange(index)}
             >
-              {option}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      
-      {/* Appointment list */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007bff" />
-          <Text style={styles.loadingText}>Loading appointments...</Text>
+              <Text
+                style={[
+                  styles.text,
+                  selectedIndex === index && styles.selectedText,
+                ]}
+              >
+                {option}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-      ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={60} color="#ff6b6b" />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={appointments}
-          renderItem={renderAppointmentCard}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={renderEmptyState}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#007bff']}
-              tintColor="#007bff"
-            />
-          }
-        />
-      )}
-    </View>
+        
+        {/* Appointment list */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6c63ff" />
+            <Text style={styles.loadingText}>Loading appointments...</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={60} color="#ff6b6b" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <LinearGradient
+                colors={['#6c63ff', '#3b5998']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.retryButtonGradient}
+              >
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={appointments}
+            renderItem={renderAppointmentCard}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={renderEmptyState}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={['#6c63ff']}
+                tintColor="#6c63ff"
+              />
+            }
+          />
+        )}
+      </Animatable.View>
+    </SafeAreaView>
   );
 };
 
-const { width } = Dimensions.get('window');
-const { height } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
-  mainContainer: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: 20,
+    backgroundColor: '#f9f9f9',
   },
-  appointmentsText: {
-    alignSelf: 'center',
-    fontSize: 24,
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 15,
+    color: '#fff',
+    marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  contentContainer: {
+    flex: 1,
+    marginTop: -20,
+    backgroundColor: '#f9f9f9',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: 'hidden',
+    paddingTop: 20,
   },
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#f5f7fb',
+    backgroundColor: '#f0f0ff',
     borderRadius: 25,
-    padding: 2,
+    padding: 3,
     alignItems: 'center',
     justifyContent: 'center',
     width: width * 0.9,
     alignSelf: 'center',
     marginBottom: 16,
-  },
-  segment: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 25,
-    marginHorizontal: 2,
-  },
-  selectedSegment: {
-    backgroundColor: '#ffffff',
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  selectedSegment: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
   text: {
     fontSize: 14,
-    color: '#7f8c8d',
+    color: '#777',
     fontWeight: '500',
   },
   selectedText: {
-    color: '#000',
+    color: '#6c63ff',
     fontWeight: 'bold',
   },
   loadingContainer: {
@@ -536,17 +597,26 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginBottom: 16,
+    maxWidth: width * 0.8,
   },
   retryButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  retryButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,
@@ -568,7 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   clinicIconContainer: {
-    backgroundColor: '#e6f2ff',
+    backgroundColor: '#f0f0ff',
     borderRadius: 20,
     padding: 10,
     width: 40,
@@ -591,7 +661,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   videoContainer: {
-    backgroundColor: '#e6f2ff',
+    backgroundColor: '#f0f0ff',
     borderRadius: 20,
     padding: 6,
   },
@@ -658,6 +728,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    marginTop: height * 0.1,
   },
   emptyTitle: {
     fontSize: 18,
@@ -672,17 +743,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
-  bookButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-  },
-  bookButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -694,7 +754,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 12,
     justifyContent: 'center',
   },
   actionButtonText: {
@@ -707,7 +767,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#27ae60',
   },
   completeButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#6c63ff',
   },
   cancelButton: {
     backgroundColor: '#e74c3c',

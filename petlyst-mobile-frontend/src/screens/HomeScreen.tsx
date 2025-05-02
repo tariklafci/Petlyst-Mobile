@@ -16,7 +16,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Animatable from 'react-native-animatable';
 
 type ClinicPhoto = {
   photo_id: number;
@@ -55,7 +56,8 @@ type ClinicItem = {
 };
 
 const { width } = Dimensions.get('window');
-const cardWidth = width * 0.9; // making the card take most of the width for vertical layout
+const { height } = Dimensions.get('window');
+const cardWidth = width * 0.42; // making cards fit two in a row with spacing
 
 const HomeScreen = ({ navigation }: { navigation: any }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,7 +102,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('http://192.168.84.209:3001/api/fetch-clinics');
+      const response = await fetch('http://192.168.0.101:3001/api/fetch-clinics');
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server returned error:', errorText);
@@ -183,24 +185,59 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     navigation.navigate('MapScreen', { address }); // Pass the location string
   };
 
-  const renderClinicCard = ({ item }: { item: ClinicItem }) => {
+  const renderClinicCard = ({ item, index }: { item: ClinicItem, index: number }) => {
     const firstPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
+    
+    // Create staggered animation effect
+    const animationDelay = index * 100;
 
     return (
-      <TouchableOpacity onPress={() => handleCardPress(item)} style={styles.card}>
-        <View style={styles.imagePlaceholder}>
-          {firstPhoto ? (
-            <Image
-              source={{ uri: firstPhoto.presigned_url }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <Ionicons name="image" size={48} color="#ccc" />
-          )}
-        </View>
-        <Text style={styles.cardTitle}>{item.clinic_name}</Text>
-      </TouchableOpacity>
+      <Animatable.View 
+        animation="fadeInUp" 
+        delay={animationDelay} 
+        duration={500}
+        style={styles.cardWrapper}
+      >
+        <TouchableOpacity 
+          onPress={() => handleCardPress(item)} 
+          style={styles.card}
+          activeOpacity={0.9}
+        >
+          <View style={styles.imagePlaceholder}>
+            {firstPhoto ? (
+              <Image
+                source={{ uri: firstPhoto.presigned_url }}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.noImageContainer}>
+                <Ionicons name="image" size={40} color="#ddd" />
+              </View>
+            )}
+            {item.average_rating && (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Text style={styles.ratingText}>{item.average_rating.toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.clinic_name}</Text>
+            <View style={styles.cardDetails}>
+              <Ionicons name="location-outline" size={14} color="#6c63ff" />
+              <Text style={styles.cardAddress} numberOfLines={1}>
+                {item.clinic_address || 'No address provided'}
+              </Text>
+            </View>
+            {item.clinic_type && (
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeText}>{item.clinic_type}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animatable.View>
     );
   };
 
@@ -299,38 +336,55 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={24} color="#ccc" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search on Petlyst"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* All Clinics Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{bestFor}</Text>
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerGradient}
+      >
+        <Text style={styles.headerTitle}>Petlyst</Text>
+        <Text style={styles.headerSubtitle}>{bestFor}</Text>
+        
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#8b8b8b" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search clinics, services..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#8b8b8b"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#8b8b8b" />
+            </TouchableOpacity>
+          )}
         </View>
+      </LinearGradient>
+
+      {/* Clinics Grid */}
+      <View style={styles.clinicsContainer}>
         <FlatList
           data={filteredClinics}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderClinicCard}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContentContainer}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl 
+              refreshing={refreshing} 
+              onRefresh={onRefresh}
+              colors={['#6c63ff']}
+              tintColor={'#6c63ff'}
+            />
           }
           ListEmptyComponent={
             <View style={styles.emptyListContainer}>
-              <Ionicons name="search-outline" size={50} color="#ccc" />
+              <Ionicons name="search-outline" size={80} color="#e0e0ff" />
               <Text style={styles.emptyListText}>No clinics found</Text>
               <Text style={styles.emptyListSubtext}>Try a different search term</Text>
             </View>
@@ -347,11 +401,26 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       >
         <View style={styles.modalContainer}>
           {/* Top Header with "X" */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={handleModalClose}>
-              <Ionicons name="close" size={26} color="#333" />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.7)', 'transparent']}
+            style={styles.modalHeaderGradient}
+          >
+            <TouchableOpacity 
+              onPress={handleModalClose}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
             </TouchableOpacity>
-          </View>
+            
+            {/* Image Counter */}
+            {selectedClinic?.photos && selectedClinic.photos.length > 0 && (
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {currentIndex + 1}/{selectedClinic.photos.length}
+                </Text>
+              </View>
+            )}
+          </LinearGradient>
 
           {/* Carousel Area */}
           <View style={styles.carouselContainer}>
@@ -373,7 +442,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                   )}
                 />
 
-                {/* Pagination Dots - Enhanced */}
+                {/* Pagination Dots */}
                 <View style={styles.dotsContainer}>
                   {selectedClinic.photos.map((_, index) => (
                     <View
@@ -385,17 +454,11 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                     />
                   ))}
                 </View>
-                
-                {/* Image Counter */}
-                <View style={styles.imageCounter}>
-                  <Text style={styles.imageCounterText}>
-                    {currentIndex + 1}/{selectedClinic.photos.length}
-                  </Text>
-                </View>
               </>
             ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={{ color: '#999' }}>No clinic images</Text>
+              <View style={styles.noCarouselImage}>
+                <Ionicons name="images-outline" size={60} color="#ccc" />
+                <Text style={styles.noImagesText}>No clinic images available</Text>
               </View>
             )}
           </View>
@@ -405,7 +468,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             <ScrollView 
               ref={scrollViewRef}
               style={styles.bottomCard} 
-              showsVerticalScrollIndicator={true}
+              showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               scrollEventThrottle={16}
               onContentSizeChange={checkIfScrollable}
@@ -413,29 +476,36 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             >
               {selectedClinic && (
                 <>
-                  <Text style={styles.modalTitle}>{selectedClinic.clinic_name}</Text>
-
-                  {/* Example star rating text (optional) */}
-                  <Text style={styles.smallRatingText}>
-                    {selectedClinic.average_rating
-                      ? `★ ${selectedClinic.average_rating.toFixed(1)} / 5`
-                      : 'No rating yet'}
-                  </Text>
+                  <View style={styles.clinicHeaderRow}>
+                    <View style={styles.clinicTitleContainer}>
+                      <Text style={styles.modalTitle}>{selectedClinic.clinic_name}</Text>
+                      <Text style={styles.clinicType}>{selectedClinic.clinic_type || 'Veterinary Clinic'}</Text>
+                    </View>
+                    
+                    {selectedClinic.average_rating && (
+                      <View style={styles.ratingContainer}>
+                        <Ionicons name="star" size={20} color="#FFD700" />
+                        <Text style={styles.ratingValue}>{selectedClinic.average_rating.toFixed(1)}</Text>
+                        <Text style={styles.reviewCount}>{`(${selectedClinic.total_reviews || 0})`}</Text>
+                      </View>
+                    )}
+                  </View>
 
                   {/* Description with Show More button */}
                   <View style={styles.descriptionContainer}>
+                    <Text style={styles.sectionTitle}>About</Text>
                     <Text 
                       style={[
                         styles.descriptionText,
                         !isDescriptionExpanded && styles.descriptionCollapsed
                       ]}
-                      numberOfLines={isDescriptionExpanded ? undefined : 2}
+                      numberOfLines={isDescriptionExpanded ? undefined : 3}
                     >
-                      {selectedClinic.clinic_description || 'N/A'}
+                      {selectedClinic.clinic_description || 'No description available for this clinic.'}
                     </Text>
                     
                     {selectedClinic.clinic_description && 
-                     selectedClinic.clinic_description.length > 80 && (
+                     selectedClinic.clinic_description.length > 120 && (
                       <TouchableOpacity 
                         style={styles.showMoreButton}
                         onPress={toggleDescription}
@@ -446,54 +516,82 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                         <Ionicons 
                           name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
                           size={16} 
-                          color="#4285F4" 
+                          color="#6c63ff" 
                         />
                       </TouchableOpacity>
                     )}
                   </View>
 
-                  {/* More info in detail rows */}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Address: {selectedClinic.clinic_address} </Text>
-                    <Text style={styles.detailValue}>
-                      
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Phone: {selectedClinic.clinic_phone}</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedClinic.clinic_phone}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Working Hours:</Text>
-                    <Text style={styles.detailValue}>
-                      {`${selectedClinic.clinic_opening_time} - ${selectedClinic.clinic_closing_time}` || 'N/A'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Total Reviews:</Text>
-                    <Text style={styles.detailValue}>
-                      {selectedClinic.total_reviews ?? 'N/A'}
-                    </Text>
+                  {/* Clinic Info Section */}
+                  <View style={styles.infoSection}>
+                    <Text style={styles.sectionTitle}>Clinic Information</Text>
+                    
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="location-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Address</Text>
+                        <Text style={styles.infoValue}>{selectedClinic.clinic_address || 'Not provided'}</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Phone</Text>
+                        <Text style={styles.infoValue}>{selectedClinic.clinic_phone || 'Not provided'}</Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="time-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Working Hours</Text>
+                        <Text style={styles.infoValue}>
+                          {selectedClinic.clinic_is_open_24_7 
+                            ? '24/7' 
+                            : `${selectedClinic.clinic_opening_time || ''} - ${selectedClinic.clinic_closing_time || ''}`
+                          }
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="mail-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Email</Text>
+                        <Text style={styles.infoValue}>{selectedClinic.clinic_email || 'Not provided'}</Text>
+                      </View>
+                    </View>
                   </View>
 
                   {/* Action Buttons */}
-                  <TouchableOpacity
-                    style={styles.detailsButton}
-                    onPress={() => handleViewinTheMap()}
-                  >
-                    <Text style={styles.detailsButtonText}>View in the Map</Text>
-                  </TouchableOpacity>
+                  <View style={styles.buttonGroup}>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => handleViewinTheMap()}
+                    >
+                      <Ionicons name="map-outline" size={20} color="#6c63ff" />
+                      <Text style={styles.secondaryButtonText}>View on Map</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => handleMakeAppointment(selectedClinic.id)} style={styles.appointmentButton}>
-                    <Text style={styles.appointmentButtonText}>
-                      Make an Appointment
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.primaryButton}
+                      onPress={() => handleMakeAppointment(selectedClinic.id)}
+                    >
+                      <Ionicons name="calendar-outline" size={20} color="#fff" />
+                      <Text style={styles.primaryButtonText}>
+                        Book Appointment
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                   
                   {/* Add some padding at the bottom to ensure buttons are fully visible */}
                   <View style={{ height: 20 }} />
@@ -505,7 +603,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             {isScrollable && (
               <Animated.View style={[styles.scrollIndicator, { opacity: scrollIndicatorOpacity }]}>
                 <View style={styles.scrollIndicatorInner}>
-                  <Ionicons name="chevron-down" size={24} color="#4285F4" />
+                  <Ionicons name="chevron-down" size={20} color="#6c63ff" />
                   <Text style={styles.scrollIndicatorText}>Scroll for more</Text>
                 </View>
               </Animated.View>
@@ -518,19 +616,39 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 };
 
 const styles = StyleSheet.create({
-  /* Existing Styles Outside the Modal */
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f9f9f9',
+  },
+  headerGradient: {
+    paddingTop: 50,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 20,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderRadius: 12,
     paddingHorizontal: 15,
-    margin: 15,
-    height: 50,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
@@ -538,78 +656,167 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  section: {
-    marginBottom: 100,
+  clinicsContainer: {
+    flex: 1,
+    marginTop: -15,
   },
-  sectionHeader: {
-    flexDirection: 'row',
+  columnWrapper: {
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 15,
-    marginBottom: 10,
+    paddingHorizontal: 15,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
+  cardWrapper: {
+    width: cardWidth,
+    marginBottom: 15,
   },
   card: {
-    width: cardWidth,
-    alignSelf: 'center',
-    marginBottom: 20,
-    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   imagePlaceholder: {
-    width: cardWidth,
-    height: cardWidth * 0.5,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
+    width: '100%',
+    height: cardWidth * 0.7,
+    position: 'relative',
   },
   cardImage: {
     width: '100%',
     height: '100%',
+  },
+  noImageContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ratingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  ratingText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+    marginLeft: 3,
+  },
+  cardContent: {
+    padding: 12,
   },
   cardTitle: {
-    fontSize: 16,
-    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 5,
   },
-
+  cardDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardAddress: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+    flex: 1,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e0e0ff',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 8,
+  },
+  typeText: {
+    fontSize: 10,
+    color: '#6c63ff',
+    fontWeight: '500',
+  },
+  listContentContainer: {
+    paddingTop: 20,
+    paddingBottom: 80,
+  },
+  emptyListContainer: {
+    padding: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyListText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 15,
+  },
+  emptyListSubtext: {
+    fontSize: 14,
+    color: '#777',
+    marginTop: 5,
+  },
+  
   /* MODAL STYLES */
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f4f8fe', // Light background to mimic the screenshot
+    backgroundColor: '#f9f9f9',
   },
-  modalHeader: {
-    height: 50,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
+  modalHeaderGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    zIndex: 10,
+    paddingTop: 45,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   carouselContainer: {
     width: '100%',
-    height: 250, // Reduced from 300
-    justifyContent: 'center',
+    height: height * 0.4,
+    position: 'relative',
+    backgroundColor: '#f0f0f0',
+  },
+  noCarouselImage: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
-    position: 'relative', // Added to position dots and counter
+    justifyContent: 'center',
+  },
+  noImagesText: {
+    marginTop: 10,
+    color: '#999',
+    fontSize: 16,
   },
   carouselImage: {
-    width: width,
-    height: 250, // Reduced from 300
+    width,
+    height: '100%',
   },
   dotsContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 15,
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingVertical: 8,
   },
   dot: {
     width: 8,
@@ -625,10 +832,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   imageCounter: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 15,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -644,108 +848,168 @@ const styles = StyleSheet.create({
   },
   bottomCard: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 20,
-    marginTop: -20, // overlaps carousel slightly
+    marginTop: -25,
     flex: 1,
-    paddingBottom: 30, // Added more padding at the bottom
-
-    // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    // Android elevation
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
     elevation: 5,
   },
+  clinicHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 15,
+  },
+  clinicTitleContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 2,
     color: '#333',
   },
-  smallRatingText: {
+  clinicType: {
     fontSize: 14,
-    marginBottom: 10,
+    color: '#6c63ff',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  ratingValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 5,
+  },
+  reviewCount: {
+    fontSize: 12,
     color: '#666',
+    marginLeft: 3,
   },
   descriptionContainer: {
     marginBottom: 20,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
   descriptionText: {
+    fontSize: 15,
+    lineHeight: 22,
     color: '#555',
-    lineHeight: 20,
   },
   descriptionCollapsed: {
-    maxHeight: 40, // Approximately 2 lines of text (reduced from 60)
+    maxHeight: 66, // Approximately 3 lines of text
   },
   showMoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 8,
   },
   showMoreText: {
-    color: '#4285F4',
+    color: '#6c63ff',
     fontWeight: '600',
     marginRight: 5,
+    fontSize: 14,
   },
-  detailRow: {
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  detailLabel: {
-    width: 120,
-    fontWeight: '600',
-    color: '#333',
+  infoIconContainer: {
+    width: 36,
+    height: 36,
+    backgroundColor: '#f0f0ff',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  detailValue: {
+  infoContent: {
     flex: 1,
-    flexWrap: 'wrap',
-    color: '#555',
   },
-  detailsButton: {
-    backgroundColor: '#fff',
-    borderColor: '#4285F4',
-    borderWidth: 1,
-    paddingVertical: 10,
-    borderRadius: 5,
+  infoLabel: {
+    fontSize: 14,
+    color: '#777',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '500',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
     marginTop: 10,
   },
-  detailsButtonText: {
-    color: '#4285F4',
-    fontWeight: '600',
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  appointmentButton: {
-    backgroundColor: '#4285F4',
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#f0f0ff',
     paddingVertical: 12,
-    borderRadius: 5,
-    marginTop: 10,
+    borderRadius: 12,
+    marginRight: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  appointmentButtonText: {
+  secondaryButtonText: {
+    color: '#6c63ff',
+    fontWeight: '600',
+    fontSize: 15,
+    marginLeft: 5,
+  },
+  primaryButton: {
+    flex: 2,
+    backgroundColor: '#6c63ff',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginLeft: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
     color: '#fff',
     fontWeight: '600',
-    textAlign: 'center', 
-    fontSize: 16,
+    fontSize: 15,
+    marginLeft: 5,
   },
   scrollIndicator: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 20,
     left: 0,
     right: 0,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   scrollIndicatorInner: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#fff',
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -753,26 +1017,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   scrollIndicatorText: {
+    color: '#6c63ff',
+    fontWeight: '500',
     marginLeft: 5,
-    color: '#4285F4',
-    fontWeight: '600',
-  },
-  emptyListContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 50,
-  },
-  emptyListText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-    marginTop: 10,
-  },
-  emptyListSubtext: {
     fontSize: 14,
-    color: '#999',
-    marginTop: 5,
   },
 });
 

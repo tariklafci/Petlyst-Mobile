@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Animatable from 'react-native-animatable';
 
 interface Pet {
   id: number;
@@ -74,7 +76,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
 
-      const response = await fetch('http://192.168.84.209:3001/api/fetch-pets', {
+      const response = await fetch('http://192.168.0.101:3001/api/fetch-pets', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -123,10 +125,6 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
     }
   }
 
-  const handleEdit = async () => {
-
-  }
-
   const handleDelete = async () => {
     setLoading(true);
     try {
@@ -137,7 +135,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
   
-      const response = await fetch('http://192.168.84.209:3001/api/delete-pet', {
+      const response = await fetch('http://192.168.0.101:3001/api/delete-pet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,111 +280,193 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
     setRefreshing(false);
   };
 
-  const renderPetCard = ({ item }: { item: Pet }) => (
-    <TouchableOpacity onPress={() => selectPet(item.id, item.name, item.breed, item.species, item.pet_birth_date)} onLongPress={() => handleLongPress(item.id, item.name, item.breed, item.species, item.pet_birth_date)} style={styles.petItem}>
-      <View style={styles.petDetailsContainer}>
-        <Image
-          source={
-            item.imageUrl
-              ? { uri: item.imageUrl }
-              : require('../../assets/splash-icon.png')
-          }
-          style={styles.petImage}
-        />
-        <View>
-          <Text style={styles.petName}>{item.name}</Text>
-          <Text style={styles.petDetails}>{`${item.age} - ${item.breed}`}</Text>
-        </View>
-      </View>
-      <Ionicons
-        name={selectedPetId === item.id ? 'radio-button-on' : 'radio-button-off'}
-        size={24}
-        color={selectedPetId === item.id ? '#007bff' : '#ccc'}
-      />
-    </TouchableOpacity>
-  );
+  const getPetSpeciesIcon = (species: string) => {
+    switch(species.toLowerCase()) {
+      case 'dog':
+        return 'paw';
+      case 'cat':
+        return 'paw';
+      case 'bird':
+        return 'airplane';
+      case 'fish':
+        return 'water';
+      default:
+        return 'paw';
+    }
+  };
+
+  const renderPetCard = ({ item, index }: { item: Pet, index: number }) => {
+    // Add animation with stagger effect based on index
+    const animationDelay = index * 100;
+    
+    return (
+      <Animatable.View
+        animation="fadeIn"
+        duration={600}
+        delay={animationDelay}
+      >
+        <TouchableOpacity 
+          onPress={() => selectPet(item.id, item.name, item.breed, item.species, item.pet_birth_date)} 
+          onLongPress={() => handleLongPress(item.id, item.name, item.breed, item.species, item.pet_birth_date)}
+          style={[styles.petItem, selectedPetId === item.id && styles.selectedPetItem]}
+          activeOpacity={0.8}
+        >
+          <View style={styles.petDetailsContainer}>
+            <View style={styles.petImageContainer}>
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.petImage}
+                />
+              ) : (
+                <View style={[styles.petImage, styles.placeholderImage]}>
+                  <Ionicons name={getPetSpeciesIcon(item.species) as any} size={24} color="#6c63ff" />
+                </View>
+              )}
+            </View>
+            <View style={styles.petInfo}>
+              <Text style={styles.petName}>{item.name}</Text>
+              <View style={styles.petMetaRow}>
+                <Text style={styles.petAge}>{item.age}</Text>
+                <View style={styles.breedBadge}>
+                  <Text style={styles.breedText}>{item.breed}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+          <Ionicons
+            name={selectedPetId === item.id ? 'radio-button-on' : 'radio-button-off'}
+            size={24}
+            color={selectedPetId === item.id ? '#6c63ff' : '#ccc'}
+          />
+        </TouchableOpacity>
+      </Animatable.View>
+    );
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+        <ActivityIndicator size="large" color="#6c63ff" />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+      <LinearGradient
+        colors={['#6c63ff', '#3b5998']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.headerGradient}
+      >
+        {editDeleteTab ? (
+          <View style={styles.editDeleteContainer}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditPet', {
+                petId: selectedPetId, 
+                petName: selectedPetName, 
+                petBreed: selectedPetBreed, 
+                petSpecies: selectedPetSpecies, 
+                petBirthDate: selectedPetBirthDate})}
+              style={styles.editButton}
+            >
+              <Ionicons name="create-outline" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>Edit</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => handleDelete()}
+              style={styles.deleteButton}
+            >
+              <Ionicons name="trash-outline" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>Delete</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              onPress={() => setEditDeleteTab(false)}
+              style={styles.cancelButton}
+            >
+              <Ionicons name="close-outline" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.headerTitle}>Your Pets</Text>
+        )}
+        <Text style={styles.headerSubtitle}>Manage your furry friends</Text>
+      </LinearGradient>
+
       {pets.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <Animatable.View 
+          style={styles.emptyContainer}
+          animation="fadeIn"
+          duration={800}
+        >
+          <Ionicons name="paw-outline" size={80} color="#e0e0ff" />
+          <Text style={styles.emptyTitle}>No Pets Yet</Text>
           <Text style={styles.emptyText}>
-            You have no pets added to your account. Please add your pet first.
+            You have no pets added to your account. Let's add your pet to get started!
           </Text>
           <TouchableOpacity
-            style={styles.addButton}
+            style={styles.addButtonPrimary}
             onPress={() => navigation.navigate('AddPet')}
           >
-            <Text style={styles.addButtonText}>Let's Add!</Text>
+            <Ionicons name="add-circle-outline" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>Add My Pet</Text>
           </TouchableOpacity>
-        </View>
+        </Animatable.View>
       ) : (
         <>
-          <View style={styles.header}>
-  {editDeleteTab ? (
-    // Show three TouchableOpacity buttons when editDeleteTab is true
-    <View style={styles.editDeleteContainer}>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('EditPet', {
-          petId: selectedPetId, 
-          petName: selectedPetName, 
-          petBreed: selectedPetBreed, 
-          petSpecies: selectedPetSpecies, 
-          petBirthDate: selectedPetBirthDate})}
-        
-        style={styles.editButton}
-      >
-        <Text style={styles.editButtonText}>Edit</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => handleDelete()}
-        style={styles.deleteButton}
-      >
-        <Text style={styles.deleteButtonText}>Delete</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={() => {
-          setEditDeleteTab(false); // Set back to false to show the default header
-        }}
-        style={styles.cancelButton}
-      >
-        <Text style={styles.cancelButtonText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  ) : (
-    // Show the default header when editDeleteTab is false
-    <Text style={styles.headerTitle}>Your Pets</Text>
-  )}
-</View>
           <FlatList
             data={pets}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderPetCard}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={onRefresh}
+                colors={['#6c63ff']}
+                tintColor={'#6c63ff'}
+              />
+            }
+            ListHeaderComponent={
+              <Text style={styles.listHeader}>
+                {pets.length === 1 ? '1 Pet' : `${pets.length} Pets`}
+              </Text>
+            }
+            ListFooterComponent={
+              <View style={styles.footerContainer}>
+                <Animatable.View 
+                  animation="fadeInUp"
+                  duration={600}
+                >
+                  <LinearGradient
+                    colors={['#f0f0ff', '#e0e0ff']}
+                    style={styles.addPetCard}
+                  >
+                    <View style={styles.addPetContent}>
+                      <Ionicons name="add-circle" size={50} color="#6c63ff" />
+                      <View style={styles.addPetTextContainer}>
+                        <Text style={styles.addPetTitle}>Add another pet</Text>
+                        <Text style={styles.addPetSubText}>
+                          Register more pets to your profile
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.addPetButton}
+                      onPress={() => navigation.navigate('AddPet')}
+                    >
+                      <Text style={styles.addPetButtonText}>Add Pet</Text>
+                    </TouchableOpacity>
+                  </LinearGradient>
+                </Animatable.View>
+              </View>
             }
           />
-          <View style={styles.footerContainer}>
-            <Text style={styles.footerText}>Add Pet</Text>
-            <Text style={styles.footerSubText}>
-              If you have more pets to add, you can do so below.
-            </Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => navigation.navigate('AddPet')}
-            >
-              <Text style={styles.addButtonText}>Let's Add!</Text>
-            </TouchableOpacity>
-          </View>
         </>
       )}
     </View>
@@ -396,146 +476,227 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    padding: 16,
+    backgroundColor: '#f9f9f9',
+  },
+  headerGradient: {
+    paddingTop: 50,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    marginBottom: 10,
-  },
-  headerTitle: {
-    textAlign: 'center',
-    fontSize: 24,
-    paddingBottom: 10,
-    fontWeight: 'bold',
-  },
   editDeleteContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+    marginBottom: 10,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 5,
   },
   editButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    justifyContent: 'center',
   },
   deleteButton: {
-    backgroundColor: '#ff4d4d',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flex: 1,
+    backgroundColor: 'rgba(255, 68, 68, 0.8)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: '#6c757d',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    justifyContent: 'center',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
   },
   emptyText: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 30,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    lineHeight: 22,
   },
-  addButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+  addButtonPrimary: {
+    backgroundColor: '#6c63ff',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   addButtonText: {
     color: '#fff',
     fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+  },
+  listHeader: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 15,
+    marginLeft: 5,
   },
   petItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: 15,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 15,
     shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  selectedPetItem: {
+    borderWidth: 2,
+    borderColor: '#6c63ff',
+    backgroundColor: '#f8f8ff',
   },
   petDetailsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+  },
+  petImageContainer: {
+    marginRight: 15,
   },
   petImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 12,
-    backgroundColor: '#e0e0e0', // Placeholder background color
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  placeholderImage: {
+    backgroundColor: '#e0e0ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petInfo: {
+    flex: 1,
   },
   petName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  petDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  footerContainer: {
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    marginTop: 20,
-  },
-  footerText: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
     color: '#333',
+    marginBottom: 5,
   },
-  footerSubText: {
+  petMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  petAge: {
     fontSize: 14,
     color: '#666',
-    textAlign: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    marginRight: 8,
   },
-  listContent: {
-    paddingBottom: 20,
+  breedBadge: {
+    backgroundColor: '#e0e0ff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  breedText: {
+    fontSize: 12,
+    color: '#6c63ff',
+    fontWeight: '500',
+  },
+  footerContainer: {
+    marginTop: 20,
+  },
+  addPetCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  addPetContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  addPetTextContainer: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  addPetTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  addPetSubText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  addPetButton: {
+    backgroundColor: '#6c63ff',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#6c63ff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addPetButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 
