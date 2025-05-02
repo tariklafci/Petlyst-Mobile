@@ -46,7 +46,7 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
 
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.0.101:3001/api/verify-reset', {
+      const response = await fetch('https://petlyst.com:3001/api/verify-reset', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -63,7 +63,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
       }
   
       // Step 1: Get the clinic_id for this veterinarian
-      const clinicRes = await fetch(`http://192.168.0.101:3001/api/fetch-clinic-veterinarian?veterinarian_id=${veterinarian_id}`, {
+      const clinicRes = await fetch(`https://petlyst.com:3001/api/fetch-clinic-veterinarian?veterinarian_id=${veterinarian_id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
       const clinic_id = clinicData.clinic_id;
   
       // Step 2: Fetch all clinics
-      const allClinicsRes = await fetch('http://192.168.0.101:3001/api/fetch-clinics', {
+      const allClinicsRes = await fetch('https://petlyst.com:3001/api/fetch-clinics', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

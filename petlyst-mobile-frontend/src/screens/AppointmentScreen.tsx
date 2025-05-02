@@ -83,7 +83,7 @@ const AppointmentScreen = ({ navigation }: any) => {
         return;
       }
       const res = await fetch(
-        `http://192.168.0.101:3001/api/fetch-appointments?status=${status}`,
+        `https://petlyst.com:3001/api/fetch-appointments?status=${status}`,
         {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` },
@@ -108,7 +108,7 @@ const AppointmentScreen = ({ navigation }: any) => {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) throw new Error('No token');
       const res = await fetch(
-        `http://192.168.0.101:3001/api/cancel-pending-appointment`,
+        `https://petlyst.com:3001/api/cancel-pending-appointment`,
         {
           method: 'PATCH',
           headers: {
@@ -148,7 +148,7 @@ const AppointmentScreen = ({ navigation }: any) => {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) throw new Error('No token');
       const res = await fetch(
-        `http://192.168.0.101:3001/api/fetch-treatments?appointment_id=${id}`,
+        `https://petlyst.com:3001/api/fetch-treatments?appointment_id=${id}`,
         {
           method: 'GET',
           headers: { Authorization: `Bearer ${token}` },

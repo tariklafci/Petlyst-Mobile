@@ -76,7 +76,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
 
-      const response = await fetch('http://192.168.0.101:3001/api/fetch-pets', {
+      const response = await fetch('https://petlyst.com:3001/api/fetch-pets', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -135,7 +135,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         return;
       }
   
-      const response = await fetch('http://192.168.0.101:3001/api/delete-pet', {
+      const response = await fetch('https://petlyst.com:3001/api/delete-pet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

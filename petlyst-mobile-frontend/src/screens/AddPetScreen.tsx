@@ -82,7 +82,7 @@ export default function AddPetScreen ({ route, navigation }: { route: any; navig
         } as any);
       }
       
-      const response = await fetch('http://192.168.0.101:3001/api/add-pet', {
+      const response = await fetch('https://petlyst.com:3001/api/add-pet', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
