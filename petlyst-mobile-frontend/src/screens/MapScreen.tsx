@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert, ActivityIndicator } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
 
 type ClinicData = {
   province: string;
@@ -25,10 +26,21 @@ const MapScreen = ({ route }: { route: any }) => {
     }
 
     const fetchClinicCoordinates = async () => {
+      console.log(`Clinic id is: ${clinic_id}`);
+      const token = await SecureStore.getItemAsync('userToken');
+
+      if (!token) {
+        Alert.alert('Error', 'No token found. Please log in again.');
+        return;
+      }
+
       try {
-        const response = await fetch('https://petlyst.com:3001/api/fetch-clinic-coordinates', {
-          method: 'POST', // switched to POST to send a JSON body
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch(`https://petlyst.com:3001/api/fetch-clinic-coordinates?clinic_id=${clinic_id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`, // <-- required!
+          },
           body: JSON.stringify({ clinic_id }),
         });
 
