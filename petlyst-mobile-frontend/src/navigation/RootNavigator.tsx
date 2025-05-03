@@ -13,6 +13,7 @@ import AppointmentScreen from '../screens/AppointmentScreen';
 import AddPetScreen from '../screens/AddPetScreen';
 import MeetingScreen from '../screens/MeetingScreen';
 import MapScreen from '../screens/MapScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 // Import your AuthContext
 import { useAuth } from '../context/AuthContext'
 import PasswordResetScreen from '../screens/PasswordResetScreen';
@@ -21,7 +22,7 @@ import EditPetScreen from '../screens/EditPetScreen';
 import MakeAppointmentScreen from '../screens/MakeAppointmentScreen';
 import VetDashboardScreen from '../screens/VetDashboardScreen';
 import VetAppointmentScreen from '../screens/VetAppointmentScreen';
-
+import ChatAIScreen from '../screens/ChatAIScreen';
 
 
 /* -------------------------------
@@ -79,7 +80,7 @@ function MainTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={AppointmentScreen}
+        component={ProfileScreen}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
@@ -160,6 +161,8 @@ export default function RootNavigator() {
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ChatAIScreen" component={ChatAIScreen} options={{ headerShown: false }} />
+
           </>
         ) : state.user_type === 'veterinarian' ? (
           <>

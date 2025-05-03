@@ -39,15 +39,13 @@ const MapScreen = ({ route }: { route: any }) => {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`, // <-- required!
+            'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ clinic_id }),
         });
 
         const data = await response.json();
 
         if (response.ok) {
-          // expect: { province, district, clinic_address, latitude, longitude }
           setClinicData(data);
         } else {
           setErrorMessage(data.error || 'Failed to fetch clinic data.');
@@ -92,7 +90,7 @@ const MapScreen = ({ route }: { route: any }) => {
   }
 
   if (!clinicData) {
-    return null; // should never happen
+    return null;
   }
 
   const { province, district, clinic_address, latitude, longitude } = clinicData;
