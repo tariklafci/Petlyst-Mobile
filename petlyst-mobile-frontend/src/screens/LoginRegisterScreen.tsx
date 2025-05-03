@@ -69,6 +69,10 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
       await signIn({ email, password });
       Alert.alert('Success', 'You are now logged in!');
       handleSendNotificationToken();
+      await SecureStore.setItemAsync('user_email', email);
+      await SecureStore.setItemAsync('name_surname', name + { } + surname);
+
+
 
     } catch (error) {
       console.error(error);

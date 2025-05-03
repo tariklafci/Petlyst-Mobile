@@ -394,7 +394,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         ) : (
           <Text style={styles.headerTitle}>Your Pets</Text>
         )}
-        <Text style={styles.headerSubtitle}>Manage your furry friends</Text>
+        <Text style={styles.headerSubtitle}>Manage your friends</Text>
       </LinearGradient>
 
       {pets.length === 0 ? (
