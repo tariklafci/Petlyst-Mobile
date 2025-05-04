@@ -54,7 +54,7 @@ const ChatAIScreen = () => {
         return;
       }
 
-      const res = await fetch('http://192.168.0.101:3001/api/generate-response', {
+      const res = await fetch('http://139.179.232.174:3001/api/generate-response', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
         body: JSON.stringify({
