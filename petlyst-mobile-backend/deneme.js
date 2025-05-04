@@ -25,7 +25,7 @@ app.post('/api/generate-response', async (req, res) => {
 
   try {
     // 2) Call your Flask /api/llama/generate
-    const llamaRes = await fetch('http://192.168.0.101:5000/api/llama/generate', {
+    const llamaRes = await fetch('http://139.179.232.174:5000/api/llama/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: convoPrompt }),
@@ -49,5 +49,5 @@ app.post('/api/generate-response', async (req, res) => {
 });
 
 app.listen(3001, () => {
-  console.log(`Server is running on http://192.168.0.101:3001`);
+  console.log(`Server is running on http://139.179.232.174:3001`);
 });
