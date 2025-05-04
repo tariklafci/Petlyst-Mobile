@@ -16,7 +16,7 @@ exports.generateResponse = async (req, res) => {
 
   try {
     // 2) Call your Flask /api/llama/generate
-    const llamaRes = await fetch('http://10.0.0.x:5000/api/llama/generate', {
+    const llamaRes = await fetch('http://10.0.0.25:5000/api/llama/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: convoPrompt }),
