@@ -112,59 +112,87 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
       const expoToken = await SecureStore.getItemAsync('expoToken');
       const userToken = await SecureStore.getItemAsync('userToken');
   
+      console.log('Expo token:', expoToken);
+      console.log('User token:', userToken);
+  
       if (!expoToken) {
-        Alert.alert('Error', 'Expo token was not found. Please re-open the app.');
+        console.warn('Expo token not found. Will not send notification token.');
         return;
       }
   
       if (!userToken) {
-        Alert.alert('Error', 'User token was not found. Please re-open the app.');
+        console.warn('User token not found. Will not send notification token.');
         return;
       }
   
-      const response = await fetch('https://petlyst.com:3001/api/add-expo-token', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${userToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ expoToken })
-      });
-  
-      const data = await response.json();
-  
-      if (response.ok) {
-        Alert.alert('Success', data.message);
-        console.log(userToken);
-      } else {
-        Alert.alert('Error', data.message || 'Unknown error occurred.');
+      console.log('Sending PATCH request to add-expo-token...');
+      try {
+        const response = await fetch('https://petlyst.com:3001/api/add-expo-token', {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${userToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ expoToken })
+        });
+    
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          console.warn('Failed to parse JSON response:', e);
+          data = { message: 'Invalid response format from server.' };
+        }
+    
+        if (response.ok) {
+          console.log('Successfully registered notification token with server');
+        } else {
+          console.warn('Failed to register notification token:', data.message || 'Unknown error');
+        }
+      } catch (networkError) {
+        console.error('Network error while registering notification token:', networkError);
       }
     } catch (error) {
-      console.error('Error updating expo token:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again later.');
+      console.error('Error in handleSendNotificationToken:', error);
+      // Don't show alerts for background processes
     }
   };
+  
   
   
   const handleLogin = async () => {
     if (!email || !password) {
       return Alert.alert('Error', 'Please fill in both username and password.');
     }
+  
     try {
-      await signIn({ email, password });
+      await signIn({ email, password }); // ✅ token is stored inside here
+  
       Alert.alert('Success', 'You are now logged in!');
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-      await handleSendNotificationToken();
-    }
+  
+      try {
+        // Get the push notification token
+        const expoToken = await registerForPushNotificationsAsync();
+        
+        // Only attempt to send the token if we successfully got one
+        if (expoToken) {
+          await handleSendNotificationToken();
+        } else {
+          console.warn('Failed to register for push notifications during login');
+        }
+      } catch (error) {
+        console.error('Error during notification setup:', error);
+        // Don't fail the login process because of notification issues
+      }
+  
       await SecureStore.setItemAsync('user_email', email);
-      await SecureStore.setItemAsync('name_surname', name + { } + surname);
-
+      await SecureStore.setItemAsync('name_surname', `${name} ${surname}`);
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Something went wrong.');
     }
   };
+  
 
   const handlePasswordReset = async () => {
     navigation.navigate('PasswordReset');

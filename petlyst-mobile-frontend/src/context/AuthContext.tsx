@@ -76,6 +76,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await SecureStore.setItemAsync('userId', user_id.toString());
         await SecureStore.setItemAsync('userType', user_type);
         dispatch({ type: 'SIGN_IN', token, user_type });
+        return token;
       } catch (error: any) {
         console.error('signIn error:', error);
         Alert.alert('Login Error', error.message);
