@@ -34,11 +34,10 @@ app.use('/api', clinicRoutes);
 app.use('/api', appointmentRoutes);
 app.use('/api', jitsiRoutes);
 app.use('/api', notificationRoutes);
-app.use('/api/', ollamaRoutes);
+app.use('/api', ollamaRoutes);
 
 const httpsServer = https.createServer(credentials, app);
 
 httpsServer.listen(PORT, () => {
   console.log(`Server is running on https://petlyst.com:${PORT}`);
 });
-
