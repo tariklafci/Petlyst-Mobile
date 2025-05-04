@@ -83,7 +83,8 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
   let client;
   try {
     client = await pool.connect();
-    // 1) fetch tokens
+
+    // 1) Fetch user tokens
     const { rows: tokenRows } = await client.query(
       'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
       [userId]
@@ -94,26 +95,28 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
       return { success: false, error: 'No push tokens' };
     }
 
-    // 2) default
+    // 2) Default placeholders
     let clinic = 'the clinic',
         date   = 'scheduled date',
         time   = 'scheduled time',
         pet    = 'your pet';
 
-    // 3) fetch real details if appointmentId
+    // 3) If we have an appointmentId, fetch real details
     if (appointmentDetails.appointmentId) {
+      const apptId = appointmentDetails.appointmentId;
       const { rows } = await client.query(`
-        SELECT
+        SELECT 
           a.appointment_date,
           a.appointment_start_hour,
-          c.name AS clinic_name,
+          c.clinic_name AS clinic_name,
           p.pet_name
         FROM appointments a
-        LEFT JOIN clinics c ON a.clinic_id = c.id
+        LEFT JOIN clinics c ON a.clinic_id = c.clinic_id
         LEFT JOIN pets    p ON a.pet_id     = p.pet_id
         WHERE a.appointment_id = $1
-      `, [appointmentDetails.appointmentId]);
-      if (rows[0]) {
+      `, [apptId]);
+
+      if (rows.length > 0) {
         const appt = rows[0];
         clinic = appt.clinic_name || clinic;
         pet    = appt.pet_name    || pet;
@@ -129,16 +132,16 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
       }
     }
 
-    // 4) override
+    // 4) Override with explicit details
     if (appointmentDetails.clinicName) clinic = appointmentDetails.clinicName;
     if (appointmentDetails.date)       date   = appointmentDetails.date;
     if (appointmentDetails.time)       time   = appointmentDetails.time;
     if (appointmentDetails.petName)    pet    = appointmentDetails.petName;
 
-    // 5) build
+    // 5) Build title & body
     const s = status.toLowerCase();
     let title, body;
-    switch(s) {
+    switch (s) {
       case 'confirmed':
         title = 'Appointment Confirmed';
         body  = `Your appointment for ${pet} at ${clinic} on ${date} at ${time} has been confirmed.`;
@@ -161,7 +164,7 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
         body  = `Your appointment for ${pet} at ${clinic} has been updated to: ${status}.`;
     }
 
-    // 6) send
+    // 6) Send notification
     await sendPushNotifications(expoTokens, title, body, {
       type:          'appointment_status_change',
       status:        s,
@@ -197,12 +200,12 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
     if (!vets.length) return { success: true, count: 0 };
 
     // gather appointment info
-    let owner = 'a client', date = 'scheduled date', time = 'scheduled time', pet = 'a pet';
+    let owner = 'a client', date = 'scheduled date', time = 'scheduled time', petName = 'a pet';
     if (appointmentDetails.appointmentId) {
       const { rows } = await client.query(`
         SELECT
           p.pet_name,
-          CONCAT(u.name,' ',u.surname) AS owner_name,
+          CONCAT(u.name, ' ', u.surname) AS owner_name,
           a.appointment_date,
           a.appointment_start_hour
         FROM appointments a
@@ -211,8 +214,8 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
         WHERE a.appointment_id = $1
       `, [appointmentDetails.appointmentId]);
       if (rows[0]) {
-        owner = rows[0].owner_name || owner;
-        pet   = rows[0].pet_name   || pet;
+        owner   = rows[0].owner_name || owner;
+        petName = rows[0].pet_name    || petName;
         const d = new Date(rows[0].appointment_date);
         if (!isNaN(d)) date = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
         const t = new Date(rows[0].appointment_start_hour);
@@ -222,23 +225,24 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
 
     // override
     if (appointmentDetails.ownerName) owner = appointmentDetails.ownerName;
-    if (appointmentDetails.petName)   pet   = appointmentDetails.petName;
-    if (appointmentDetails.date)      date  = appointmentDetails.date;
-    if (appointmentDetails.time)      time  = appointmentDetails.time;
+    if (appointmentDetails.petName)   petName = appointmentDetails.petName;
+    if (appointmentDetails.date)      date    = appointmentDetails.date;
+    if (appointmentDetails.time)      time    = appointmentDetails.time;
 
+    // build notification
     let title, body;
-    switch(type) {
+    switch (type) {
       case 'new':
         title = 'New Appointment Request';
-        body  = `${owner} requested a new appointment for ${pet} on ${date} at ${time}.`;
+        body  = `${owner} requested a new appointment for ${petName} on ${date} at ${time}.`;
         break;
       case 'canceled':
         title = 'Appointment Canceled';
-        body  = `${owner} canceled the appointment for ${pet} on ${date} at ${time}.`;
+        body  = `${owner} canceled the appointment for ${petName} on ${date} at ${time}.`;
         break;
       default:
         title = 'Appointment Update';
-        body  = `Appointment for ${pet} on ${date} at ${time} was updated.`;
+        body  = `Appointment for ${petName} on ${date} at ${time} was updated.`;
     }
 
     let count = 0;
@@ -250,10 +254,10 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
       const expoTokens = tokens.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
       if (expoTokens.length) {
         await sendPushNotifications(expoTokens, title, body, {
-          type:      'vet_appointment_notification',
-          action:    type,
-          appointmentId: appointmentDetails.appointmentId || null,
-          clinicId,
+          type:           'vet_appointment_notification',
+          action:         type,
+          appointmentId:  appointmentDetails.appointmentId || null,
+          clinicId
         });
         count++;
       }
