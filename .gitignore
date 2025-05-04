@@ -1,6 +1,8 @@
 node_modules/
 
 petlyst-mobile-frontend/google-services.json
+petlyst-mobile-frontend/credentials/
+petlyst-mobile-frontend/credentials.json
 petlyst-mobile-frontend/app.json
 petlyst-mobile-frontend/eas.json
 petlyst-mobile-frontend/node_modules/
