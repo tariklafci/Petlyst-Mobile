@@ -45,6 +45,9 @@ exports.createConference = async (req, res) => {
 
     const durationSec = Math.max(0, endMoment.diff(startMoment, 'seconds'));
     const isoStart = startMoment.clone().utc().toISOString();
+    console.log(`Start time: ${startMoment.clone().utc()}`);
+    console.log(`End time: ${endMoment.clone().utc()}`);
+
 
     return res.json({
       id: appointment_id,
