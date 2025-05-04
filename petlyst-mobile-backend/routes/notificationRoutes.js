@@ -13,7 +13,7 @@ router.get('/test-notifications', authenticateToken, testSendAppointmentNotifica
 // Test route for sending a notification to a specific user
 router.post('/test-user-notification', authenticateToken, sendUserTestNotification);
 
-module.exports = router;
+module.exports = router;1
 
 
 
