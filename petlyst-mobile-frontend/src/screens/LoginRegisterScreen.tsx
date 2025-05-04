@@ -1,3 +1,5 @@
+//LoginRegisterScreen.tsx
+
 import React, { useState, useContext, useEffect } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, KeyboardAvoidingView, Platform, Keyboard, Animated, Modal } from 'react-native';
 import {useAuth} from '../context/AuthContext';
@@ -5,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
+import { registerForPushNotificationsAsync } from '../services/notifications'; // adjust path as needed
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
@@ -150,7 +153,10 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     try {
       await signIn({ email, password });
       Alert.alert('Success', 'You are now logged in!');
-      handleSendNotificationToken();
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+      await handleSendNotificationToken();
+    }
       await SecureStore.setItemAsync('user_email', email);
       await SecureStore.setItemAsync('name_surname', name + { } + surname);
 
