@@ -6,7 +6,9 @@ exports.createConference = async (req, res) => {
   const nice_name = name
   .split("-")
   .map(part => {
-    // Capitalize only alphabetic segments
+    if (part.toLowerCase() === "id") {
+      return "ID"; // Special case
+    }
     return /^[a-zA-Z]/.test(part)
       ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
       : part;
