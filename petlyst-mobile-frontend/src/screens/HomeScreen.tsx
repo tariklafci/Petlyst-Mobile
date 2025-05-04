@@ -301,13 +301,14 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  // Function to check if content is scrollable
+  // Function to check if content is scrollable - FIX THE BUG HERE
   const checkIfScrollable = (event: any) => {
     try {
       // Check if all required properties exist
       if (!event || !event.nativeEvent || 
           !event.nativeEvent.layoutMeasurement || 
           !event.nativeEvent.contentSize) {
+        setIsScrollable(true); // Default to scrollable to ensure accessibility
         return;
       }
       
@@ -317,21 +318,22 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       const layoutHeight = layoutMeasurement.height || 0;
       const contentHeight = contentSize.height || 0;
       
-      const isContentScrollable = contentHeight > layoutHeight;
+      // Force minimum content height to ensure scrollability
+      const isContentScrollable = true; // Always set to true to ensure scrollability
       setIsScrollable(isContentScrollable);
       
-      // Only show scroll indicator if content is scrollable
+      // Always show scroll indicator initially
       Animated.timing(scrollIndicatorOpacity, {
-        toValue: isContentScrollable ? 1 : 0,
+        toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
     } catch (error) {
       console.error('Error checking if content is scrollable:', error);
-      // Default to not showing the scroll indicator if there's an error
-      setIsScrollable(false);
+      // Default to showing the scroll indicator if there's an error
+      setIsScrollable(true);
       Animated.timing(scrollIndicatorOpacity, {
-        toValue: 0,
+        toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
@@ -482,6 +484,8 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
               scrollEventThrottle={16}
               onContentSizeChange={checkIfScrollable}
               onLayout={checkIfScrollable}
+              contentContainerStyle={styles.scrollContentContainer}
+              alwaysBounceVertical={true} // Add this to ensure scrollability
             >
               {selectedClinic && (
                 <>
@@ -630,8 +634,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   headerGradient: {
-    paddingTop: 50,
-    paddingBottom: 25,
+    paddingTop: 30,
+    paddingBottom: 8,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
@@ -1030,6 +1034,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 5,
     fontSize: 14,
+  },
+  scrollContentContainer: {
+    paddingBottom: 30, // Add extra padding at the bottom
+    minHeight: height * 0.6, // Force minimum height to ensure scrollability
   },
 });
 

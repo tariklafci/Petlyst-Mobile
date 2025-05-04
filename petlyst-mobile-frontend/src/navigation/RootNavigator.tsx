@@ -133,7 +133,7 @@ function VetTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={AppointmentScreen}
+        component={ProfileScreen}
         options={{ tabBarLabel: 'Profile' }}
       />
     </Tab.Navigator>
@@ -170,7 +170,6 @@ export default function RootNavigator() {
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
-            {/* Add more veterinarian-specific screens here */}
           </>
         ) : null}
       </Stack.Navigator>
