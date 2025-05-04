@@ -9,7 +9,7 @@ exports.createConference = async (req, res) => {
     return isNaN(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part;
   })
   .join("-");
-  console.log('🚨 /conference endpoint was hit!', req.body);
+  console.log(`select * from appointments where meeting_url = '${nice_name}'`);
 
   try {
     const { rowCount, rows } = await pool.query(
