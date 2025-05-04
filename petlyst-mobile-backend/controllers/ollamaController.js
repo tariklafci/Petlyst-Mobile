@@ -1,25 +1,22 @@
 exports.generateResponse = async (req, res) => {
   const { prompt, history } = req.body;
-
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt is required' });
   }
 
-  // 1) Stitch together history + new user turn into one prompt blob
+  // 1) Stitch together history + new turn
   let convoPrompt = '';
   if (Array.isArray(history)) {
-    // Client is sending you the previous messages
     history.forEach(({ sender, text }) => {
       const who = sender === 'bot' ? 'Assistant' : 'User';
       convoPrompt += `${who}: ${text}\n`;
     });
   }
-  // Append this new question and cue the assistant
   convoPrompt += `User: ${prompt}\nAssistant:`;
 
   try {
     // 2) Call your Flask /api/llama/generate
-    const llamaRes = await fetch('http://192.168.0.101:5000/api/llama/generate', {
+    const llamaRes = await fetch('http://10.0.0.x:5000/api/llama/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: convoPrompt }),
@@ -28,14 +25,13 @@ exports.generateResponse = async (req, res) => {
     if (!llamaRes.ok) {
       throw new Error(`Llama service responded ${llamaRes.status}`);
     }
-
     const data = await llamaRes.json();
 
-    // 3) Return exactly what the app needs
+    // 3) Reply to client
     return res.status(200).json({
       title: data.title,
       code: data.code,
-      raw: data.raw,
+      raw: data.raw
     });
   } catch (err) {
     console.error('⚠️ Llama call failed:', err.message);
