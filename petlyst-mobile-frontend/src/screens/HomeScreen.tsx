@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
+import * as SecureStore from 'expo-secure-store';
 
 type ClinicPhoto = {
   photo_id: number;
@@ -102,7 +103,15 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
   const fetchData = async () => {
     try {
-      const response = await fetch('https://petlyst.com:3001/api/fetch-clinics');
+      const token = await SecureStore.getItemAsync('userToken');
+      const response = await fetch('https://petlyst.com:3001/api/fetch-clinics', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server returned error:', errorText);
