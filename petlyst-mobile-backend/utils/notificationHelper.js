@@ -86,33 +86,14 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
 
     // 1) Fetch user tokens
     const { rows: tokenRows } = await client.query(
-      'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
-      [userId]
-    );
-    const expoTokens = tokenRows.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
-    if (expoTokens.length === 0) {
-      console.log(`No push tokens for user ${userId}`);
-      return { success: false, error: 'No push tokens' };
-    }
-
-    // 2) Default placeholders
-    let clinic = 'the clinic',
-        date   = 'scheduled date',
-        time   = 'scheduled time',
-        pet    = 'your pet';
-
-    // 3) If we have an appointmentId, fetch real details
-    if (appointmentDetails.appointmentId) {
-      const apptId = appointmentDetails.appointmentId;
-      const { rows } = await client.query(`
-        SELECT 
+      'SELECT
+          p.pet_name,
+          CONCAT(po.first_name, ' ', po.last_name) AS owner_name,
           a.appointment_date,
-          a.appointment_start_hour,
-          c.clinic_name AS clinic_name,
-          p.pet_name
+          a.appointment_start_hour
         FROM appointments a
-        LEFT JOIN clinics c ON a.clinic_id = c.clinic_id
-        LEFT JOIN pets    p ON a.pet_id     = p.pet_id
+        LEFT JOIN pets       p  ON a.pet_id       = p.pet_id
+        LEFT JOIN pet_owners po ON a.pet_owner_id = po.pet_owner_id
         WHERE a.appointment_id = $1
       `, [apptId]);
 
@@ -205,7 +186,7 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
       const { rows } = await client.query(`
         SELECT
           p.pet_name,
-          CONCAT(u.name, ' ', u.surname) AS owner_name,
+          CONCAT(u.first_name, ' ', u.last_name) AS owner_name,
           a.appointment_date,
           a.appointment_start_hour
         FROM appointments a
@@ -224,7 +205,7 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
     }
 
     // override
-    if (appointmentDetails.ownerName) owner = appointmentDetails.ownerName;
+    if (appointmentDetails.ownerName) owner   = appointmentDetails.ownerName;
     if (appointmentDetails.petName)   petName = appointmentDetails.petName;
     if (appointmentDetails.date)      date    = appointmentDetails.date;
     if (appointmentDetails.time)      time    = appointmentDetails.time;
