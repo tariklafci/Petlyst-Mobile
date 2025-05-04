@@ -295,9 +295,296 @@ async function sendTestNotification(userId) {
   }
 }
 
+/**
+ * Send notification to user about appointment status change
+ * @param {number} userId - User ID to send notification to
+ * @param {string} status - New appointment status (e.g. 'confirmed', 'canceled', etc.)
+ * @param {object} appointmentDetails - Optional overrides and/or appointmentId
+ *    { appointmentId?: number,
+ *      clinicName?: string,
+ *      date?: string,
+ *      time?: string,
+ *      petName?: string }
+ */
+async function notifyUserAppointmentStatusChanged(userId, status, appointmentDetails = {}) {
+  if (!userId) {
+    console.warn('Cannot send notification: Missing user ID');
+    return { success: false, error: 'Missing user ID' };
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+
+    // 1) Fetch user tokens
+    const { rows: tokenRows } = await client.query(
+      'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
+      [userId]
+    );
+    const expoTokens = tokenRows
+      .map(r => r.user_token_expo)
+      .filter(t => typeof t === 'string' && t.length > 0);
+
+    if (expoTokens.length === 0) {
+      console.log(`No push tokens found for user ID: ${userId}`);
+      return { success: false, error: 'No push tokens' };
+    }
+
+    // 2) Default placeholders
+    let clinic   = 'the clinic';
+    let date     = 'scheduled date';
+    let time     = 'scheduled time';
+    let petName  = 'your pet';
+
+    // 3) If we have an appointmentId, fetch real details
+    if (appointmentDetails.appointmentId) {
+      const apptId = appointmentDetails.appointmentId;
+      const { rows } = await client.query(`
+        SELECT 
+          a.appointment_date,
+          a.appointment_start_hour,
+          c.name       AS clinic_name,
+          p.pet_name
+        FROM appointments a
+        LEFT JOIN clinics c ON a.clinic_id = c.id
+        LEFT JOIN pets    p ON a.pet_id     = p.pet_id
+        WHERE a.appointment_id = $1
+      `, [apptId]);
+
+      if (rows.length > 0) {
+        const appt = rows[0];
+        if (appt.clinic_name)       clinic  = appt.clinic_name;
+        if (appt.pet_name)          petName = appt.pet_name;
+
+        // format date
+        const dt = new Date(appt.appointment_date);
+        if (!isNaN(dt.getTime())) {
+          date = dt.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year:    'numeric',
+            month:   'long',
+            day:     'numeric'
+          });
+        }
+        // format time
+        const tt = new Date(appt.appointment_start_hour);
+        if (!isNaN(tt.getTime())) {
+          time = tt.toLocaleTimeString('en-US', {
+            hour:   '2-digit',
+            minute: '2-digit'
+          });
+        }
+      }
+    }
+
+    // 4) Override with any explicitly provided details
+    if (appointmentDetails.clinicName) clinic  = appointmentDetails.clinicName;
+    if (appointmentDetails.date)       date    = appointmentDetails.date;
+    if (appointmentDetails.time)       time    = appointmentDetails.time;
+    if (appointmentDetails.petName)    petName = appointmentDetails.petName;
+
+    // 5) Build title & body
+    let title, body;
+    const s = status.toLowerCase();
+    switch (s) {
+      case 'confirmed':
+        title = 'Appointment Confirmed';
+        body  = `Your appointment for ${petName} at ${clinic} on ${date} at ${time} has been confirmed.`;
+        break;
+      case 'completed':
+        title = 'Appointment Completed';
+        body  = `Your appointment for ${petName} at ${clinic} has been marked as completed.`;
+        break;
+      case 'canceled':
+      case 'cancelled':
+        title = 'Appointment Canceled';
+        body  = `Your appointment for ${petName} at ${clinic} on ${date} at ${time} has been canceled.`;
+        break;
+      case 'rejected':
+        title = 'Appointment Rejected';
+        body  = `Your appointment request for ${petName} at ${clinic} has been rejected.`;
+        break;
+      default:
+        title = 'Appointment Update';
+        body  = `Your appointment for ${petName} at ${clinic} has been updated to: ${status}.`;
+    }
+
+    // 6) Fire off the notification
+    await sendPushNotifications(expoTokens, title, body, {
+      type:          'appointment_status_change',
+      status:        s,
+      appointmentId: appointmentDetails.appointmentId || null,
+      clinicId:      appointmentDetails.clinicId     || null,
+      petId:         appointmentDetails.petId        || null
+    });
+
+    console.log(`Status change notification (${status}) sent to user ${userId}`);
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error sending status change notification:', error);
+    return { success: false, error: error.message };
+
+  } finally {
+    if (client) {
+      try { client.release(); }
+      catch (_) { /* ignore */ }
+    }
+  }
+}
+
+/**
+ * Notify all veterinarians at a clinic about a new or updated appointment
+ * @param {number} clinicId - ID of the clinic
+ * @param {string} type - Type of notification (new, canceled, etc)
+ * @param {object} appointmentDetails - Details of the appointment
+ */
+async function notifyClinicVeterinarians(clinicId, type, appointmentDetails) {
+  let client;
+  
+  try {
+    if (!clinicId) {
+      console.warn('Cannot send notification: Missing clinic ID');
+      return;
+    }
+    
+    client = await pool.connect();
+    
+    // Get all veterinarians working at this clinic
+    const { rows: vets } = await client.query(`
+      SELECT veterinarian_id 
+      FROM clinic_veterinarians 
+      WHERE clinic_id = $1
+    `, [clinicId]);
+    
+    if (!vets || vets.length === 0) {
+      console.log(`No veterinarians found for clinic ID: ${clinicId}`);
+      return;
+    }
+    
+    // Prepare basic appointment info
+    let date = 'scheduled date';
+    let time = 'scheduled time';
+    let petName = 'a pet';
+    let ownerName = 'a client';
+    
+    // Try to get appointment details
+    if (appointmentDetails && appointmentDetails.appointmentId) {
+      try {
+        const { rows } = await client.query(`
+          SELECT 
+            a.appointment_date, 
+            a.appointment_start_hour, 
+            p.pet_name,
+            CONCAT(u.name, ' ', u.surname) AS owner_name
+          FROM appointments a
+          LEFT JOIN pets p ON a.pet_id = p.pet_id
+          LEFT JOIN users u ON a.pet_owner_id = u.id
+          WHERE a.appointment_id = $1
+        `, [appointmentDetails.appointmentId]);
+        
+        if (rows.length > 0) {
+          const appt = rows[0];
+          
+          if (appt.appointment_date) {
+            const apptDate = new Date(appt.appointment_date);
+            if (!isNaN(apptDate.getTime())) {
+              date = apptDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+            }
+          }
+          
+          if (appt.appointment_start_hour) {
+            const startTime = new Date(appt.appointment_start_hour);
+            if (!isNaN(startTime.getTime())) {
+              time = startTime.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            }
+          }
+          
+          if (appt.pet_name) petName = appt.pet_name;
+          if (appt.owner_name) ownerName = appt.owner_name;
+        }
+      } catch (dbError) {
+        console.error('Error fetching appointment details for vets:', dbError);
+      }
+    }
+    
+    // Prepare notification content
+    let title, body;
+    
+    switch(type.toLowerCase()) {
+      case 'new':
+        title = 'New Appointment Request';
+        body = `${ownerName} has requested a new appointment for ${petName} on ${date} at ${time}.`;
+        break;
+      case 'canceled':
+        title = 'Appointment Canceled';
+        body = `${ownerName} has canceled the appointment for ${petName} on ${date} at ${time}.`;
+        break;
+      default:
+        title = 'Appointment Update';
+        body = `An appointment for ${petName} on ${date} at ${time} has been updated.`;
+    }
+    
+    const data = {
+      type: 'vet_appointment_notification',
+      action: type.toLowerCase(),
+      appointmentId: appointmentDetails?.appointmentId || null,
+      clinicId: clinicId
+    };
+    
+    // Send notification to each veterinarian
+    let notificationCount = 0;
+    
+    for (const vet of vets) {
+      try {
+        const { rows: tokens } = await client.query(
+          'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
+          [vet.veterinarian_id]
+        );
+        
+        const expoTokens = tokens
+          .map(row => row.user_token_expo)
+          .filter(token => token && typeof token === 'string');
+          
+        if (expoTokens.length > 0) {
+          await sendPushNotifications(expoTokens, title, body, data);
+          notificationCount++;
+        }
+      } catch (vetError) {
+        console.error(`Error sending notification to vet ${vet.veterinarian_id}:`, vetError);
+      }
+    }
+    
+    console.log(`Sent notifications to ${notificationCount} veterinarians at clinic ${clinicId}`);
+    return { success: true, count: notificationCount };
+  } catch (error) {
+    console.error('Error notifying clinic veterinarians:', error);
+    return { success: false, error: error.message };
+  } finally {
+    if (client) {
+      try {
+        client.release();
+      } catch (releaseError) {
+        console.error('Error releasing client:', releaseError);
+      }
+    }
+  }
+}
+
+// Export all functions
 module.exports = {
   notifyTodayAppointments,
   sendPushNotifications,
-  sendTestNotification
+  sendTestNotification,
+  notifyUserAppointmentStatusChanged,
+  notifyClinicVeterinarians
 };
   
