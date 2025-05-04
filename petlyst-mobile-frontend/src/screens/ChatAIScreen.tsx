@@ -54,7 +54,7 @@ const ChatAIScreen = () => {
         return;
       }
 
-      const res = await fetch('https://petlyst.com:3001/api/generate-response', {
+      const res = await fetch('https://llama.petlyst.com:3001/api/generate-response', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
         body: JSON.stringify({
