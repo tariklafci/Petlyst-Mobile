@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, KeyboardAvoidingView, Platform, Keyboard, Animated, Modal } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
@@ -11,17 +11,98 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [surname, setSurname] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [user_type, setUserType] = useState('pet_owner');
   const [isVeterinarianTab, setIsVeterinarianTab] = useState(true);
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCriteriaModal, setShowCriteriaModal] = useState(false);
   const [passwordValidations, setPasswordValidations] = useState({
     length: false,
     uppercase: false,
     lowercase: false,
     number: false,
+    match: false,
   });
+  // Animation state
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const headerHeight = useState(new Animated.Value(height * 0.35))[0];
+  const logoSize = useState(new Animated.Value(120))[0];
+  const headerTitleOpacity = useState(new Animated.Value(1))[0];
+  const logoMarginTop = useState(new Animated.Value(0))[0];
   const { signIn, signUp } = useAuth();
+
+  // Keyboard listeners to animate header
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+        Animated.parallel([
+          Animated.timing(headerHeight, {
+            toValue: height * 0.15,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(logoSize, {
+            toValue: 60,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(headerTitleOpacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: false,
+          }),
+          Animated.timing(logoMarginTop, {
+            toValue: 15,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+        ]).start();
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+        Animated.parallel([
+          Animated.timing(headerHeight, {
+            toValue: height * 0.35,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(logoSize, {
+            toValue: 120,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(headerTitleOpacity, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+          Animated.timing(logoMarginTop, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+        ]).start();
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener.remove();
+      keyboardWillHideListener.remove();
+    };
+  }, []);
+
+  // Update password validations when either password or confirmPassword changes
+  useEffect(() => {
+    handlePasswordValidation();
+  }, [password, confirmPassword]);
 
   const handleSendNotificationToken = async () => {
     try {
@@ -51,6 +132,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   
       if (response.ok) {
         Alert.alert('Success', data.message);
+        console.log(userToken);
       } else {
         Alert.alert('Error', data.message || 'Unknown error occurred.');
       }
@@ -72,8 +154,6 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
       await SecureStore.setItemAsync('user_email', email);
       await SecureStore.setItemAsync('name_surname', name + { } + surname);
 
-
-
     } catch (error) {
       console.error(error);
       Alert.alert('Error', 'Something went wrong.');
@@ -85,15 +165,20 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   }
 
   const handleRegister = async () => {
+    const allValidationsPassed = Object.values(passwordValidations).every(value => value === true);
 
-    const isPasswordValid = validatePassword(password);
-
-    if (!email || !password) {
-      return Alert.alert('Error', 'Please fill in all areas.');
+    if (!email || !password || !confirmPassword || (!isLoginTab && (!name || !surname))) {
+      return Alert.alert('Error', 'Please fill in all required fields.');
     }
-    if (!isPasswordValid) {
+    
+    if (!allValidationsPassed) {
       return Alert.alert('Error', 'Password does not meet the required criteria.');
     }
+    
+    if (password !== confirmPassword) {
+      return Alert.alert('Error', 'Passwords do not match.');
+    }
+    
     try {
       await signUp({ name, surname, email, password, user_type });
       Alert.alert('Success', 'You are now registered!');
@@ -108,15 +193,19 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     return regex.test(password);
   };
 
-  const handlePasswordChange = (text: string) => {
-    setPassword(text);
+  const handlePasswordValidation = () => {
     setPasswordValidations({
-      length: text.length >= 8,
-      uppercase: /[A-Z]/.test(text),
-      lowercase: /[a-z]/.test(text),
-      number: /[0-9]/.test(text),
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      match: password === confirmPassword && password.length > 0,
     });
   };
+
+  const isPasswordValid = () => {
+    return Object.values(passwordValidations).every(value => value === true);
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -125,27 +214,43 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     >
       <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
       
-      <LinearGradient
-        colors={['#6c63ff', '#3b5998']}
-        style={styles.gradientHeader}
-      >
-        <Image
-          source={require('../../assets/petlyst-logo.jpeg')}
-          style={styles.logo}
-        />
-        <Animatable.Text 
-          animation="fadeIn" 
-          duration={800} 
-          style={styles.welcomeText}
+      <Animated.View style={[styles.gradientContainer, { height: headerHeight }]}>
+        <LinearGradient
+          colors={['#6c63ff', '#3b5998']}
+          style={styles.gradientHeader}
         >
-          Welcome to Petlyst
-        </Animatable.Text>
-      </LinearGradient>
+          <Animated.View style={{ 
+            transform: [{ scale: logoSize.interpolate({
+              inputRange: [60, 120],
+              outputRange: [0.8, 1],
+            }) }],
+            marginTop: logoMarginTop 
+          }}>
+            <Animated.Image
+              source={require('../../assets/petlyst-logo.jpeg')}
+              style={[styles.logo, { width: logoSize, height: logoSize, borderRadius: logoSize.interpolate({
+                inputRange: [60, 120],
+                outputRange: [30, 60],
+              }) }]}
+            />
+          </Animated.View>
+          
+          <Animated.View style={{ opacity: headerTitleOpacity }}>
+            <Animatable.Text 
+              animation="fadeIn" 
+              duration={800} 
+              style={styles.welcomeText}
+            >
+              Welcome to Petlyst
+            </Animatable.Text>
+          </Animated.View>
+        </LinearGradient>
+      </Animated.View>
       
       <Animatable.View 
         animation="fadeInUp"
         duration={800}
-        style={styles.formContainer}
+        style={[styles.formContainer, keyboardVisible && styles.formContainerExpanded]}
       >
         <View style={styles.tabContainer}>
           <TouchableOpacity 
@@ -165,6 +270,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {!isLoginTab && (
             <View style={styles.typeTabContainer}>
@@ -234,7 +340,21 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           </View>
           
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Password</Text>
+            <View style={styles.labelContainer}>
+              <Text style={styles.inputLabel}>Password</Text>
+              {!isLoginTab && (
+                <TouchableOpacity 
+                  style={styles.infoButton}
+                  onPress={() => setShowCriteriaModal(true)}
+                >
+                  <Ionicons 
+                    name={isPasswordValid() ? "checkmark-circle" : "information-circle"} 
+                    size={20} 
+                    color={isPasswordValid() ? "green" : "#ff6b6b"} 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
@@ -242,7 +362,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
                 placeholder="Enter your password"
                 secureTextEntry={!showPassword}
                 value={password}
-                onChangeText={handlePasswordChange}
+                onChangeText={setPassword}
                 placeholderTextColor="#aaa"
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -252,6 +372,73 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           </View>
 
           {!isLoginTab && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirm Password</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm your password"
+                  secureTextEntry={!showConfirmPassword}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholderTextColor="#aaa"
+                />
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {isLoginTab && (
+            <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
+              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            style={styles.submitButton} 
+            onPress={isLoginTab ? handleLogin : handleRegister}
+          >
+            <LinearGradient
+              colors={['#6c63ff', '#3b5998']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.submitButtonText}>
+                {isLoginTab ? 'Login' : 'Register'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </ScrollView>
+      </Animatable.View>
+
+      {/* Password Criteria Modal */}
+      <Modal
+        visible={showCriteriaModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCriteriaModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCriteriaModal(false)}
+        >
+          <Animatable.View 
+            animation="zoomIn"
+            duration={300}
+            style={styles.modalContainer}
+          >
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowCriteriaModal(false)}
+            >
+              <Ionicons name="close" size={22} color="#666" />
+            </TouchableOpacity>
+            
             <View style={styles.passwordCriteriaContainer}>
               <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
 
@@ -306,32 +493,23 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
                   • At least one number
                 </Text>
               </View>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.match ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.match ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.match && styles.validText]}>
+                  • Passwords match
+                </Text>
+              </View>
             </View>
-          )}
-
-          {isLoginTab && (
-            <TouchableOpacity style={styles.forgotPasswordButton} onPress={handlePasswordReset}>
-              <Text style={styles.forgotPasswordText}>Forgot password?</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity 
-            style={styles.submitButton} 
-            onPress={isLoginTab ? handleLogin : handleRegister}
-          >
-            <LinearGradient
-              colors={['#6c63ff', '#3b5998']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.buttonGradient}
-            >
-              <Text style={styles.submitButtonText}>
-                {isLoginTab ? 'Login' : 'Register'}
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </ScrollView>
-      </Animatable.View>
+          </Animatable.View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -344,19 +522,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9f9f9',
   },
+  gradientContainer: {
+    width: '100%',
+  },
   gradientHeader: {
-    height: height * 0.35,
+    flex: 1,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    paddingBottom: 50
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 20,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
@@ -364,7 +542,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 28,
     fontWeight: 'bold',
-    paddingBottom: 50,
+    paddingBottom: 10,
+    marginTop: 10,
   },
   formContainer: {
     flex: 1,
@@ -379,12 +558,15 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
+  formContainerExpanded: {
+    marginTop: -20,
+  },
   scrollView: {
     flex: 1,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 25,
+    marginBottom: 20,
     borderRadius: 15,
     backgroundColor: '#f0f0f0',
     padding: 5,
@@ -444,11 +626,19 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20,
   },
+  labelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   inputLabel: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 8,
     marginLeft: 4,
+  },
+  infoButton: {
+    padding: 4,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -477,7 +667,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderRadius: 12,
     padding: 15,
-    marginBottom: 20,
   },
   passwordCriteriaTitle: {
     fontSize: 16,
@@ -526,6 +715,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    width: '85%',
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    padding: 5,
   },
 });
 
