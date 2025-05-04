@@ -34,10 +34,13 @@ exports.createConference = async (req, res) => {
       moment(appointment_start_hour).format('YYYY-MM-DD HH:mm:ss'),
       'Europe/Istanbul'
     );
+
     const endMoment = moment.tz(
       moment(appointment_end_hour).format('YYYY-MM-DD HH:mm:ss'),
       'Europe/Istanbul'
     );
+    console.log(`End time: ${endMoment.clone().utc()}`);
+
 
 
     if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
@@ -46,8 +49,7 @@ exports.createConference = async (req, res) => {
 
     const durationSec = Math.max(0, endMoment.diff(startMoment, 'seconds'));
     const isoStart = startMoment.clone().utc().toISOString();
-    console.log(`Start time: ${startMoment.clone().utc()}`);
-    console.log(`End time: ${endMoment.clone().utc()}`);
+    console.log(`Start time: ${isoStart}`);
 
 
     return res.json({
