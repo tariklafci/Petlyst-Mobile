@@ -13,15 +13,15 @@ function isValidExpoToken(token) {
  * @param {string[]} expoTokens
  * @param {string} title
  * @param {string} body
- * @param {Object} [data={}]
+ * @param {Object} [data={}] Additional data payload
  */
 async function sendPushNotifications(expoTokens, title, body, data = {}) {
   if (!Array.isArray(expoTokens) || expoTokens.length === 0) {
-    console.log('No tokens to send push to');
+    console.log('No tokens to send push notifications to');
     return;
   }
 
-  // Optionally filter invalid tokens
+  // Filter out invalid tokens
   const validTokens = expoTokens.filter(isValidExpoToken);
   if (validTokens.length === 0) {
     console.log('No valid Expo tokens after filtering');
@@ -73,6 +73,9 @@ async function sendPushNotifications(expoTokens, title, body, data = {}) {
 
 /**
  * Notify a pet owner when their appointment status changes
+ * @param {number} userId
+ * @param {string} status
+ * @param {object} appointmentDetails
  */
 async function notifyUserAppointmentStatusChanged(userId, status, appointmentDetails = {}) {
   if (!userId) {
@@ -84,68 +87,90 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
   try {
     client = await pool.connect();
 
-    // 1) Fetch user tokens
+    // 1) Fetch Expo tokens
     const { rows: tokenRows } = await client.query(
-      'SELECT
-          p.pet_name,
-          CONCAT(po.first_name, ' ', po.last_name) AS owner_name,
-          a.appointment_date,
-          a.appointment_start_hour
-        FROM appointments a
-        LEFT JOIN pets       p  ON a.pet_id       = p.pet_id
-        LEFT JOIN pet_owners po ON a.pet_owner_id = po.pet_owner_id
-        WHERE a.appointment_id = $1
-      `, [apptId]);
+      'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
+      [userId]
+    );
+    const expoTokens = tokenRows.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
+    if (expoTokens.length === 0) {
+      console.log(`No push tokens for user ${userId}`);
+      return { success: false, error: 'No push tokens' };
+    }
 
-      if (rows.length > 0) {
-        const appt = rows[0];
-        clinic = appt.clinic_name || clinic;
-        pet    = appt.pet_name    || pet;
+    // 2) Default placeholders
+    let clinic  = 'the clinic';
+    let date    = 'scheduled date';
+    let time    = 'scheduled time';
+    let petName = 'your pet';
+
+    // 3) Fetch real appointment details if appointmentId provided
+    if (appointmentDetails.appointmentId) {
+      const apptId = appointmentDetails.appointmentId;
+      const { rows: appts } = await client.query(
+        `SELECT
+           a.appointment_date,
+           a.appointment_start_hour,
+           c.clinic_name,
+           p.pet_name
+         FROM appointments a
+         LEFT JOIN clinics c ON a.clinic_id = c.clinic_id
+         LEFT JOIN pets    p ON a.pet_id     = p.pet_id
+         WHERE a.appointment_id = $1`
+      , [apptId]);
+      if (appts[0]) {
+        const appt = appts[0];
+        clinic  = appt.clinic_name || clinic;
+        petName = appt.pet_name    || petName;
 
         const d = new Date(appt.appointment_date);
         if (!isNaN(d)) {
-          date = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+          date = d.toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          });
         }
         const t = new Date(appt.appointment_start_hour);
         if (!isNaN(t)) {
-          time = t.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+          time = t.toLocaleTimeString('en-US', {
+            hour: '2-digit', minute: '2-digit'
+          });
         }
       }
     }
 
-    // 4) Override with explicit details
-    if (appointmentDetails.clinicName) clinic = appointmentDetails.clinicName;
-    if (appointmentDetails.date)       date   = appointmentDetails.date;
-    if (appointmentDetails.time)       time   = appointmentDetails.time;
-    if (appointmentDetails.petName)    pet    = appointmentDetails.petName;
+    // 4) Override with explicit values
+    if (appointmentDetails.clinicName) clinic  = appointmentDetails.clinicName;
+    if (appointmentDetails.date)       date    = appointmentDetails.date;
+    if (appointmentDetails.time)       time    = appointmentDetails.time;
+    if (appointmentDetails.petName)    petName = appointmentDetails.petName;
 
-    // 5) Build title & body
+    // 5) Build notification content
     const s = status.toLowerCase();
     let title, body;
     switch (s) {
       case 'confirmed':
         title = 'Appointment Confirmed';
-        body  = `Your appointment for ${pet} at ${clinic} on ${date} at ${time} has been confirmed.`;
+        body  = `Your appointment for ${petName} at ${clinic} on ${date} at ${time} has been confirmed.`;
         break;
       case 'completed':
         title = 'Appointment Completed';
-        body  = `Your appointment for ${pet} at ${clinic} has been marked as completed.`;
+        body  = `Your appointment for ${petName} at ${clinic} has been marked as completed.`;
         break;
       case 'canceled':
       case 'cancelled':
         title = 'Appointment Canceled';
-        body  = `Your appointment for ${pet} at ${clinic} on ${date} at ${time} has been canceled.`;
+        body  = `Your appointment for ${petName} at ${clinic} on ${date} at ${time} has been canceled.`;
         break;
       case 'rejected':
         title = 'Appointment Rejected';
-        body  = `Your appointment request for ${pet} at ${clinic} has been rejected.`;
+        body  = `Your appointment request for ${petName} at ${clinic} has been rejected.`;
         break;
       default:
         title = 'Appointment Update';
-        body  = `Your appointment for ${pet} at ${clinic} has been updated to: ${status}.`;
+        body  = `Your appointment for ${petName} at ${clinic} has been updated to: ${status}.`;
     }
 
-    // 6) Send notification
+    // 6) Send push
     await sendPushNotifications(expoTokens, title, body, {
       type:          'appointment_status_change',
       status:        s,
@@ -154,7 +179,7 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
       petId:         appointmentDetails.petId        || null
     });
 
-    console.log(`Notification sent to user ${userId}`);
+    console.log(`Status change notification (${status}) sent to user ${userId}`);
     return { success: true };
   } catch (err) {
     console.error('Error sending status change notification:', err);
@@ -165,86 +190,89 @@ async function notifyUserAppointmentStatusChanged(userId, status, appointmentDet
 }
 
 /**
- * Notify all veterinarians at a clinic
+ * Notify all veterinarians at a clinic about an appointment event
+ * @param {number} clinicId
+ * @param {string} type 'new' | 'canceled' | 'update'
+ * @param {object} appointmentDetails
  */
 async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}) {
-  if (!clinicId) return { success: false, error: 'Missing clinicId' };
+  if (!clinicId) {
+    console.warn('Cannot notify veterinarians: Missing clinicId');
+    return { success: false, error: 'Missing clinicId' };
+  }
 
   let client;
   try {
     client = await pool.connect();
 
+    // 1) Get all vets for this clinic
     const { rows: vets } = await client.query(
       'SELECT veterinarian_id FROM clinic_veterinarians WHERE clinic_id = $1',
       [clinicId]
     );
-    if (!vets.length) return { success: true, count: 0 };
+    if (!vets.length) {
+      console.log(`No veterinarians found for clinic ${clinicId}`);
+      return { success: true, count: 0 };
+    }
 
-    // gather appointment info
-    let owner = 'a client', date = 'scheduled date', time = 'scheduled time', petName = 'a pet';
+    // 2) Fetch appointment info
+    let petName = 'a pet';
+    let date    = 'scheduled date';
+    let time    = 'scheduled time';
+
     if (appointmentDetails.appointmentId) {
-      const { rows } = await client.query(`
-        SELECT
-          p.pet_name,
-          CONCAT(u.first_name, ' ', u.last_name) AS owner_name,
-          a.appointment_date,
-          a.appointment_start_hour
-        FROM appointments a
-        LEFT JOIN pets  p ON a.pet_id     = p.pet_id
-        LEFT JOIN users u ON a.pet_owner_id = u.user_id
-        WHERE a.appointment_id = $1
-      `, [appointmentDetails.appointmentId]);
-      if (rows[0]) {
-        owner   = rows[0].owner_name || owner;
-        petName = rows[0].pet_name    || petName;
-        const d = new Date(rows[0].appointment_date);
-        if (!isNaN(d)) date = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-        const t = new Date(rows[0].appointment_start_hour);
-        if (!isNaN(t)) time = t.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      const apptId = appointmentDetails.appointmentId;
+      const { rows: appts } = await client.query(
+        `SELECT p.pet_name, a.appointment_date, a.appointment_start_hour
+         FROM appointments a
+         LEFT JOIN pets p ON a.pet_id = p.pet_id
+         WHERE a.appointment_id = $1`
+      , [apptId]);
+      if (appts[0]) {
+        petName = appts[0].pet_name || petName;
+        const d = new Date(appts[0].appointment_date);
+        if (!isNaN(d)) date = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric',month:'long',day:'numeric'});
+        const t = new Date(appts[0].appointment_start_hour);
+        if (!isNaN(t)) time = t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
       }
     }
 
-    // override
-    if (appointmentDetails.ownerName) owner   = appointmentDetails.ownerName;
-    if (appointmentDetails.petName)   petName = appointmentDetails.petName;
-    if (appointmentDetails.date)      date    = appointmentDetails.date;
-    if (appointmentDetails.time)      time    = appointmentDetails.time;
-
-    // build notification
+    // 3) Prepare title & body
     let title, body;
     switch (type) {
       case 'new':
         title = 'New Appointment Request';
-        body  = `${owner} requested a new appointment for ${petName} on ${date} at ${time}.`;
+        body  = `New appointment for ${petName} on ${date} at ${time}.`;
         break;
       case 'canceled':
         title = 'Appointment Canceled';
-        body  = `${owner} canceled the appointment for ${petName} on ${date} at ${time}.`;
+        body  = `Appointment for ${petName} on ${date} at ${time} was canceled.`;
         break;
       default:
         title = 'Appointment Update';
         body  = `Appointment for ${petName} on ${date} at ${time} was updated.`;
     }
 
+    // 4) Notify each veterinarian
     let count = 0;
     for (const { veterinarian_id } of vets) {
-      const { rows: tokens } = await client.query(
+      const { rows: tokenRows } = await client.query(
         'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
         [veterinarian_id]
       );
-      const expoTokens = tokens.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
+      const expoTokens = tokenRows.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
       if (expoTokens.length) {
         await sendPushNotifications(expoTokens, title, body, {
-          type:           'vet_appointment_notification',
-          action:         type,
-          appointmentId:  appointmentDetails.appointmentId || null,
+          type:          'vet_appointment_notification',
+          action:        type,
+          appointmentId: appointmentDetails.appointmentId || null,
           clinicId
         });
         count++;
       }
     }
 
-    console.log(`Notifications sent to ${count} veterinarians`);
+    console.log(`Sent notifications to ${count} veterinarians for clinic ${clinicId}`);
     return { success: true, count };
   } catch (err) {
     console.error('Error notifying veterinarians:', err);
@@ -261,11 +289,11 @@ async function sendTestNotification(userId) {
   let client;
   try {
     client = await pool.connect();
-    const { rows: tokens } = await client.query(
+    const { rows: tokenRows } = await client.query(
       'SELECT user_token_expo FROM user_tokens WHERE user_id = $1',
       [userId]
     );
-    const expoTokens = tokens.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
+    const expoTokens = tokenRows.map(r => r.user_token_expo).filter(t => typeof t === 'string' && t);
     if (!expoTokens.length) {
       console.log(`No push tokens for test user ${userId}`);
       return { success: false, message: 'No tokens' };
