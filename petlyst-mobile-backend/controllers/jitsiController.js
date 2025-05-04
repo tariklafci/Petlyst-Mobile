@@ -6,7 +6,10 @@ exports.createConference = async (req, res) => {
   const nice_name = name
   .split("-")
   .map(part => {
-    return isNaN(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part;
+    // Capitalize only alphabetic segments
+    return /^[a-zA-Z]/.test(part)
+      ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      : part;
   })
   .join("-");
   console.log(`select * from appointments where meeting_url = '${nice_name}'`);
