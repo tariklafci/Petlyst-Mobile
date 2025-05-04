@@ -14,7 +14,6 @@ exports.createConference = async (req, res) => {
       : part;
   })
   .join("-");
-  console.log(`select * from appointments where meeting_url = '${nice_name}'`);
 
   try {
     const { rowCount, rows } = await pool.query(
@@ -50,8 +49,6 @@ exports.createConference = async (req, res) => {
       moment(appointment_end_hour).format('YYYY-MM-DD HH:mm:ss'),
       'Europe/Istanbul'
     );
-    console.log(`End time: ${endMoment.clone().utc()}`);
-
 
 
     if (nowUtc.isBefore(startMoment.clone().utc()) || nowUtc.isAfter(endMoment.clone().utc())) {
@@ -60,8 +57,6 @@ exports.createConference = async (req, res) => {
 
     const durationSec = Math.max(0, endMoment.diff(startMoment, 'seconds'));
     const isoStart = startMoment.clone().utc().toISOString();
-    console.log(`Start time: ${isoStart}`);
-
 
     return res.json({
       id: appointment_id,
