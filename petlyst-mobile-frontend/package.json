@@ -40,6 +40,7 @@
   "version": "1.0.0",
   "scripts": {
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "postinstall": "mkdir -p android/app/src/main/res/drawable && cp assets/splash-icon.png android/app/src/main/res/drawable/splashscreen_logo.png"
   }
 }
