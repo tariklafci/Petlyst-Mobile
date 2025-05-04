@@ -210,7 +210,7 @@ async function notifyClinicVeterinarians(clinicId, type, appointmentDetails = {}
           a.appointment_start_hour
         FROM appointments a
         LEFT JOIN pets  p ON a.pet_id     = p.pet_id
-        LEFT JOIN users u ON a.pet_owner_id = u.id
+        LEFT JOIN users u ON a.pet_owner_id = u.user_id
         WHERE a.appointment_id = $1
       `, [appointmentDetails.appointmentId]);
       if (rows[0]) {
