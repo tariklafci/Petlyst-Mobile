@@ -3,6 +3,7 @@ const moment = require('moment-timezone');
 
 exports.createConference = async (req, res) => {
   const { name, mail_owner } = req.body;
+  console.log('🚨 /conference endpoint was hit!', req.body);
 
   try {
     const { rowCount, rows } = await pool.query(
