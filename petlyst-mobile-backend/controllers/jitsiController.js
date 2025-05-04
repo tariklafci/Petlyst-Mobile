@@ -3,6 +3,12 @@ const moment = require('moment-timezone');
 
 exports.createConference = async (req, res) => {
   const { name, mail_owner } = req.body;
+  const nice_name = name
+  .split("-")
+  .map(part => {
+    return isNaN(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part;
+  })
+  .join("-");
   console.log('🚨 /conference endpoint was hit!', req.body);
 
   try {
@@ -14,7 +20,7 @@ exports.createConference = async (req, res) => {
          appointment_end_hour
        FROM appointments
        WHERE meeting_url = $1`,
-      [name]
+      [nice_name]
     );
 
     if (rowCount === 0) {
