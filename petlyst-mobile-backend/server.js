@@ -5,6 +5,7 @@ const https = require('https');
 const fs = require('fs');
 require('dotenv').config();
 
+
 const authRoutes = require('./routes/authRoutes');
 const petRoutes = require('./routes/petRoutes');
 const clinicRoutes = require('./routes/clinicRoutes');
@@ -21,9 +22,10 @@ const certificate = fs.readFileSync('/home/ubuntu/certs/fullchain1.pem', 'utf8')
 const credentials = { key: privateKey, cert: certificate };
 
 // Middleware
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(express.json()); // For parsing JSON
+app.use(express.urlencoded({ extended: true })); // For parsing form-encoded (x-www-form-urlencoded)
 app.use(cors());
+
 
 // Use routes
 app.use('/api', authRoutes);
