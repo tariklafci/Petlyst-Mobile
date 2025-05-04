@@ -6,4 +6,3 @@ const router = express.Router();
 router.post('/conference', createConference);
 
 module.exports = router;
-
