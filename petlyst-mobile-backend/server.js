@@ -13,7 +13,7 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const jitsiRoutes = require('./routes/jitsiRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const ollamaRoutes = require('./routes/ollamaRoutes');
-
+const ollamaInventoryRoutes = require('./routes/ollamaInventoryRoutes');
 const app = express();
 const PORT = process.env.PORT;
 
@@ -35,7 +35,7 @@ app.use('/api', appointmentRoutes);
 app.use('/api', jitsiRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', ollamaRoutes);
-
+app.use('/api', ollamaInventoryRoutes);
 const httpsServer = https.createServer(credentials, app);
 
 httpsServer.listen(PORT, () => {
