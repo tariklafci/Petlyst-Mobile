@@ -27,16 +27,20 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Set token expiration to 7 days
+        const expiresIn = 7 * 24 * 60 * 60; // 7 days in seconds
+        
         // Generate a JWT token
         const token = jwt.sign({ sub: user.user_id, email: user.user_email }, process.env.SECRET_KEY, {
-            expiresIn: '1h',
+            expiresIn: `${expiresIn}s`,
         });
 
-        // Respond with the token and user details
+        // Respond with the token, user details, and expiration
         return res.json({
             token,
             user_id: user.user_id,
             user_type: user.user_type,
+            expiresIn // Include expiration time in seconds
         });
     } catch (error) {
         console.error('Error logging in user:', error);
@@ -44,6 +48,41 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+// Refresh token
+exports.refreshToken = async (req, res) => {
+    try {
+        // User object is attached by the auth middleware
+        const userId = req.user.sub;
+        
+        // Get user information for new token
+        const userQuery = await pool.query('SELECT user_id, user_email, user_type FROM users WHERE user_id = $1', [userId]);
+        
+        if (userQuery.rowCount === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        const user = userQuery.rows[0];
+        
+        // Set token expiration to 7 days
+        const expiresIn = 7 * 24 * 60 * 60; // 7 days in seconds
+        
+        // Generate a new JWT token
+        const token = jwt.sign({ sub: user.user_id, email: user.user_email }, process.env.SECRET_KEY, {
+            expiresIn: `${expiresIn}s`,
+        });
+        
+        // Respond with the new token and expiration
+        return res.json({
+            token,
+            user_id: user.user_id,
+            user_type: user.user_type,
+            expiresIn
+        });
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        return res.status(500).json({ message: 'Server error' });
+    }
+};
 
 // Register user
 exports.registerUser = async (req, res) => {

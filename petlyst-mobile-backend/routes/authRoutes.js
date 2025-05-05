@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middlewares/authenticateToken');
-const { loginUser, registerUser, resetPassword, verifyResetCode, addExpoToken } = require('../controllers/authController');
+const { loginUser, registerUser, resetPassword, verifyResetCode, addExpoToken, refreshToken } = require('../controllers/authController');
 
 // POST /api/login
 router.post('/login', loginUser);
@@ -14,6 +14,9 @@ router.post('/reset-password', resetPassword);
 
 // POST /api/verify-reset
 router.post('/verify-reset', verifyResetCode);
+
+// POST /api/refresh-token
+router.post('/refresh-token', authenticateToken, refreshToken);
 
 // PATCH /api/add-expo-token
 router.patch('/add-expo-token', authenticateToken, addExpoToken);
