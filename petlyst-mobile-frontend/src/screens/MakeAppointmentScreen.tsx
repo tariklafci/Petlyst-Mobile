@@ -218,7 +218,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  // Update the fetchReservedSlots function to properly handle time zones
+  // Update the fetchReservedSlots function with robust error handling for timestamp formats
   const fetchReservedSlots = async (selectedDate: Date) => {
     if (!clinic_id) return;
     
@@ -249,30 +249,81 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
       }
       
       const data = await response.json();
+      console.log('Appointments data:', JSON.stringify(data));
       
       // Create an array of reserved time slots
       const reserved: string[] = [];
       if (data.appointments && data.appointments.length > 0) {
         data.appointments.forEach((appointment: any) => {
-          if (appointment.appointment_start_hour && appointment.appointment_end_hour) {
-            // Extract the time parts directly from the strings without creating Date objects
-            // This prevents automatic timezone conversions
-            const startTimeStr = appointment.appointment_start_hour;
-            const endTimeStr = appointment.appointment_end_hour;
-            
-            // Extract hours and minutes directly from the strings
-            // Database format is typically: "YYYY-MM-DD HH:MM:SS"
-            const startParts = startTimeStr.split(' ')[1].split(':');
-            const endParts = endTimeStr.split(' ')[1].split(':');
-            
-            const startHour = startParts[0].padStart(2, '0');
-            const startMin = startParts[1].padStart(2, '0');
-            const endHour = endParts[0].padStart(2, '0');
-            const endMin = endParts[1].padStart(2, '0');
-            
-            const slotFormat = `${startHour}.${startMin} - ${endHour}.${endMin}`;
-            console.log(`Reserved slot: ${slotFormat} from DB times: ${startTimeStr} - ${endTimeStr}`);
-            reserved.push(slotFormat);
+          try {
+            if (appointment.appointment_start_hour && appointment.appointment_end_hour) {
+              // Parse the time values safely
+              let startHour = '00';
+              let startMin = '00';
+              let endHour = '00';
+              let endMin = '00';
+              
+              // Handle different timestamp formats
+              const startTimeStr = String(appointment.appointment_start_hour);
+              const endTimeStr = String(appointment.appointment_end_hour);
+              
+              console.log(`Processing appointment times: ${startTimeStr} - ${endTimeStr}`);
+              
+              // Try to extract time components - first check if in ISO format with T separator
+              if (startTimeStr.includes('T')) {
+                // Format: 2023-06-15T13:30:00.000Z
+                const timePart = startTimeStr.split('T')[1];
+                if (timePart) {
+                  const timeComponents = timePart.split(':');
+                  startHour = timeComponents[0].padStart(2, '0');
+                  startMin = timeComponents[1].padStart(2, '0');
+                }
+              } 
+              // Try standard PostgreSQL timestamp format (YYYY-MM-DD HH:MM:SS)
+              else if (startTimeStr.includes(' ')) {
+                const parts = startTimeStr.split(' ');
+                if (parts.length > 1) {
+                  const timeComponents = parts[1].split(':');
+                  startHour = timeComponents[0].padStart(2, '0');
+                  startMin = timeComponents[1].padStart(2, '0');
+                }
+              }
+              // If just a time string (HH:MM:SS)
+              else if (startTimeStr.includes(':')) {
+                const timeComponents = startTimeStr.split(':');
+                startHour = timeComponents[0].padStart(2, '0');
+                startMin = timeComponents[1].padStart(2, '0');
+              }
+              
+              // Same logic for end time
+              if (endTimeStr.includes('T')) {
+                const timePart = endTimeStr.split('T')[1];
+                if (timePart) {
+                  const timeComponents = timePart.split(':');
+                  endHour = timeComponents[0].padStart(2, '0');
+                  endMin = timeComponents[1].padStart(2, '0');
+                }
+              } 
+              else if (endTimeStr.includes(' ')) {
+                const parts = endTimeStr.split(' ');
+                if (parts.length > 1) {
+                  const timeComponents = parts[1].split(':');
+                  endHour = timeComponents[0].padStart(2, '0');
+                  endMin = timeComponents[1].padStart(2, '0');
+                }
+              }
+              else if (endTimeStr.includes(':')) {
+                const timeComponents = endTimeStr.split(':');
+                endHour = timeComponents[0].padStart(2, '0');
+                endMin = timeComponents[1].padStart(2, '0');
+              }
+              
+              const slotFormat = `${startHour}.${startMin} - ${endHour}.${endMin}`;
+              console.log(`Reserved slot: ${slotFormat} from times: ${startTimeStr} - ${endTimeStr}`);
+              reserved.push(slotFormat);
+            }
+          } catch (parseError) {
+            console.error('Error parsing appointment time:', parseError, appointment);
           }
         });
       }
