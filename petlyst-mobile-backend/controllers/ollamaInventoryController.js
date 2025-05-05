@@ -1,10 +1,10 @@
+// src/controllers/inventoryController.js
 
 const pool = require('../config/db');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const fetch = require('node-fetch');    // if your Node <18
+// no more jwt import or JWT_SECRET
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
-const JWT_SECRET = process.env.JWT_SECRET;
 
 // helper to call your Llama service
 async function callLlama(prompt) {
@@ -17,30 +17,22 @@ async function callLlama(prompt) {
   return resp.json();
 }
 
-// helper to extract clinic IDs for the veterinarian in the bearer token
+// now just pull the user ID from req.user
 async function getClinicIdsFromRequest(req) {
-  const auth = req.headers.authorization || '';
-  if (!auth.startsWith('Bearer ')) {
-    const err = new Error('Authorization token missing');
+  const userId = req.user && req.user.user_id;
+  if (!userId) {
+    const err = new Error('User not authenticated');
     err.status = 401;
     throw err;
   }
 
-  const token = auth.slice('Bearer '.length);
-  let payload;
-  try {
-    payload = jwt.verify(token, JWT_SECRET);
-  } catch (e) {
-    const err = new Error('Invalid token');
-    err.status = 401;
-    throw err;
-  }
-
-  const userId = payload.user_id;
   const vetClinics = await pool.query(
-    'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+    `SELECT clinic_id
+       FROM clinic_veterinarians
+      WHERE veterinarian_id = $1`,
     [userId]
   );
+
   const clinicIds = vetClinics.rows.map(r => r.clinic_id);
   if (clinicIds.length === 0) {
     const err = new Error('No clinic associations found for this user');
@@ -56,15 +48,21 @@ exports.checkReorder = async (req, res) => {
     const clinicIds = await getClinicIdsFromRequest(req);
 
     const itemsRes = await pool.query(
-      'SELECT * FROM inventory_items WHERE clinic_id = ANY($1)',
+      `SELECT * 
+         FROM inventory_items
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
     const txRes = await pool.query(
-      'SELECT * FROM inventory_transactions WHERE clinic_id = ANY($1)',
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
 
-    const prompt = `Based on my current inventory and transaction history for clinic(s) ${clinicIds.join(', ')}, do I need to reorder any vaccine?
+    const prompt = `Based on my current inventory and transaction history for clinic(s) ${clinicIds.join(
+      ', '
+    )}, do I need to reorder any vaccine?
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
@@ -87,15 +85,21 @@ exports.calculateStockDays = async (req, res) => {
     const clinicIds = await getClinicIdsFromRequest(req);
 
     const itemsRes = await pool.query(
-      'SELECT * FROM inventory_items WHERE clinic_id = ANY($1)',
+      `SELECT * 
+         FROM inventory_items
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
     const txRes = await pool.query(
-      'SELECT * FROM inventory_transactions WHERE clinic_id = ANY($1)',
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
 
-    const prompt = `Given my inventory and usage history for clinic(s) ${clinicIds.join(', ')}, how many days of stock do I have left for each item, assuming recent usage patterns continue?
+    const prompt = `Given my inventory and usage history for clinic(s) ${clinicIds.join(
+      ', '
+    )}, how many days of stock do I have left for each item, assuming recent usage patterns continue?
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
@@ -118,15 +122,21 @@ exports.averageWeeklyConsumption = async (req, res) => {
     const clinicIds = await getClinicIdsFromRequest(req);
 
     const itemsRes = await pool.query(
-      'SELECT * FROM inventory_items WHERE clinic_id = ANY($1)',
+      `SELECT * 
+         FROM inventory_items
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
     const txRes = await pool.query(
-      'SELECT * FROM inventory_transactions WHERE clinic_id = ANY($1)',
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
 
-    const prompt = `What is the average weekly consumption of each inventory item for clinic(s) ${clinicIds.join(', ')}, based on my transaction history?
+    const prompt = `What is the average weekly consumption of each inventory item for clinic(s) ${clinicIds.join(
+      ', '
+    )}, based on my transaction history?
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
@@ -149,15 +159,21 @@ exports.identifySlowMoving = async (req, res) => {
     const clinicIds = await getClinicIdsFromRequest(req);
 
     const itemsRes = await pool.query(
-      'SELECT * FROM inventory_items WHERE clinic_id = ANY($1)',
+      `SELECT * 
+         FROM inventory_items
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
     const txRes = await pool.query(
-      'SELECT * FROM inventory_transactions WHERE clinic_id = ANY($1)',
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id = ANY($1)`,
       [clinicIds]
     );
 
-    const prompt = `Identify which items in my inventory for clinic(s) ${clinicIds.join(', ')} are slow‐moving (i.e., haven’t been used much recently), based on transaction history.
+    const prompt = `Identify which items in my inventory for clinic(s) ${clinicIds.join(
+      ', '
+    )} are slow‐moving (i.e., haven’t been used much recently), based on transaction history.
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
