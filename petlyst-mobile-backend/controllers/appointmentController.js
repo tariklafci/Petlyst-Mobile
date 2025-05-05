@@ -416,6 +416,8 @@ exports.fetchClinicAppointmentsByDate = async (req, res) => {
       return res.status(400).json({ error: 'date is required' });
     }
     
+    console.log(`Fetching appointments for clinic_id: ${clinic_id}, date: ${date}`);
+    
     // Query to get all appointments for this clinic on the specified date
     const queryText = `
       SELECT
@@ -433,14 +435,33 @@ exports.fetchClinicAppointmentsByDate = async (req, res) => {
       FROM appointments
       WHERE clinic_id = $1
       AND appointment_date = $2::date
+      AND appointment_status != 'canceled'
     `;
     
     const result = await pool.query(queryText, [clinic_id, date]);
+    console.log(`Found ${result.rowCount} appointments`);
     
-    // Return the appointments data
+    // Add timezone info to response for debugging
+    const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const serverTime = new Date().toISOString();
+    
+    // Log detailed time information for each appointment
+    if (result.rows.length > 0) {
+      console.log('Appointment times:');
+      result.rows.forEach((appt, i) => {
+        console.log(`Appointment ${i+1}: start=${appt.appointment_start_hour}, end=${appt.appointment_end_hour}`);
+      });
+    }
+    
+    // Return the appointments data with timezone info
     res.status(200).json({ 
       appointments: result.rows,
-      count: result.rowCount
+      count: result.rowCount,
+      debug: {
+        serverTimezone,
+        serverTime,
+        requestedDate: date
+      }
     });
   } catch (error) {
     console.error('Error fetching clinic appointments by date:', error);

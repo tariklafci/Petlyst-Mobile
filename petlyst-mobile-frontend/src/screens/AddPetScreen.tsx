@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: -10,
   },
   subHeader: {
     fontSize: 16,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     alignItems: 'center',
-    marginTop: -50,
+    marginTop: -25,
   },
   imagePicker: {
     position: 'relative',
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 20,
-    marginTop: 10,
+    marginTop: -10,
   },
   inputGroup: {
     marginBottom: 20,
