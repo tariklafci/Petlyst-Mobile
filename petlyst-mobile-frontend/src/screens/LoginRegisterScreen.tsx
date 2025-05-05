@@ -1,6 +1,6 @@
 //LoginRegisterScreen.tsx
 
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity, Alert, Image, Dimensions, ScrollView, StatusBar, KeyboardAvoidingView, Platform, Keyboard, Animated, Modal } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,79 +28,15 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     number: false,
     match: false,
   });
-  // Animation state
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
-  const headerHeight = useState(new Animated.Value(height * 0.35))[0];
-  const logoSize = useState(new Animated.Value(120))[0];
-  const headerTitleOpacity = useState(new Animated.Value(1))[0];
-  const logoMarginTop = useState(new Animated.Value(0))[0];
+  
+  // Refs for TextInputs to enable navigation between fields
+  const nameInputRef = useRef<TextInput>(null);
+  const surnameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+  
   const { signIn, signUp } = useAuth();
-
-  // Keyboard listeners to animate header
-  useEffect(() => {
-    const keyboardWillShowListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
-        setKeyboardVisible(true);
-        Animated.parallel([
-          Animated.timing(headerHeight, {
-            toValue: height * 0.15,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(logoSize, {
-            toValue: 60,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(headerTitleOpacity, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: false,
-          }),
-          Animated.timing(logoMarginTop, {
-            toValue: 15,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-        ]).start();
-      }
-    );
-
-    const keyboardWillHideListener = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardVisible(false);
-        Animated.parallel([
-          Animated.timing(headerHeight, {
-            toValue: height * 0.35,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(logoSize, {
-            toValue: 120,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(headerTitleOpacity, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-          Animated.timing(logoMarginTop, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: false,
-          }),
-        ]).start();
-      }
-    );
-
-    return () => {
-      keyboardWillShowListener.remove();
-      keyboardWillHideListener.remove();
-    };
-  }, []);
 
   // Update password validations when either password or confirmPassword changes
   useEffect(() => {
@@ -248,43 +184,32 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     >
       <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
       
-      <Animated.View style={[styles.gradientContainer, { height: headerHeight }]}>
+      <View style={styles.gradientContainer}>
         <LinearGradient
           colors={['#6c63ff', '#3b5998']}
           style={styles.gradientHeader}
         >
-          <Animated.View style={{ 
-            transform: [{ scale: logoSize.interpolate({
-              inputRange: [60, 120],
-              outputRange: [0.8, 1],
-            }) }],
-            marginTop: logoMarginTop 
-          }}>
-            <Animated.Image
+          <View style={styles.logoContainer}>
+            <Image
               source={require('../../assets/petlyst-logo.jpeg')}
-              style={[styles.logo, { width: logoSize, height: logoSize, borderRadius: logoSize.interpolate({
-                inputRange: [60, 120],
-                outputRange: [30, 60],
-              }) }]}
+              style={styles.logo}
             />
-          </Animated.View>
+          </View>
           
-          <Animated.View style={{ opacity: headerTitleOpacity }}>
-            <Animatable.Text 
-              animation="fadeIn" 
-              duration={800} 
-              style={styles.welcomeText}
-            >
-              Welcome to Petlyst
-            </Animatable.Text>
-          </Animated.View>
+          <Animatable.Text 
+            animation="fadeIn" 
+            duration={800} 
+            style={styles.welcomeText}
+          >
+            Welcome to Petlyst
+          </Animatable.Text>
         </LinearGradient>
-      </Animated.View>
+      </View>
       
       <Animatable.View 
         animation="fadeInUp"
         duration={800}
-        style={[styles.formContainer, keyboardVisible && styles.formContainerExpanded]}
+        style={styles.formContainer}
       >
         <View style={styles.tabContainer}>
           <TouchableOpacity 
@@ -331,11 +256,15 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
               <View style={styles.inputContainer}>
                 <Ionicons name="person-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
                 <TextInput
+                  ref={nameInputRef}
                   style={styles.input}
                   placeholder="Enter your name"
                   value={name}
                   onChangeText={setName}
                   placeholderTextColor="#aaa"
+                  returnKeyType="next"
+                  onSubmitEditing={() => surnameInputRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
               </View>
             </View>
@@ -347,11 +276,15 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
               <View style={styles.inputContainer}>
                 <Ionicons name="person-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
                 <TextInput
+                  ref={surnameInputRef}
                   style={styles.input}
                   placeholder="Enter your surname"
                   value={surname}
                   onChangeText={setSurname}
                   placeholderTextColor="#aaa"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailInputRef.current?.focus()}
+                  blurOnSubmit={false}
                 />
               </View>
             </View>
@@ -362,6 +295,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
+                ref={emailInputRef}
                 style={styles.input}
                 placeholder="Enter your email"
                 value={email}
@@ -369,6 +303,9 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholderTextColor="#aaa"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
           </View>
@@ -392,12 +329,22 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
+                ref={passwordInputRef}
                 style={styles.input}
                 placeholder="Enter your password"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
                 placeholderTextColor="#aaa"
+                returnKeyType={isLoginTab ? "done" : "next"}
+                onSubmitEditing={() => {
+                  if (isLoginTab) {
+                    Keyboard.dismiss();
+                  } else {
+                    confirmPasswordInputRef.current?.focus();
+                  }
+                }}
+                blurOnSubmit={isLoginTab}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
@@ -411,12 +358,15 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
                 <TextInput
+                  ref={confirmPasswordInputRef}
                   style={styles.input}
                   placeholder="Confirm your password"
                   secureTextEntry={!showConfirmPassword}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholderTextColor="#aaa"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                   <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
@@ -558,6 +508,7 @@ const styles = StyleSheet.create({
   },
   gradientContainer: {
     width: '100%',
+    height: height * 0.35,
   },
   gradientHeader: {
     flex: 1,
@@ -568,7 +519,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
     paddingBottom: 50
   },
+  logoContainer: {
+    alignItems: 'center',
+  },
   logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.5)',
   },
@@ -591,9 +548,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
-  },
-  formContainerExpanded: {
-    marginTop: -20,
   },
   scrollView: {
     flex: 1,

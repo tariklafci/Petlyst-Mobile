@@ -185,6 +185,17 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     setModalVisible(true);
     setCurrentIndex(0); // reset carousel index
     setIsDescriptionExpanded(false); // Reset description to collapsed state
+    
+    // Reset scrollability state to ensure it gets rechecked
+    setIsScrollable(true);
+    
+    // Reset the scroll position and ensure scroll is enabled
+    if (scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: false });
+        scrollIndicatorOpacity.setValue(1);
+      }, 100);
+    }
   };
 
   const handleViewinTheMap = async () => {
@@ -301,26 +312,11 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  // Function to check if content is scrollable - FIX THE BUG HERE
+  // Update the checkIfScrollable function to always enable scrolling
   const checkIfScrollable = (event: any) => {
     try {
-      // Check if all required properties exist
-      if (!event || !event.nativeEvent || 
-          !event.nativeEvent.layoutMeasurement || 
-          !event.nativeEvent.contentSize) {
-        setIsScrollable(true); // Default to scrollable to ensure accessibility
-        return;
-      }
-      
-      const { layoutMeasurement, contentSize } = event.nativeEvent;
-      
-      // Ensure we have valid height values
-      const layoutHeight = layoutMeasurement.height || 0;
-      const contentHeight = contentSize.height || 0;
-      
-      // Force minimum content height to ensure scrollability
-      const isContentScrollable = true; // Always set to true to ensure scrollability
-      setIsScrollable(isContentScrollable);
+      // Always set scrollable to true to avoid the issue
+      setIsScrollable(true);
       
       // Always show scroll indicator initially
       Animated.timing(scrollIndicatorOpacity, {
@@ -343,6 +339,18 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
   // Function to toggle description expansion
   const toggleDescription = () => {
     setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
+
+  // Add a callback for when the modal is shown
+  const handleModalShow = () => {
+    // Force scrollability check after modal is fully rendered
+    setTimeout(() => {
+      setIsScrollable(true);
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
+        scrollIndicatorOpacity.setValue(1);
+      }
+    }, 300);
   };
 
   return (
@@ -409,6 +417,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
         animationType="slide"
         transparent={false}
         onRequestClose={handleModalClose}
+        onShow={handleModalShow}
       >
         <View style={styles.modalContainer}>
           {/* Top Header with "X" */}
