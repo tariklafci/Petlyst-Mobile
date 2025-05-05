@@ -63,6 +63,8 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   const [isVideoMeeting, setIsVideoMeeting] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [reservedSlots, setReservedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Utility: Generate next N days starting from today
   const generateNextDays = (count: number): DayItem[] => {
@@ -216,12 +218,74 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
+  // Add a new function to fetch reserved appointment slots for the selected day
+  const fetchReservedSlots = async (selectedDate: Date) => {
+    if (!clinic_id) return;
+    
+    setIsLoadingSlots(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        console.error('Authentication token not found');
+        return;
+      }
+      
+      // Format the date for the API
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+      
+      const response = await fetch(
+        `https://petlyst.com:3001/api/fetch-clinic-appointments?clinic_id=${clinic_id}&date=${dateString}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch reserved slots');
+      }
+      
+      const data = await response.json();
+      
+      // Create an array of reserved time slots
+      const reserved: string[] = [];
+      if (data.appointments && data.appointments.length > 0) {
+        data.appointments.forEach((appointment: any) => {
+          if (appointment.appointment_start_hour && appointment.appointment_end_hour) {
+            // Convert appointment times to match our slot format
+            const startTime = new Date(appointment.appointment_start_hour);
+            const endTime = new Date(appointment.appointment_end_hour);
+            
+            const startHour = String(startTime.getHours()).padStart(2, '0');
+            const startMin = String(startTime.getMinutes()).padStart(2, '0');
+            const endHour = String(endTime.getHours()).padStart(2, '0');
+            const endMin = String(endTime.getMinutes()).padStart(2, '0');
+            
+            const slotFormat = `${startHour}.${startMin} - ${endHour}.${endMin}`;
+            reserved.push(slotFormat);
+          }
+        });
+      }
+      
+      setReservedSlots(reserved);
+    } catch (error) {
+      console.error('Error fetching reserved slots:', error);
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
   // On component mount, generate days, time slots, and fetch pets
   useEffect(() => {
     const nextDays = generateNextDays(15);
     setDays(nextDays);
     if (nextDays.length > 0) {
       setSelectedDayId(nextDays[0].id);
+      // Fetch reserved slots for the first day
+      fetchReservedSlots(nextDays[0].dateObj);
     }
     const slots = generateTimeSlots(openingTime, closingTime, interval);
     setAllSlots(slots);
@@ -248,6 +312,12 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   const handleDayPress = (dayId: string) => {
     setSelectedDayId(dayId);
     setSelectedTime(null);
+    
+    // Find the selected day and fetch reserved slots
+    const selectedDay = days.find(day => day.id === dayId);
+    if (selectedDay) {
+      fetchReservedSlots(selectedDay.dateObj);
+    }
   };
   const handleTimePress = (time: string) => setSelectedTime(time);
 
@@ -440,15 +510,31 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
 
   const renderTimeButton = (time: string, column: 'left' | 'right') => {
     const isSelected = time === selectedTime;
+    const isReserved = reservedSlots.includes(time);
+    
     return (
       <TouchableOpacity
         key={`${column}-${time}`}
-        style={[styles.timeSlot, isSelected && styles.timeSlotSelected]}
-        onPress={() => handleTimePress(time)}
+        style={[
+          styles.timeSlot, 
+          isSelected && styles.timeSlotSelected,
+          isReserved && styles.timeSlotReserved
+        ]}
+        onPress={() => !isReserved && handleTimePress(time)}
+        disabled={isReserved}
       >
-        <Text style={[styles.timeText, isSelected && styles.timeTextSelected]}>
+        <Text 
+          style={[
+            styles.timeText, 
+            isSelected && styles.timeTextSelected,
+            isReserved && styles.timeTextReserved
+          ]}
+        >
           {time}
         </Text>
+        {isReserved && (
+          <Text style={styles.reservedText}>Reserved</Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -885,6 +971,12 @@ const styles = StyleSheet.create({
   timeSlotSelected: {
     backgroundColor: '#6c63ff',
   },
+  timeSlotReserved: {
+    backgroundColor: '#f0f0f0',
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+    opacity: 0.7,
+  },
   timeText: {
     fontSize: 14,
     color: '#333',
@@ -892,6 +984,15 @@ const styles = StyleSheet.create({
   timeTextSelected: {
     color: '#FFF',
     fontWeight: '600',
+  },
+  timeTextReserved: {
+    color: '#aaa',
+  },
+  reservedText: {
+    fontSize: 10,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 2,
   },
   completeButton: {
     marginTop: 24,

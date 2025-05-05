@@ -399,3 +399,51 @@ exports.updateAppointmentStatus = async (req, res) => {
     res.status(500).json({ error: 'Failed to update appointment status' });
   }
 };
+
+/**
+ * Fetch appointments for a specific clinic on a specific date
+ * Used to check which slots are already reserved during appointment booking
+ */
+exports.fetchClinicAppointmentsByDate = async (req, res) => {
+  try {
+    const { clinic_id, date } = req.query;
+    
+    if (!clinic_id) {
+      return res.status(400).json({ error: 'clinic_id is required' });
+    }
+    
+    if (!date) {
+      return res.status(400).json({ error: 'date is required' });
+    }
+    
+    // Query to get all appointments for this clinic on the specified date
+    const queryText = `
+      SELECT
+        appointment_id,
+        appointment_date,
+        appointment_start_hour,
+        appointment_end_hour,
+        appointment_status,
+        video_meeting,
+        notes,
+        meeting_url,
+        pet_id,
+        clinic_id,
+        pet_owner_id
+      FROM appointments
+      WHERE clinic_id = $1
+      AND appointment_date = $2::date
+    `;
+    
+    const result = await pool.query(queryText, [clinic_id, date]);
+    
+    // Return the appointments data
+    res.status(200).json({ 
+      appointments: result.rows,
+      count: result.rowCount
+    });
+  } catch (error) {
+    console.error('Error fetching clinic appointments by date:', error);
+    res.status(500).json({ error: 'Failed to fetch clinic appointments' });
+  }
+};

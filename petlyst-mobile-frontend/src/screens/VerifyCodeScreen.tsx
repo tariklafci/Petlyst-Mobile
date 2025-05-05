@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, StatusBar, KeyboardAvoidingView, Platform, Dimensions, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
@@ -8,14 +8,28 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
   const { email } = route.params; // Email passed from PasswordResetScreen
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordValidations, setPasswordValidations] = useState({
     length: false,
     uppercase: false,
     lowercase: false,
     number: false,
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [passwordsMatch, setPasswordsMatch] = useState(false);
+  
+  // Refs for TextInputs
+  const codeInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  const confirmPasswordInputRef = useRef<TextInput>(null);
+
+  // Update password validations when password changes
+  React.useEffect(() => {
+    validatePassword(newPassword);
+    checkPasswordsMatch();
+  }, [newPassword, confirmPassword]);
 
   const handlePasswordChange = (text: string) => {
     setNewPassword(text);
@@ -29,17 +43,39 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
 
   const validatePassword = (password: string) => {
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
-    return regex.test(password);
+    setPasswordValidations({
+      length: regex.test(password),
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+    });
+  };
+
+  const checkPasswordsMatch = () => {
+    setPasswordsMatch(newPassword === confirmPassword && newPassword.length > 0);
+  };
+
+  const isPasswordValid = () => {
+    return Object.values(passwordValidations).every(value => value === true) && passwordsMatch;
   };
 
   const handleVerifyCode = async () => {
-    if (!code || !newPassword) {
-      Alert.alert('Error', 'Please fill in all fields.');
+    if (!code) {
+      Alert.alert('Error', 'Please enter the verification code.');
       return;
     }
 
-    const isPasswordValid = validatePassword(newPassword);
-    if (!isPasswordValid) {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please enter and confirm your new password.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+
+    if (!isPasswordValid()) {
       Alert.alert('Error', 'Password does not meet the required criteria.');
       return;
     }
@@ -58,10 +94,37 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
       setLoading(false);
 
       if (response.ok) {
-        Alert.alert('Success', data.message);
-        navigation.navigate('LoginRegister'); // Navigate to login screen after reset
+        Alert.alert('Success', data.message, [
+          { text: 'OK', onPress: () => navigation.navigate('LoginRegister') }
+        ]);
       } else {
-        Alert.alert('Error', data.message || 'Failed to verify reset code.');
+        Alert.alert('Error', data.message || 'Failed to verify code.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setLoading(false);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
+    }
+  };
+
+  const handleRequestNewCode = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('https://petlyst.com:3001/api/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      setLoading(false);
+
+      if (response.ok) {
+        Alert.alert('Success', 'A new verification code has been sent to your email.');
+      } else {
+        Alert.alert('Error', data.message || 'Failed to request a new code.');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -118,12 +181,14 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
             <View style={styles.inputContainer}>
               <Ionicons name="key-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
+                ref={codeInputRef}
                 style={styles.input}
-                placeholder="Enter the 4-digit code"
+                placeholder="Enter verification code"
                 value={code}
                 onChangeText={setCode}
-                keyboardType="numeric"
-                maxLength={6}
+                keyboardType="number-pad"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
                 placeholderTextColor="#aaa"
               />
             </View>
@@ -134,80 +199,105 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
+                ref={passwordInputRef}
                 style={styles.input}
-                placeholder="Create new password"
+                placeholder="Enter new password"
+                secureTextEntry={!showPassword}
                 value={newPassword}
                 onChangeText={handlePasswordChange}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
+                returnKeyType="next"
+                onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
                 placeholderTextColor="#aaa"
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
               </TouchableOpacity>
             </View>
+
+            {/* Password validation indicators */}
+            <View style={styles.validationContainer}>
+              <View style={styles.validationRow}>
+                <Ionicons 
+                  name={passwordValidations.length ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={passwordValidations.length ? "green" : "#ccc"} 
+                />
+                <Text style={[styles.validationText, passwordValidations.length && styles.validText]}>
+                  At least 8 characters
+                </Text>
+              </View>
+              
+              <View style={styles.validationRow}>
+                <Ionicons 
+                  name={passwordValidations.uppercase ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={passwordValidations.uppercase ? "green" : "#ccc"} 
+                />
+                <Text style={[styles.validationText, passwordValidations.uppercase && styles.validText]}>
+                  At least one uppercase letter
+                </Text>
+              </View>
+              
+              <View style={styles.validationRow}>
+                <Ionicons 
+                  name={passwordValidations.lowercase ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={passwordValidations.lowercase ? "green" : "#ccc"} 
+                />
+                <Text style={[styles.validationText, passwordValidations.lowercase && styles.validText]}>
+                  At least one lowercase letter
+                </Text>
+              </View>
+              
+              <View style={styles.validationRow}>
+                <Ionicons 
+                  name={passwordValidations.number ? "checkmark-circle" : "ellipse-outline"} 
+                  size={16} 
+                  color={passwordValidations.number ? "green" : "#ccc"} 
+                />
+                <Text style={[styles.validationText, passwordValidations.number && styles.validText]}>
+                  At least one number
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.passwordCriteriaContainer}>
-            <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
-
-            <View style={styles.criteriaRow}>
-              <Animatable.View animation={passwordValidations.length ? "bounceIn" : "fadeIn"} duration={500}>
-                {passwordValidations.length ? (
-                  <Ionicons name="checkmark-circle" size={20} color="green" />
-                ) : (
-                  <Ionicons name="ellipse-outline" size={20} color="#ccc" />
-                )}
-              </Animatable.View>
-              <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
-                • At least 8 characters
-              </Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Confirm Password</Text>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+              <TextInput
+                ref={confirmPasswordInputRef}
+                style={styles.input}
+                placeholder="Confirm new password"
+                secureTextEntry={!showConfirmPassword}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                returnKeyType="done"
+                placeholderTextColor="#aaa"
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.criteriaRow}>
-              <Animatable.View animation={passwordValidations.uppercase ? "bounceIn" : "fadeIn"} duration={500}>
-                {passwordValidations.uppercase ? (
-                  <Ionicons name="checkmark-circle" size={20} color="green" />
-                ) : (
-                  <Ionicons name="ellipse-outline" size={20} color="#ccc" />
-                )}
-              </Animatable.View>
-              <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
-                • At least one uppercase letter
-              </Text>
-            </View>
-
-            <View style={styles.criteriaRow}>
-              <Animatable.View animation={passwordValidations.lowercase ? "bounceIn" : "fadeIn"} duration={500}>
-                {passwordValidations.lowercase ? (
-                  <Ionicons name="checkmark-circle" size={20} color="green" />
-                ) : (
-                  <Ionicons name="ellipse-outline" size={20} color="#ccc" />
-                )}
-              </Animatable.View>
-              <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
-                • At least one lowercase letter
-              </Text>
-            </View>
-
-            <View style={styles.criteriaRow}>
-              <Animatable.View animation={passwordValidations.number ? "bounceIn" : "fadeIn"} duration={500}>
-                {passwordValidations.number ? (
-                  <Ionicons name="checkmark-circle" size={20} color="green" />
-                ) : (
-                  <Ionicons name="ellipse-outline" size={20} color="#ccc" />
-                )}
-              </Animatable.View>
-              <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
-                • At least one number
+            
+            {/* Password match indicator */}
+            <View style={styles.validationRow}>
+              <Ionicons 
+                name={passwordsMatch ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordsMatch ? "green" : "#ccc"} 
+              />
+              <Text style={[styles.validationText, passwordsMatch && styles.validText]}>
+                Passwords match
               </Text>
             </View>
           </View>
 
           <TouchableOpacity 
-            style={styles.submitButton} 
-            onPress={handleVerifyCode} 
-            disabled={loading}
+            style={[styles.submitButton, !isPasswordValid() && styles.submitButtonDisabled]}
+            onPress={handleVerifyCode}
+            disabled={loading || !isPasswordValid()}
           >
             <LinearGradient
               colors={['#6c63ff', '#3b5998']}
@@ -216,16 +306,17 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
               style={styles.buttonGradient}
             >
               <Text style={styles.submitButtonText}>
-                {loading ? 'Resetting...' : 'Reset Password'}
+                {loading ? 'Processing...' : 'Reset Password'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity 
-            style={styles.resendButton}
-            onPress={() => navigation.navigate('PasswordReset')}
+            style={styles.newCodeButton}
+            onPress={handleRequestNewCode}
+            disabled={loading}
           >
-            <Text style={styles.resendButtonText}>Didn't receive a code? Request again</Text>
+            <Text style={styles.newCodeText}>Didn't receive a code? Request new one</Text>
           </TouchableOpacity>
         </ScrollView>
       </Animatable.View>
@@ -272,7 +363,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 25,
-    paddingTop: 30,
+    paddingTop: 40,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 20,
@@ -313,33 +404,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  passwordCriteriaContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 20,
+  validationContainer: {
+    marginTop: 10,
+    marginLeft: 4,
   },
-  passwordCriteriaTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-    color: '#333',
-  },
-  criteriaRow: {
+  validationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
-  passwordCriteriaText: {
-    marginLeft: 10,
+  validationText: {
+    marginLeft: 8,
+    fontSize: 12,
     color: '#777',
-    fontSize: 14,
   },
   validText: {
     color: 'green',
-    fontWeight: '500',
   },
   submitButton: {
+    marginTop: 10,
     marginBottom: 15,
     borderRadius: 12,
     overflow: 'hidden',
@@ -348,6 +431,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 6,
+  },
+  submitButtonDisabled: {
+    opacity: 0.7,
   },
   buttonGradient: {
     paddingVertical: 15,
@@ -358,12 +444,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  resendButton: {
+  newCodeButton: {
     alignItems: 'center',
     padding: 15,
-    marginBottom: 20,
   },
-  resendButtonText: {
+  newCodeText: {
     color: '#6c63ff',
     fontSize: 14,
     fontWeight: '500',

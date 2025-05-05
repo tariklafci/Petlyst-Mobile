@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, StatusBar, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 const PasswordResetScreen = ({ navigation }: { navigation: any }) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const emailInputRef = useRef<TextInput>(null);
 
   const handleResetRequest = async () => {
     if (!email) {
@@ -84,6 +85,7 @@ const PasswordResetScreen = ({ navigation }: { navigation: any }) => {
           <View style={styles.inputContainer}>
             <Ionicons name="mail-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
             <TextInput
+              ref={emailInputRef}
               style={styles.input}
               placeholder="Enter your email"
               value={email}
@@ -91,6 +93,7 @@ const PasswordResetScreen = ({ navigation }: { navigation: any }) => {
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor="#aaa"
+              returnKeyType="done"
             />
           </View>
           <Text style={styles.infoText}>
