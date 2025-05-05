@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
-const ctrl    = require('../controllers/inventoryController');
+const ctrl    = require('../controllers/ollamaInventoryController');
 
 router.post('/check-reorder',     ctrl.checkReorder);
 router.post('/stock-days',        ctrl.calculateStockDays);
