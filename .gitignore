@@ -1,24 +1,22 @@
-node_modules/
-
-petlyst-mobile-frontend/google-services.json
+## Key Server
+petlyst-mobile-frontend/@tlafci__petlyst-mobile.jks
 petlyst-mobile-frontend/credentials/
 petlyst-mobile-frontend/credentials.json
-petlyst-mobile-frontend/app.json
+
+## Expo Build
 petlyst-mobile-frontend/eas.json
-petlyst-mobile-frontend/node_modules/
 petlyst-mobile-frontend/.expo/
-petlyst-mobile-frontend/android/
-petlyst-mobile-frontend/ios/
-petlyst-mobile-frontend/android/gradle.properties
-petlyst-mobile-frontend/android/app/google-services.json
 
+## FCM
+petlyst-mobile-frontend/google-services.json
 
-petlyst-mobile-backend/.env
+## node_modules
+petlyst-mobile-frontend/node_modules/
 petlyst-mobile-backend/node_modules/
 
+## Native Folders
+petlyst-mobile-frontend/android/
+petlyst-mobile-frontend/ios/
 
-
-
-
-petlyst-mobile-frontend/@tlafci__petlyst-mobile.jks
-eas.json
+## .env
+petlyst-mobile-backend/.env
