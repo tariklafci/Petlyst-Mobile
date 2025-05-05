@@ -218,7 +218,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  // Add a new function to fetch reserved appointment slots for the selected day
+  // Update the fetchReservedSlots function to properly handle time zones
   const fetchReservedSlots = async (selectedDate: Date) => {
     if (!clinic_id) return;
     
@@ -255,16 +255,23 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
       if (data.appointments && data.appointments.length > 0) {
         data.appointments.forEach((appointment: any) => {
           if (appointment.appointment_start_hour && appointment.appointment_end_hour) {
-            // Convert appointment times to match our slot format
-            const startTime = new Date(appointment.appointment_start_hour);
-            const endTime = new Date(appointment.appointment_end_hour);
+            // Extract the time parts directly from the strings without creating Date objects
+            // This prevents automatic timezone conversions
+            const startTimeStr = appointment.appointment_start_hour;
+            const endTimeStr = appointment.appointment_end_hour;
             
-            const startHour = String(startTime.getHours()).padStart(2, '0');
-            const startMin = String(startTime.getMinutes()).padStart(2, '0');
-            const endHour = String(endTime.getHours()).padStart(2, '0');
-            const endMin = String(endTime.getMinutes()).padStart(2, '0');
+            // Extract hours and minutes directly from the strings
+            // Database format is typically: "YYYY-MM-DD HH:MM:SS"
+            const startParts = startTimeStr.split(' ')[1].split(':');
+            const endParts = endTimeStr.split(' ')[1].split(':');
+            
+            const startHour = startParts[0].padStart(2, '0');
+            const startMin = startParts[1].padStart(2, '0');
+            const endHour = endParts[0].padStart(2, '0');
+            const endMin = endParts[1].padStart(2, '0');
             
             const slotFormat = `${startHour}.${startMin} - ${endHour}.${endMin}`;
+            console.log(`Reserved slot: ${slotFormat} from DB times: ${startTimeStr} - ${endTimeStr}`);
             reserved.push(slotFormat);
           }
         });

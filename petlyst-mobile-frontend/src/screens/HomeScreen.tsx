@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
   },
   clinicsContainer: {
     flex: 1,
-    marginTop: -15,
+    marginTop: 15,
   },
   columnWrapper: {
     justifyContent: 'space-between',

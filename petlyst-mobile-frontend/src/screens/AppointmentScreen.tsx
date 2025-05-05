@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff'},
   headerSubtitle: {
     fontSize: 15,
     color: 'rgba(255,255,255,0.8)',

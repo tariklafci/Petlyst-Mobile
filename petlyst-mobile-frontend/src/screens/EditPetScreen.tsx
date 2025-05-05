@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   headerGradient: {
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 30,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: 20,
   },
   petName: {
     fontSize: 18,
