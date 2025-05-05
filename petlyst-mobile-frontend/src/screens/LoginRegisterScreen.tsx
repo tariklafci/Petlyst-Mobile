@@ -8,6 +8,8 @@ import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { registerForPushNotificationsAsync } from '../services/notifications'; // adjust path as needed
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+
 
 const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [name, setName] = useState('');
@@ -178,10 +180,12 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   }
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <KeyboardAwareScrollView
+    contentContainerStyle={styles.container}
+    enableOnAndroid={false}
+    extraScrollHeight={50} // 👈 adjusts how much extra space to scroll up
+    keyboardShouldPersistTaps="handled"
+  >
       <StatusBar barStyle="light-content" backgroundColor="#6c63ff" />
       
       <View style={styles.gradientContainer}>
@@ -494,7 +498,7 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           </Animatable.View>
         </TouchableOpacity>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 };
 
