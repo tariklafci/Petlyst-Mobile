@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
-const ctrl    = require('../controllers/inventoryController');
+const ctrl    = require('../controllers/ollamaInventoryController');
 const authenticateToken = require('../middleware/authenticateToken');
 
 router.post('/check-reorder',     authenticateToken, ctrl.checkReorder);

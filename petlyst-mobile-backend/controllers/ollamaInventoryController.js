@@ -1,5 +1,3 @@
-// src/controllers/inventoryController.js
-
 const pool = require('../config/db');
 const fetch = require('node-fetch');    // if your Node <18
 // no more jwt import or JWT_SECRET
