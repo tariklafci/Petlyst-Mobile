@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Petlyst Mobile",
+    "slug": "petlyst-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+    "backgroundColor": "#ffffff"
+  },
+    "plugins": ["expo-notifications"],
+    "android": {
+      "package": "com.petlyst.tariklafci",
+      "googleServicesFile": "./google-services.json",
+    },
+    "owner": "tlafci",
+    "ios": {
+      "bundleIdentifier": "com.petlyst.tariklafci"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "dd6d79a7-cffd-41c2-9f55-2162b41137d1"
+      }
+    }
+  }
+}
