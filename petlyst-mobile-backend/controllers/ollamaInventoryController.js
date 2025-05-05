@@ -1,10 +1,8 @@
 const pool = require('../config/db');
-const fetch = require('node-fetch');    // if your Node <18
-// no more jwt import or JWT_SECRET
+
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
 
-// helper to call your Llama service
 async function callLlama(prompt) {
   const resp = await fetch(LLAMA_URL, {
     method: 'POST',
