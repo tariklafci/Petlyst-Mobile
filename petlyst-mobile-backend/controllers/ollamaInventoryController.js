@@ -1,7 +1,7 @@
-// src/controllers/inventoryController.js
 
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
 const JWT_SECRET = process.env.JWT_SECRET;
