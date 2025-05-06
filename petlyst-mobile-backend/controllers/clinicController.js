@@ -361,13 +361,9 @@ exports.fetchClinicPatients = async (req, res) => {
         cp.updated_at,
         p.pet_name,
         p.pet_species,
-        p.pet_breed,
-        p.owner_id,
-        u.first_name as owner_first_name,
-        u.last_name as owner_last_name
+        p.pet_breed
       FROM clinic_patients cp
       JOIN pets p ON cp.pet_id = p.pet_id
-      JOIN users u ON p.owner_id = u.user_id
       WHERE cp.clinic_id = $1
       ORDER BY cp.created_at DESC
     `;
