@@ -206,8 +206,17 @@ const AppointmentScreen = ({ navigation }: any) => {
       >
         {/* Pet & Status */}
         <View style={styles.cardHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-            <Ionicons name="paw" size={20} color={color} />
+          <View style={styles.petImageContainer}>
+            {item.pet.photo ? (
+              <Image
+                source={{ uri: item.pet.photo }}
+                style={styles.petImage}
+              />
+            ) : (
+              <View style={[styles.petImage, styles.placeholderImage]}>
+                <Ionicons name="paw" size={20} color={color} />
+              </View>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.petName}>{item.pet.name}</Text>
@@ -430,6 +439,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  petImageContainer: {
+    marginRight: 12,
+  },
+  petImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  placeholderImage: {
+    backgroundColor: 'rgba(108, 99, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconContainer: {
     width: 40,
