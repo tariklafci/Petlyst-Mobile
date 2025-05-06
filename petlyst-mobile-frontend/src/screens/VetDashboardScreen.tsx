@@ -213,21 +213,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
     return 'link-outline';
   };
 
-  const copyToClipboard = async (text: string, label: string) => {
-    await Clipboard.setStringAsync(text);
-    setCopiedText(text);
-    
-    // Show feedback based on platform
-    if (Platform.OS === 'android') {
-      ToastAndroid.show(`${label} copied to clipboard`, ToastAndroid.SHORT);
-    } else {
-      Alert.alert('Copied', `${label} copied to clipboard`);
-    }
-  };
-
-  const callPhoneNumber = (phoneNumber: string) => {
-    Linking.openURL(`tel:${phoneNumber}`);
-  };
 
   const openUrl = (url: string) => {
     // Make sure the URL has a protocol prefix
@@ -658,15 +643,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
               style={[styles.actionButton, styles.patientsButton]}
               onPress={() => navigation.navigate('ClinicPet')}
             >
-              <LinearGradient
-                colors={['#ff9500', '#ff7f50']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionButtonGradient}
-              >
-                <Ionicons name="paw-outline" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Clinic Patients</Text>
-              </LinearGradient>
             </TouchableOpacity>
           </Animatable.View>
         </ScrollView>
