@@ -49,32 +49,66 @@ async function callLlama(prompt, system_instruction = systemPrompt) {
 async function processInventoryData(clinicIds) {
   const today = new Date('2025-05-06'); // Consistent reference date
   
-  // Get inventory items
+  console.log('Processing inventory data for clinics:', clinicIds);
+  
+  // Safely parse clinicIds to integers, filtering out non-numeric values
+  const numericClinicIds = clinicIds
+    .map(id => {
+      // Handle string, number, or null/undefined
+      const parsed = parseInt(id);
+      return isNaN(parsed) ? null : parsed;
+    })
+    .filter(id => id !== null); // Remove null values
+  
+  console.log('Numeric clinic IDs:', numericClinicIds);
+  
+  // Make sure we have at least one valid clinic ID
+  if (numericClinicIds.length === 0) {
+    console.error('No valid numeric clinic IDs found');
+    throw new Error('No valid clinic IDs available for inventory data');
+  }
+  
+  // Get inventory items using integers
   const itemsRes = await pool.query(
     `SELECT * 
        FROM inventory_items
-      WHERE clinic_id = ANY($1::varchar[])`,
-    [clinicIds]
+      WHERE clinic_id = ANY($1::integer[])`,
+    [numericClinicIds]
   );
   
   // Log query details for debugging
-  console.log(`Found ${itemsRes.rows.length} inventory items for clinics: ${clinicIds.join(', ')}`);
+  console.log(`Found ${itemsRes.rows.length} inventory items for clinics: ${numericClinicIds.join(', ')}`);
   
-  // Get relevant transactions - updating to match new schema
-  const txRes = await pool.query(
-    `SELECT *
-       FROM inventory_transactions
-      WHERE clinic_id = ANY($1::varchar[])
-        AND transaction_type::text = 'usage'
-      ORDER BY transaction_date ASC`,
-    [clinicIds]
-  );
+  // For transactions, try both approaches - first with integer IDs
+  let txRes;
+  try {
+    txRes = await pool.query(
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id::integer = ANY($1::integer[])
+          AND transaction_type::text = 'usage'
+        ORDER BY transaction_date ASC`,
+      [numericClinicIds]
+    );
+  } catch (error) {
+    console.log('First attempt failed, trying with string clinic IDs for transactions');
+    // If that fails, try with the original string IDs
+    txRes = await pool.query(
+      `SELECT *
+         FROM inventory_transactions
+        WHERE clinic_id = ANY($1::varchar[])
+          AND transaction_type::text = 'usage'
+        ORDER BY transaction_date ASC`,
+      [clinicIds]
+    );
+  }
   
-  console.log(`Found ${txRes.rows.length} usage transactions for clinics: ${clinicIds.join(', ')}`);
+  console.log(`Found ${txRes.rows.length} usage transactions for clinics: ${numericClinicIds.join(', ')}`);
   
   // Add debugging to see what fields are available
   if (txRes.rows.length > 0) {
     console.log('Sample transaction fields:', Object.keys(txRes.rows[0]));
+    console.log('Sample transaction data:', JSON.stringify(txRes.rows[0]));
   }
 
   // Group transactions by item - update item_id to inventory_item_id
@@ -148,21 +182,28 @@ async function getClinicIdsFromRequest(req) {
     throw err;
   }
 
-  const vetClinics = await pool.query(
-    `SELECT clinic_id::varchar as clinic_id
-       FROM clinic_veterinarians
-      WHERE veterinarian_id = $1`,
-    [userId]
-  );
+  try {
+    // First attempt to get clinic_ids treating them as numeric
+    const vetClinics = await pool.query(
+      `SELECT clinic_id
+         FROM clinic_veterinarians
+        WHERE veterinarian_id = $1`,
+      [userId]
+    );
 
-  const clinicIds = vetClinics.rows.map(r => r.clinic_id);
-  if (clinicIds.length === 0) {
-    const err = new Error('No clinic associations found for this user');
-    err.status = 403;
-    throw err;
+    const clinicIds = vetClinics.rows.map(r => r.clinic_id);
+    if (clinicIds.length === 0) {
+      const err = new Error('No clinic associations found for this user');
+      err.status = 403;
+      throw err;
+    }
+
+    console.log('Found clinic IDs:', clinicIds);
+    return clinicIds;
+  } catch (error) {
+    console.error('Error in getClinicIdsFromRequest:', error);
+    throw error;
   }
-
-  return clinicIds;
 }
 
 async function getClinicName(req) {
@@ -175,22 +216,41 @@ async function getClinicName(req) {
 
   const clinicIds = await getClinicIdsFromRequest(req);
 
-  const clinicName = await pool.query(
-    `SELECT clinic_name
-       FROM clinics
-      WHERE clinic_id::varchar = ANY($1::varchar[])`,
-    [clinicIds]
-  );
-
-  const clinicNames = clinicName.rows.map(r => r.clinic_name);
+  // Safely parse clinicIds to integers, filtering out non-numeric values
+  const numericClinicIds = clinicIds
+    .map(id => {
+      const parsed = parseInt(id);
+      return isNaN(parsed) ? null : parsed;
+    })
+    .filter(id => id !== null);
   
-  if (clinicNames.length === 0) {
-    const err = new Error('No clinic names found for this clinic');
-    err.status = 403;
-    throw err;
+  if (numericClinicIds.length === 0) {
+    console.error('No valid numeric clinic IDs found');
+    throw new Error('No valid clinic IDs available for clinic names');
   }
 
-  return clinicNames;
+  try {
+    // Use database casting to handle potential type mismatches
+    const clinicName = await pool.query(
+      `SELECT clinic_name
+         FROM clinics
+        WHERE clinic_id = ANY($1::integer[])`,
+      [numericClinicIds]
+    );
+
+    const clinicNames = clinicName.rows.map(r => r.clinic_name);
+    
+    if (clinicNames.length === 0) {
+      const err = new Error('No clinic names found for this clinic');
+      err.status = 403;
+      throw err;
+    }
+
+    return clinicNames;
+  } catch (error) {
+    console.error('Error in getClinicName:', error);
+    throw error;
+  }
 }
 
 exports.checkReorder = async (req, res) => {
