@@ -337,9 +337,11 @@ exports.fetchClinicHospitalizationRooms = async (req, res) => {
 // Clinic Patients
 exports.fetchClinicPatients = async (req, res) => {
   try {
-    // Get the clinic_id from the authenticated user
-    const clinicId = req.user.clinic_id;
+
+    const userId = req.user.sub;
     
+    const clinicId = (await pool.query('SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1', [userId])).rows[0].clinic_id;
+
     if (!clinicId) {
       return res.status(400).json({ error: 'No clinic associated with this user' });
     }
