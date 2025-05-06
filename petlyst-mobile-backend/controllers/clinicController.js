@@ -382,8 +382,9 @@ exports.fetchPetExaminations = async (req, res) => {
       return res.status(400).json({ error: 'Pet ID is required' });
     }
     
-    // Get the clinic_id from the authenticated user to ensure they can only access their clinic's data
-    const clinicId = req.user.clinic_id;
+    const userId = req.user.sub;
+
+    const clinicId = (await pool.query('SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1', [userId])).rows[0].clinic_id;
     
     if (!clinicId) {
       return res.status(400).json({ error: 'No clinic associated with this user' });
