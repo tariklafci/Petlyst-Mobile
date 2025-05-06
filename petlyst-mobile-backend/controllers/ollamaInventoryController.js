@@ -26,26 +26,30 @@ async function processInventoryData(clinicIds) {
   const numericClinicIds = clinicIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
   if (!numericClinicIds.length) throw new Error('No valid clinic IDs available for inventory data');
 
-  // Fetch inventory items for the specified clinics
+  // fetch items explicitly casting param to integer[]
   const itemsRes = await pool.query(
     `SELECT * FROM inventory_items WHERE clinic_id = ANY($1::integer[])`,
     [numericClinicIds]
   );
 
-  const inventoryItems = itemsRes.rows;
-  const inventoryItemIds = inventoryItems.map(item => item.id); // Corrected typo here
-
-  if (!inventoryItemIds.length) return [];
-
-  // Fetch only transactions related to those inventory items
+  // Get usage transactions directly without JOIN - this is simpler and more reliable
+  // The issue could be with clinic_id casting or JOIN conditions
   const txRes = await pool.query(
     `SELECT * FROM inventory_transactions
      WHERE transaction_type = 'usage'
-     AND inventory_item_id = ANY($1::uuid[])`,
-    [inventoryItemIds]
+     ORDER BY transaction_date`,
+    []
   );
 
-  console.log(`Found ${txRes.rows.length} usage transactions for relevant items`);
+  console.log(`Found ${txRes.rows.length} total usage transactions`);
+  
+  // For debugging, let's see what item IDs we have in transactions
+  const transactionItemIds = [...new Set(txRes.rows.map(tx => tx.inventory_item_id))];
+  console.log(`Transaction item IDs: ${transactionItemIds.join(', ')}`);
+  
+  // For debugging, let's see what item IDs we have in inventory
+  const inventoryItemIds = itemsRes.rows.map(item => item.id);
+  console.log(`Inventory item IDs: ${inventoryItemIds.join(', ')}`);
 
   // Group transactions by inventory_item_id
   const txByItem = {};
@@ -56,23 +60,30 @@ async function processInventoryData(clinicIds) {
     txByItem[key].push(tx);
   });
 
-  return inventoryItems.map(item => {
+  return itemsRes.rows.map(item => {
+    // Get transactions for this item using its ID - direct match
     const itemTx = txByItem[item.id] || [];
     console.log(`Processing ${item.name} (${item.id}): found ${itemTx.length} transactions`);
 
-    // Calculate total usage and period
+    // Calculate total usage and time period
     const totalUsage = itemTx.reduce((sum, tx) => sum + tx.quantity, 0);
-
+    
     let daysSinceFirst = 1;
     if (itemTx.length > 0) {
-      const sortedTx = [...itemTx].sort((a, b) =>
+      // Sort transactions by date to ensure we get the earliest one
+      const sortedTx = [...itemTx].sort((a, b) => 
         new Date(a.transaction_date) - new Date(b.transaction_date)
       );
+      
       const firstDate = new Date(sortedTx[0].transaction_date);
       daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
+      console.log(`${item.name}: First transaction on ${firstDate.toISOString().split('T')[0]}, ${daysSinceFirst} days ago`);
     }
 
+    // Calculate daily usage and days remaining
     const dailyUsage = totalUsage / daysSinceFirst;
+    console.log(`${item.name}: ${totalUsage} units over ${daysSinceFirst} days = ${dailyUsage.toFixed(2)}/day`);
+
     const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     const neededToMin = Math.max(0, item.min_quantity - item.current_quantity);
 
@@ -94,7 +105,6 @@ async function processInventoryData(clinicIds) {
     };
   });
 }
-
 
 async function getClinicIdsFromRequest(req) {
   const userId = req.user && (req.user.user_id || req.user.userId);
