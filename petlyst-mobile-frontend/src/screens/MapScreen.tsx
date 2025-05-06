@@ -3,14 +3,6 @@ import { Alert, ActivityIndicator, View, StyleSheet } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
 
-type ClinicData = {
-  province: string;
-  district: string;
-  clinic_address: string;
-  latitude: number;
-  longitude: number;
-};
-
 const MapScreen = ({ route }: { route: any }) => {
   const { clinic_id = '' } = route.params || {};
   const [loading, setLoading] = useState(true);

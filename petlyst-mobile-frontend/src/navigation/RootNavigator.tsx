@@ -174,6 +174,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ClinicPet" component={ClinicPet} options={{ headerShown: false }} />
+            <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
           </>
         ) : null}
       </Stack.Navigator>
