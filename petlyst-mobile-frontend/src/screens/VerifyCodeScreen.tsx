@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, StatusBar, KeyboardAvoidingView, Platform, Dimensions, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, StatusBar, KeyboardAvoidingView, Platform, Dimensions, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showCriteriaModal, setShowCriteriaModal] = useState(false);
   const [passwordValidations, setPasswordValidations] = useState({
     length: false,
     uppercase: false,
@@ -195,7 +196,19 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>New Password</Text>
+            <View style={styles.labelContainer}>
+              <Text style={styles.inputLabel}>New Password</Text>
+              <TouchableOpacity 
+                style={styles.infoButton}
+                onPress={() => setShowCriteriaModal(true)}
+              >
+                <Ionicons 
+                  name={isPasswordValid() ? "checkmark-circle" : "information-circle"} 
+                  size={20} 
+                  color={isPasswordValid() ? "green" : "#ff6b6b"} 
+                />
+              </TouchableOpacity>
+            </View>
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
               <TextInput
@@ -233,66 +246,6 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
                 <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
               </TouchableOpacity>
             </View>
-            
-            {/* Password match indicator */}
-            <View style={styles.validationRow}>
-              <Ionicons 
-                name={passwordsMatch ? "checkmark-circle" : "ellipse-outline"} 
-                size={16} 
-                color={passwordsMatch ? "green" : "#ccc"} 
-              />
-              <Text style={[styles.validationText, passwordsMatch && styles.validText]}>
-                Passwords match
-              </Text>
-            </View>
-          </View>
-
-          {/* Password validation indicators - moved after both password fields */}
-          <View style={[styles.validationContainer, { marginBottom: 15 }]}>
-            <Text style={styles.validationTitle}>Password must contain:</Text>
-            <View style={styles.validationRow}>
-              <Ionicons 
-                name={passwordValidations.length ? "checkmark-circle" : "ellipse-outline"} 
-                size={16} 
-                color={passwordValidations.length ? "green" : "#ccc"} 
-              />
-              <Text style={[styles.validationText, passwordValidations.length && styles.validText]}>
-                At least 8 characters
-              </Text>
-            </View>
-            
-            <View style={styles.validationRow}>
-              <Ionicons 
-                name={passwordValidations.uppercase ? "checkmark-circle" : "ellipse-outline"} 
-                size={16} 
-                color={passwordValidations.uppercase ? "green" : "#ccc"} 
-              />
-              <Text style={[styles.validationText, passwordValidations.uppercase && styles.validText]}>
-                At least one uppercase letter
-              </Text>
-            </View>
-            
-            <View style={styles.validationRow}>
-              <Ionicons 
-                name={passwordValidations.lowercase ? "checkmark-circle" : "ellipse-outline"} 
-                size={16} 
-                color={passwordValidations.lowercase ? "green" : "#ccc"} 
-              />
-              <Text style={[styles.validationText, passwordValidations.lowercase && styles.validText]}>
-                At least one lowercase letter
-              </Text>
-            </View>
-            
-            <View style={styles.validationRow}>
-              <Ionicons 
-                name={passwordValidations.number ? "checkmark-circle" : "ellipse-outline"} 
-                size={16} 
-                color={passwordValidations.number ? "green" : "#ccc"} 
-              />
-              <Text style={[styles.validationText, passwordValidations.number && styles.validText]}>
-                At least one number
-              </Text>
-            </View>
           </View>
 
           <TouchableOpacity 
@@ -321,6 +274,102 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
           </TouchableOpacity>
         </ScrollView>
       </Animatable.View>
+
+      {/* Password Criteria Modal */}
+      <Modal
+        visible={showCriteriaModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCriteriaModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowCriteriaModal(false)}
+        >
+          <Animatable.View 
+            animation="zoomIn"
+            duration={300}
+            style={styles.modalContainer}
+          >
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowCriteriaModal(false)}
+            >
+              <Ionicons name="close" size={22} color="#666" />
+            </TouchableOpacity>
+            
+            <View style={styles.passwordCriteriaContainer}>
+              <Text style={styles.passwordCriteriaTitle}>Password must contain:</Text>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.length ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.length ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.length && styles.validText]}>
+                  • At least 8 characters
+                </Text>
+              </View>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.uppercase ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.uppercase ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.uppercase && styles.validText]}>
+                  • At least one uppercase letter
+                </Text>
+              </View>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.lowercase ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.lowercase ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.lowercase && styles.validText]}>
+                  • At least one lowercase letter
+                </Text>
+              </View>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordValidations.number ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordValidations.number ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordValidations.number && styles.validText]}>
+                  • At least one number
+                </Text>
+              </View>
+
+              <View style={styles.criteriaRow}>
+                <Animatable.View animation={passwordsMatch ? "bounceIn" : "fadeIn"} duration={500}>
+                  {passwordsMatch ? (
+                    <Ionicons name="checkmark-circle" size={20} color="green" />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color="#ccc" />
+                  )}
+                </Animatable.View>
+                <Text style={[styles.passwordCriteriaText, passwordsMatch && styles.validText]}>
+                  • Passwords match
+                </Text>
+              </View>
+            </View>
+          </Animatable.View>
+        </TouchableOpacity>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -406,27 +455,51 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   validationContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 15,
     marginTop: 10,
-    marginLeft: 4,
   },
   validationTitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#333',
   },
   validationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   validationText: {
-    marginLeft: 8,
-    fontSize: 12,
+    marginLeft: 10,
     color: '#777',
+    fontSize: 14,
   },
   validText: {
     color: 'green',
+  },
+  passwordCriteriaContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    padding: 15,
+    marginTop: 10,
+  },
+  passwordCriteriaTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+    color: '#333',
+  },
+  criteriaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  passwordCriteriaText: {
+    marginLeft: 10,
+    color: '#777',
+    fontSize: 14,
   },
   submitButton: {
     marginTop: 10,
@@ -459,7 +532,43 @@ const styles = StyleSheet.create({
     color: '#6c63ff',
     fontSize: 14,
     fontWeight: '500',
-  }
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoButton: {
+    padding: 4,
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    width: '85%',
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    padding: 5,
+  },
 });
 
 export default VerifyCodeScreen;

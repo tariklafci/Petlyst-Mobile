@@ -6,38 +6,50 @@ exports.fetchClinics = async (req, res) => {
   try {
     const query = `
       SELECT 
-        c.clinic_id AS clinic_id,
-        c.clinic_name AS clinic_name,
-        c.clinic_email AS clinic_email,
-        c.clinic_address AS clinic_address,
-        c.clinic_operator_id AS clinic_operator_id,
-        c.clinic_description AS clinic_description,
-        c.opening_time AS clinic_opening_time,
-        c.closing_time AS clinic_closing_time,
-        c.establishment_year AS clinic_establishment_year,
-        c.show_phone_number AS clinic_show_phone_number,
-        c.show_mail_address AS clinic_show_mail_address,
-        c.allow_online_meetings AS clinic_allow_online_meetings,
-        c.clinic_verification_status AS clinic_verification_status,
+        c.clinic_id AS id,
+        c.clinic_name AS name,
+        c.clinic_email AS email,
+        c.clinic_address AS address,
+        c.clinic_operator_id,
+        c.clinic_description AS description,
+        c.opening_time,
+        c.closing_time,
+        c.establishment_year,
+        c.show_phone_number,
+        c.show_mail_address,
+        c.allow_direct_messages,
+        c.allow_online_meetings,
+        c.clinic_verification_status AS verification_status,
+        c.available_days,
+        c.emergency_available_days,
+        c.is_open_24_7,
+        c.clinic_time_slots,
+        c.clinic_type AS type,
+        c.clinic_creation_status,
         c.clinic_operator_id AS operator_id,
-        c.available_days AS clinic_available_days,
-        c.clinic_time_slots AS clinic_time_slots,
-        c.emergency_available_days AS clinic_emergency_available_days,
-        c.is_open_24_7 AS clinic_is_open_24_7,
-        c.clinic_type AS clinic_type,
-        c.clinic_creation_status AS clinic_creation_status,
         cap.clinic_album_photo_id AS photo_id,
         cap.clinic_album_photo_url AS s3_url,
-        cpn.phone_number AS phone_number,
+        cap.created_at,
+        cpn.phone_number,
+        cpn.phone_type,
         csm.platform AS social_media_platform,
-        csm.url AS social_media_url
+        csm.url AS social_media_url,
+        cl.province,
+        cl.district,
+        cl.clinic_address AS location_address,
+        cl.latitude,
+        cl.longitude,
+        (SELECT ARRAY_AGG(ms.service_name) 
+          FROM clinic_medical_services cms 
+          JOIN medical_services ms ON cms.medical_service_id = ms.medical_service_id 
+          WHERE cms.clinic_id = c.clinic_id) AS medical_services,
+        (SELECT AVG(rating) FROM clinic_reviews WHERE clinic_id = c.clinic_id) AS average_rating,
+        (SELECT COUNT(*) FROM clinic_reviews WHERE clinic_id = c.clinic_id) AS total_reviews
       FROM clinics AS c
-      LEFT JOIN clinic_albums AS cap
-        ON c.clinic_id = cap.clinic_id
-      LEFT JOIN clinic_phone_numbers AS cpn
-        ON c.clinic_id = cpn.clinic_id
-      LEFT JOIN clinic_social_media AS csm
-        ON c.clinic_id = csm.clinic_id
+      LEFT JOIN clinic_albums AS cap ON c.clinic_id = cap.clinic_id
+      LEFT JOIN clinic_phone_numbers AS cpn ON c.clinic_id = cpn.clinic_id
+      LEFT JOIN clinic_social_media AS csm ON c.clinic_id = csm.clinic_id
+      LEFT JOIN clinic_locations AS cl ON c.clinic_id = cl.clinic_id
       ORDER BY c.clinic_id;
     `;
     const { rows } = await pool.query(query);
@@ -47,66 +59,89 @@ exports.fetchClinics = async (req, res) => {
 
     for (const row of rows) {
       const {
-        clinic_id,
-        clinic_name,
-        clinic_email,
-        clinic_address,
+        id,
+        name,
+        email,
+        address,
         clinic_operator_id,
-        clinic_description,
-        clinic_opening_time,
-        clinic_closing_time,
-        clinic_establishment_year,
-        clinic_show_phone_number,
+        description,
+        opening_time,
+        closing_time,
+        establishment_year,
+        show_phone_number,
+        show_mail_address,
+        allow_direct_messages,
+        allow_online_meetings,
+        verification_status,
+        available_days,
+        emergency_available_days,
+        is_open_24_7,
         clinic_time_slots,
-        clinic_show_mail_address,
-        clinic_allow_online_meetings,
-        clinic_verification_status,
-        clinic_available_days,
-        clinic_emergency_available_days,
-        clinic_is_open_24_7,
-        clinic_type,
+        type,
         clinic_creation_status,
         photo_id,
         s3_url,
         created_at,
         phone_number,
+        phone_type,
         social_media_platform,
-        social_media_url
+        social_media_url,
+        province,
+        district,
+        location_address,
+        latitude,
+        longitude,
+        medical_services,
+        average_rating,
+        total_reviews
       } = row;
 
-      if (!clinicMap.has(clinic_id)) {
+      if (!clinicMap.has(id)) {
         const clinic = {
-          id: clinic_id,
-          name: clinic_name,
-          email: clinic_email,
-          address: clinic_address,
-          clinic_operator_id: clinic_operator_id,
-          description: clinic_description,
-          opening_time: clinic_opening_time,
-          closing_time: clinic_closing_time,
-          clinic_time_slots: clinic_time_slots,
-          establishment_year: clinic_establishment_year,
-          show_phone_number: clinic_show_phone_number,
-          show_mail_address: clinic_show_mail_address,
-          allow_online_meetings: clinic_allow_online_meetings,
-          verification_status: clinic_verification_status,
-          available_days: clinic_available_days,
-          emergency_available_days: clinic_emergency_available_days,
-          is_open_24_7: clinic_is_open_24_7,
-          clinic_type: clinic_type,
-          clinic_creation_status: clinic_creation_status,
+          id,
+          name,
+          email: show_mail_address ? email : null,
+          address,
+          clinic_operator_id,
+          description,
+          opening_time,
+          closing_time,
+          establishment_year,
+          show_phone_number,
+          show_mail_address,
+          allow_direct_messages,
+          allow_online_meetings,
+          verification_status,
+          available_days,
+          emergency_available_days,
+          is_open_24_7,
+          clinic_time_slots,
+          type,
+          clinic_creation_status,
+          operator_id: clinic_operator_id,
           photos: [],
           phone_numbers: [],
-          social_media: []
+          social_media: [],
+          location: {
+            province,
+            district,
+            address: location_address || address,
+            latitude,
+            longitude
+          },
+          medical_services: medical_services || [],
+          average_rating: average_rating ? parseFloat(average_rating) : null,
+          total_reviews: total_reviews ? parseInt(total_reviews) : 0,
+          allows_video_meetings: allow_online_meetings
         };
-        clinicMap.set(clinic_id, clinic);
+        clinicMap.set(id, clinic);
         clinics.push(clinic);
       }
 
       if (photo_id && s3_url) {
-        const existingPhoto = clinicMap.get(clinic_id).photos.find(photo => photo.photo_id === photo_id);
+        const existingPhoto = clinicMap.get(id).photos.find(photo => photo.photo_id === photo_id);
         if (!existingPhoto) {
-          clinicMap.get(clinic_id).photos.push({
+          clinicMap.get(id).photos.push({
             photo_id,
             created_at,
             s3_url,
@@ -114,18 +149,21 @@ exports.fetchClinics = async (req, res) => {
         }
       }
       
-
-      if (phone_number && !clinicMap.get(clinic_id).phone_numbers.includes(phone_number)) {
-        clinicMap.get(clinic_id).phone_numbers.push(phone_number);
+      // Only add phone numbers if show_phone_number is true
+      if (phone_number && show_phone_number && !clinicMap.get(id).phone_numbers.some(p => p.number === phone_number)) {
+        clinicMap.get(id).phone_numbers.push({
+          number: phone_number,
+          type: phone_type
+        });
       }
 
       if (social_media_platform && social_media_url) {
-        const existingSocialMedia = clinicMap.get(clinic_id).social_media.find(
+        const existingSocialMedia = clinicMap.get(id).social_media.find(
           sm => sm.platform === social_media_platform && sm.url === social_media_url
         );
         
         if (!existingSocialMedia) {
-          clinicMap.get(clinic_id).social_media.push({
+          clinicMap.get(id).social_media.push({
             platform: social_media_platform,
             url: social_media_url
           });

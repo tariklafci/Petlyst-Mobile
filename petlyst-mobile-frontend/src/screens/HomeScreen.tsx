@@ -26,32 +26,51 @@ type ClinicPhoto = {
   presigned_url: string;
 };
 
+type PhoneNumber = {
+  number: string;
+  type?: string;
+};
+
+type SocialMedia = {
+  platform: string;
+  url: string;
+};
+
+type Location = {
+  province?: string;
+  district?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
 type ClinicItem = {
   id: number;
-  clinic_name: string;
-  clinic_email: string;
+  name: string;
+  email: string | null;
+  address: string;
   clinic_operator_id: number;
-  clinic_description: string;
-  clinic_opening_time: Date;
-  clinic_closing_time: Date;
+  description: string;
+  opening_time: Date;
+  closing_time: Date;
   verification_status: string;
-  clinic_establishment_year: number;
-  clinic_show_phone_number: boolean;
-  clinic_allow_direct_messages: boolean;
-  clinic_show_mail_address: boolean;
-  clinic_allow_online_meetings: boolean;
-  clinic_available_days: boolean[];
-  clinic_emergency_days: boolean[];
+  establishment_year: number;
+  show_phone_number: boolean;
+  allow_direct_messages: boolean;
+  show_mail_address: boolean;
+  allow_online_meetings: boolean;
+  available_days: boolean[];
+  emergency_available_days: boolean[];
   clinic_time_slots?: number;
-  clinic_is_open_24_7?: boolean;
-  clinic_type?: string;
-  clinic_slug?: string;
-  clinic_address?: string;
-  clinic_phone?: string;
+  is_open_24_7?: boolean;
+  type?: string;
   operator_id: number;
-  location: string;
   photos: ClinicPhoto[];
-  working_hours?: string;
+  phone_numbers: PhoneNumber[];
+  social_media: SocialMedia[];
+  location: Location;
+  medical_services?: string[];
+  allows_video_meetings?: boolean;
   average_rating?: number;
   total_reviews?: number;
 };
@@ -92,10 +111,10 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     } else {
       const query = searchQuery.toLowerCase().trim();
       const filtered = allClinics.filter(clinic => 
-        clinic.clinic_name.toLowerCase().includes(query) ||
-        (clinic.clinic_description && clinic.clinic_description.toLowerCase().includes(query)) ||
-        (clinic.clinic_address && clinic.clinic_address.toLowerCase().includes(query)) ||
-        (clinic.clinic_type && clinic.clinic_type.toLowerCase().includes(query))
+        clinic.name.toLowerCase().includes(query) ||
+        (clinic.description && clinic.description.toLowerCase().includes(query)) ||
+        (clinic.location.address && clinic.location.address.toLowerCase().includes(query)) ||
+        (clinic.type && clinic.type.toLowerCase().includes(query))
       );
       setFilteredClinics(filtered);
     }
@@ -124,30 +143,37 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
       const transformed: ClinicItem[] = verifiedClinics.map((clinic: any) => ({
         id: clinic.id,
-        clinic_name: clinic.name,
-        clinic_email: clinic.email,
+        name: clinic.name,
+        email: clinic.email,
+        address: clinic.address,
         clinic_operator_id: clinic.clinic_operator_id,
-        clinic_description: clinic.description,
-        clinic_opening_time: clinic.opening_time,
-        clinic_closing_time: clinic.closing_time,
+        description: clinic.description,
+        opening_time: clinic.opening_time,
+        closing_time: clinic.closing_time,
         verification_status: clinic.verification_status,
-        clinic_establishment_year: clinic.establishment_year,
-        clinic_show_phone_number: clinic.show_phone_number,
-        clinic_allow_direct_messages: clinic.allow_direct_messages,
-        clinic_show_mail_address: clinic.show_mail_address,
-        clinic_allow_online_meetings: clinic.allow_online_meetings,
-        clinic_available_days: clinic.available_days,
-        clinic_emergency_days: clinic.emergency_days,
+        establishment_year: clinic.establishment_year,
+        show_phone_number: clinic.show_phone_number,
+        allow_direct_messages: clinic.allow_direct_messages,
+        show_mail_address: clinic.show_mail_address,
+        allow_online_meetings: clinic.allow_online_meetings,
+        available_days: clinic.available_days,
+        emergency_available_days: clinic.emergency_available_days,
         clinic_time_slots: clinic.clinic_time_slots,
-        clinic_is_open_24_7: clinic.is_open_24_7,
-        clinic_type: clinic.type,
-        clinic_slug: clinic.slug,
-        clinic_address: clinic.address,
-        clinic_phone: clinic.phone,
+        is_open_24_7: clinic.is_open_24_7,
+        type: clinic.type,
         operator_id: clinic.operator_id,
-        location: clinic.location || '',
         photos: clinic.photos || [],
-        working_hours: clinic.working_hours,
+        phone_numbers: clinic.phone_numbers || [],
+        social_media: clinic.social_media || [],
+        location: {
+          province: clinic.province,
+          district: clinic.district,
+          address: clinic.address,
+          latitude: clinic.latitude,
+          longitude: clinic.longitude,
+        },
+        medical_services: clinic.medical_services,
+        allows_video_meetings: clinic.allows_video_meetings,
         average_rating: clinic.average_rating,
         total_reviews: clinic.total_reviews,
       }));
@@ -241,18 +267,23 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={styles.ratingText}>{item.average_rating.toFixed(1)}</Text>
               </View>
             )}
+            {item.allows_video_meetings && (
+              <View style={styles.videoBadge}>
+                <Ionicons name="videocam" size={12} color="#fff" />
+              </View>
+            )}
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{item.clinic_name}</Text>
+            <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
             <View style={styles.cardDetails}>
               <Ionicons name="location-outline" size={14} color="#6c63ff" />
               <Text style={styles.cardAddress} numberOfLines={1}>
-                {item.clinic_address || 'No address provided'}
+                {item.location?.address || item.address || 'No address provided'}
               </Text>
             </View>
-            {item.clinic_type && (
+            {item.type && (
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>{item.clinic_type}</Text>
+                <Text style={styles.typeText}>{item.type}</Text>
               </View>
             )}
           </View>
@@ -269,7 +300,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
 
   const handleMakeAppointment = async (clinicId: any) => {
     const clinic_time_slots = selectedClinic?.clinic_time_slots;
-    const clinic_is_open_24_7 = selectedClinic?.clinic_is_open_24_7;
+    const clinic_is_open_24_7 = selectedClinic?.is_open_24_7;
     navigation.navigate('MakeAppointment', { clinic_id: clinicId, clinic_time_slots});
     setModalVisible(false);
   };
@@ -500,8 +531,8 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <>
                   <View style={styles.clinicHeaderRow}>
                     <View style={styles.clinicTitleContainer}>
-                      <Text style={styles.modalTitle}>{selectedClinic.clinic_name}</Text>
-                      <Text style={styles.clinicType}>{selectedClinic.clinic_type || 'Veterinary Clinic'}</Text>
+                      <Text style={styles.modalTitle}>{selectedClinic.name}</Text>
+                      <Text style={styles.clinicType}>{selectedClinic.type || 'Veterinary Clinic'}</Text>
                     </View>
                     
                     {selectedClinic.average_rating && (
@@ -523,11 +554,11 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                       ]}
                       numberOfLines={isDescriptionExpanded ? undefined : 3}
                     >
-                      {selectedClinic.clinic_description || 'No description available for this clinic.'}
+                      {selectedClinic.description || 'No description available for this clinic.'}
                     </Text>
                     
-                    {selectedClinic.clinic_description && 
-                     selectedClinic.clinic_description.length > 120 && (
+                    {selectedClinic.description && 
+                     selectedClinic.description.length > 120 && (
                       <TouchableOpacity 
                         style={styles.showMoreButton}
                         onPress={toggleDescription}
@@ -554,19 +585,25 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                       </View>
                       <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Address</Text>
-                        <Text style={styles.infoValue}>{selectedClinic.clinic_address || 'Not provided'}</Text>
+                        <Text style={styles.infoValue}>
+                          {selectedClinic?.location?.province && selectedClinic?.location?.district 
+                            ? `${selectedClinic.location.address}, ${selectedClinic.location.district}, ${selectedClinic.location.province}`
+                            : selectedClinic?.location?.address || selectedClinic?.address || 'Not provided'}
+                        </Text>
                       </View>
                     </View>
                     
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                    {selectedClinic?.phone_numbers && selectedClinic.phone_numbers.length > 0 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Phone</Text>
+                          <Text style={styles.infoValue}>{selectedClinic.phone_numbers[0].number}</Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Phone</Text>
-                        <Text style={styles.infoValue}>{selectedClinic.clinic_phone || 'Not provided'}</Text>
-                      </View>
-                    </View>
+                    )}
                     
                     <View style={styles.infoRow}>
                       <View style={styles.infoIconContainer}>
@@ -575,23 +612,55 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                       <View style={styles.infoContent}>
                         <Text style={styles.infoLabel}>Working Hours</Text>
                         <Text style={styles.infoValue}>
-                          {selectedClinic.clinic_is_open_24_7 
+                          {selectedClinic?.is_open_24_7 
                             ? '24/7' 
-                            : `${selectedClinic.clinic_opening_time || ''} - ${selectedClinic.clinic_closing_time || ''}`
+                            : `${selectedClinic?.opening_time || ''} - ${selectedClinic?.closing_time || ''}`
                           }
                         </Text>
                       </View>
                     </View>
                     
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="mail-outline" size={20} color="#6c63ff" />
+                    {selectedClinic?.email && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="mail-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Email</Text>
+                          <Text style={styles.infoValue}>{selectedClinic.email}</Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{selectedClinic.clinic_email || 'Not provided'}</Text>
+                    )}
+                    
+                    {selectedClinic?.medical_services && selectedClinic.medical_services.length > 0 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Services</Text>
+                          <View style={styles.serviceContainer}>
+                            {selectedClinic.medical_services.map((service, index) => (
+                              <View key={index} style={styles.serviceBadge}>
+                                <Text style={styles.serviceText}>{service}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
                       </View>
-                    </View>
+                    )}
+                    
+                    {selectedClinic?.allows_video_meetings && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="videocam-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Online Consultations</Text>
+                          <Text style={styles.infoValue}>Available</Text>
+                        </View>
+                      </View>
+                    )}
                   </View>
 
                   {/* Action Buttons */}
@@ -1047,6 +1116,35 @@ const styles = StyleSheet.create({
   scrollContentContainer: {
     paddingBottom: 30, // Add extra padding at the bottom
     minHeight: height * 0.6, // Force minimum height to ensure scrollability
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#6c63ff',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  serviceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  serviceBadge: {
+    backgroundColor: '#f0f0ff',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  serviceText: {
+    fontSize: 12,
+    color: '#6c63ff',
+    fontWeight: '500',
   },
 });
 
