@@ -50,8 +50,23 @@ async function processInventoryData(clinicIds) {
     txByItem[key].push(tx);
   });
 
+  // Debug: Show all item IDs and their transaction counts
+  console.log('Item IDs in transactions:', Object.keys(txByItem).map(id => ({
+    inventory_item_id: id,
+    transaction_count: txByItem[id].length
+  })));
+
   return itemsRes.rows.map(item => {
+    // Debug the specific item we're looking at
+    console.log(`Processing item: ${item.name}, ID: ${item.id}`);
+    
+    // Try both the id from the item and the direct inventory_item_id match
     const itemTx = txByItem[item.id] || [];
+    
+    if (itemTx.length === 0) {
+      console.log(`No transactions found for item ${item.name} with ID ${item.id}`);
+    }
+
     const totalUsage = itemTx.reduce((sum, t) => sum + t.quantity, 0);
 
     let daysSinceFirst = 1;
