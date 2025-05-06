@@ -261,10 +261,14 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <Ionicons name="image" size={40} color="#ddd" />
               </View>
             )}
-            {item.average_rating && (
+            {item.average_rating ? (
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={12} color="#FFD700" />
                 <Text style={styles.ratingText}>{item.average_rating.toFixed(1)}</Text>
+              </View>
+            ) : (
+              <View style={styles.noRatingBadge}>
+                <Text style={styles.noRatingText}>New</Text>
               </View>
             )}
             {item.allows_video_meetings && (
@@ -535,11 +539,16 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                       <Text style={styles.clinicType}>{selectedClinic.type || 'Veterinary Clinic'}</Text>
                     </View>
                     
-                    {selectedClinic.average_rating && (
+                    {selectedClinic.average_rating ? (
                       <View style={styles.ratingContainer}>
                         <Ionicons name="star" size={20} color="#FFD700" />
                         <Text style={styles.ratingValue}>{selectedClinic.average_rating.toFixed(1)}</Text>
                         <Text style={styles.reviewCount}>{`(${selectedClinic.total_reviews || 0})`}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.noRatingContainer}>
+                        <Ionicons name="star-outline" size={20} color="#aaa" />
+                        <Text style={styles.noRatingText}>No reviews yet</Text>
                       </View>
                     )}
                   </View>
@@ -1145,6 +1154,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6c63ff',
     fontWeight: '500',
+  },
+  noRatingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  noRatingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  noRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
 });
 
