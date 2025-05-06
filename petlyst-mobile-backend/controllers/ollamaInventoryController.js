@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 
+// Single, consolidated system prompt that covers all inventory analysis needs
 const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management expert. Provide concise, actionable inventory insights with these guidelines:
 
 1. Begin with a one-sentence summary of the overall inventory status.
@@ -38,10 +39,10 @@ async function processInventoryData(clinicIds) {
     [numericClinicIds]
   );
 
-  // Group transactions strictly by inventory_item_id
+  // Group transactions by either inventory_item_id or fallback to item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
-    const key = tx.inventory_item_id;
+    const key = tx.inventory_item_id ?? tx.item_id;
     if (!key) return;
     if (!txByItem[key]) txByItem[key] = [];
     txByItem[key].push(tx);
@@ -57,7 +58,6 @@ async function processInventoryData(clinicIds) {
       daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
     }
 
-    // calculate daily usage correctly
     const dailyUsage = totalUsage / daysSinceFirst;
     const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     const neededToMin = Math.max(0, item.min_quantity - item.current_quantity);
