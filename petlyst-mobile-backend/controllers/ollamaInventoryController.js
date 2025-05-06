@@ -1,6 +1,7 @@
-
 const pool = require('../config/db');
+const fetch = require('node-fetch'); // omit if using Node ≥18 which has global fetch
 
+// Single, consolidated system prompt that covers all inventory analysis needs
 const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management expert. Provide concise, actionable inventory insights with these guidelines:
 
 1. Begin with a one-sentence summary of the overall inventory status.
@@ -26,13 +27,11 @@ async function processInventoryData(clinicIds) {
   const numericClinicIds = clinicIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
   if (!numericClinicIds.length) throw new Error('No valid clinic IDs available for inventory data');
 
-  // fetch items
   const itemsRes = await pool.query(
     `SELECT * FROM inventory_items WHERE clinic_id = ANY($1)`,
     [numericClinicIds]
   );
 
-  // fetch usage transactions (clinic_id stored as varchar, cast to integer)
   const txRes = await pool.query(
     `SELECT * FROM inventory_transactions
      WHERE clinic_id::integer = ANY($1)
@@ -41,16 +40,14 @@ async function processInventoryData(clinicIds) {
     [numericClinicIds]
   );
 
-  // group by inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
-    const key = tx.inventory_item_id;
+    const key = tx.inventory_item_id ?? tx.item_id;
     if (!key) return;
     if (!txByItem[key]) txByItem[key] = [];
     txByItem[key].push(tx);
   });
 
-  // build metrics
   return itemsRes.rows.map(item => {
     const itemTx = txByItem[item.id] || [];
     const totalUsage = itemTx.reduce((sum, t) => sum + t.quantity, 0);
@@ -87,22 +84,14 @@ async function processInventoryData(clinicIds) {
 async function getClinicIdsFromRequest(req) {
   const userId = req.user && (req.user.user_id || req.user.userId);
   if (!userId) {
-    const err = new Error('User not authenticated');
-    err.status = 401;
-    throw err;
+    const err = new Error('User not authenticated'); err.status = 401; throw err;
   }
-
   const vetClinics = await pool.query(
     `SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1`,
     [userId]
   );
   const clinicIds = vetClinics.rows.map(r => r.clinic_id);
-  if (!clinicIds.length) {
-    const err = new Error('No clinic associations found for this user');
-    err.status = 403;
-    throw err;
-  }
-
+  if (!clinicIds.length) { const err = new Error('No clinic associations found for this user'); err.status = 403; throw err; }
   return clinicIds;
 }
 
@@ -116,15 +105,10 @@ async function getClinicName(req) {
     [numeric]
   );
   const names = res.rows.map(r => r.clinic_name);
-  if (!names.length) {
-    const err = new Error('No clinic names found for this clinic');
-    err.status = 403;
-    throw err;
-  }
+  if (!names.length) { const err = new Error('No clinic names found for this clinic'); err.status = 403; throw err; }
   return names;
 }
 
-// 1) Reorder check
 exports.checkReorder = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
@@ -147,14 +131,13 @@ exports.checkReorder = async (req, res) => {
     }
 
     const data = await callLlama(prompt);
-    res.json({ title: data.title, raw: data.raw, itemsNeeding });
+    res.json({ title: data.title, code: data.code, raw: data.raw, itemsNeeding });
   } catch (err) {
     console.error('checkReorder error:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 };
 
-// 2) Days of stock remaining
 exports.calculateStockDays = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
@@ -172,9 +155,49 @@ exports.calculateStockDays = async (req, res) => {
     });
 
     const data = await callLlama(prompt);
-    res.json({ title: data.title, raw: data.raw, stockDays: sorted });
+    res.json({ title: data.title, code: data.code, raw: data.raw, stockDays: sorted });
   } catch (err) {
     console.error('calculateStockDays error:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+exports.averageWeeklyConsumption = async (req, res) => {
+  try {
+    const clinicIds = await getClinicIdsFromRequest(req);
+    const metrics = await processInventoryData(clinicIds);
+
+    let prompt = 'Average weekly consumption for each item:';
+    metrics.forEach(item => {
+      const weekly = (parseFloat(item.daily_usage) * 7).toFixed(2);
+      prompt += `\n• ${item.name}: ${weekly} units/week`;
+    });
+
+    const data = await callLlama(prompt);
+    res.json({ title: data.title, code: data.code, raw: data.raw, weeklyConsumption: metrics });
+  } catch (err) {
+    console.error('averageWeeklyConsumption error:', err);
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+exports.identifySlowMoving = async (req, res) => {
+  try {
+    const clinicIds = await getClinicIdsFromRequest(req);
+    const metrics = await processInventoryData(clinicIds);
+
+    const slow = metrics.filter(m => parseFloat(m.daily_usage) < 1);
+    let prompt = slow.length
+      ? 'Slow-moving items (usage < 1/day):'
+      : 'No slow-moving items.';
+    slow.forEach(item => {
+      prompt += `\n• ${item.name} (${item.daily_usage}/day)`;
+    });
+
+    const data = await callLlama(prompt);
+    res.json({ title: data.title, code: data.code, raw: data.raw, slowMoving: slow });
+  } catch (err) {
+    console.error('identifySlowMoving error:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 };
