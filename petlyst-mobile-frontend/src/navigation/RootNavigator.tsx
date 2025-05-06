@@ -23,6 +23,7 @@ import MakeAppointmentScreen from '../screens/MakeAppointmentScreen';
 import VetDashboardScreen from '../screens/VetDashboardScreen';
 import VetAppointmentScreen from '../screens/VetAppointmentScreen';
 import ChatAIScreen from '../screens/ChatAIScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 
 /* -------------------------------
@@ -158,6 +159,7 @@ export default function RootNavigator() {
             <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
             <Stack.Screen name="AddPet" component={AddPetScreen} options={{ headerShown: false }} />
             <Stack.Screen name="EditPet" component={EditPetScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Meeting" component={MeetingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }} />
@@ -167,6 +169,7 @@ export default function RootNavigator() {
         ) : state.user_type === 'veterinarian' ? (
           <>
             <Stack.Screen name="VetTabs" component={VetTabs} options={{ headerShown: false }} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
