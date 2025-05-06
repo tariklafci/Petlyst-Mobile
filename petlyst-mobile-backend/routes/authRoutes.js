@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authenticateToken = require('../middlewares/authenticateToken');
-const { loginUser, registerUser, resetPassword, verifyResetCode, addExpoToken, refreshToken } = require('../controllers/authController');
+const { loginUser, registerUser, resetPassword, verifyResetCode, addExpoToken, refreshToken, deleteExpoTokens } = require('../controllers/authController');
 
 // POST /api/login
 router.post('/login', loginUser);
@@ -20,5 +20,8 @@ router.post('/refresh-token', authenticateToken, refreshToken);
 
 // PATCH /api/add-expo-token
 router.patch('/add-expo-token', authenticateToken, addExpoToken);
+
+// DELETE /api/delete-expo-tokens
+router.delete('/delete-expo-tokens', authenticateToken, deleteExpoTokens);
 
 module.exports = router;

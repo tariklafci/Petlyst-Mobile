@@ -345,3 +345,45 @@ exports.addExpoToken = async (req, res) => {
     }
   };
     
+/**
+ * Delete all expo tokens for a user when signing out
+ */
+exports.deleteExpoTokens = async (req, res) => {
+  const client = await pool.connect();
+
+  try {
+    const userId = req.user.sub;
+    
+    // Option 1: Delete specific token if provided
+    const { expoToken } = req.body;
+    
+    let deleteQuery;
+    let queryParams;
+    
+    if (expoToken) {
+      // Delete specific token
+      deleteQuery = 'DELETE FROM user_tokens WHERE user_id = $1 AND user_token_expo = $2';
+      queryParams = [userId, expoToken];
+    } else {
+      // Delete all tokens for this user
+      deleteQuery = 'DELETE FROM user_tokens WHERE user_id = $1';
+      queryParams = [userId];
+    }
+    
+    await client.query('BEGIN');
+    const result = await client.query(deleteQuery, queryParams);
+    await client.query('COMMIT');
+    
+    client.release();
+    return res.status(200).json({ 
+      message: 'Expo tokens deleted successfully',
+      count: result.rowCount
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    client.release();
+    console.error('Error deleting expo tokens:', error);
+    return res.status(500).json({ message: 'Server error while deleting tokens' });
+  }
+};
+    
