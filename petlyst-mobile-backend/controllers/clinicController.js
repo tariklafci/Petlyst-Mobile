@@ -298,3 +298,185 @@ exports.fetchClinicCoordinates = async (req, res) => {
   }
 };
 
+// Clinic Hospitalization Rooms
+exports.fetchClinicHospitalizationRooms = async (req, res) => {
+  try {
+    // Get the clinic_id from the authenticated user
+    const clinicId = req.user.clinic_id;
+    
+    if (!clinicId) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+    
+    const query = `
+      SELECT 
+        id,
+        clinic_id,
+        room_name,
+        room_type,
+        room_status,
+        created_at,
+        updated_at
+      FROM clinic_hospitalization_rooms
+      WHERE clinic_id = $1
+      ORDER BY room_name
+    `;
+    
+    const { rows } = await pool.query(query, [clinicId]);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching hospitalization rooms:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Clinic Patients
+exports.fetchClinicPatients = async (req, res) => {
+  try {
+    // Get the clinic_id from the authenticated user
+    const clinicId = req.user.clinic_id;
+    
+    if (!clinicId) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+    
+    const query = `
+      SELECT 
+        cp.id,
+        cp.clinic_id,
+        cp.pet_id,
+        cp.created_at,
+        cp.updated_at,
+        p.pet_name,
+        p.pet_species,
+        p.pet_breed
+      FROM clinic_patients cp
+      JOIN pets p ON cp.pet_id = p.pet_id
+      WHERE cp.clinic_id = $1
+      ORDER BY cp.created_at DESC
+    `;
+    
+    const { rows } = await pool.query(query, [clinicId]);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching clinic patients:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Pet Examinations
+exports.fetchPetExaminations = async (req, res) => {
+  try {
+    const { petId } = req.params;
+    
+    if (!petId) {
+      return res.status(400).json({ error: 'Pet ID is required' });
+    }
+    
+    // Get the clinic_id from the authenticated user to ensure they can only access their clinic's data
+    const clinicId = req.user.clinic_id;
+    
+    if (!clinicId) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+    
+    // First verify that this pet is a patient at this clinic
+    const patientCheck = `
+      SELECT id FROM clinic_patients
+      WHERE clinic_id = $1 AND pet_id = $2
+    `;
+    
+    const patientResult = await pool.query(patientCheck, [clinicId, petId]);
+    
+    if (patientResult.rows.length === 0) {
+      return res.status(403).json({ error: 'This pet is not a patient at your clinic' });
+    }
+    
+    const query = `
+      SELECT 
+        examination_id,
+        pet_id,
+        vet_id,
+        examination_date,
+        status,
+        temperature,
+        heart_rate,
+        respiratory_rate,
+        weight,
+        notes,
+        appointment_id,
+        created_at,
+        updated_at
+      FROM examinations
+      WHERE pet_id = $1
+      ORDER BY examination_date DESC
+    `;
+    
+    const { rows } = await pool.query(query, [petId]);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error(`Error fetching examinations for pet ${req.params.petId}:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Examination Diagnoses
+exports.fetchExaminationDiagnoses = async (req, res) => {
+  try {
+    const { examinationId } = req.params;
+    
+    if (!examinationId) {
+      return res.status(400).json({ error: 'Examination ID is required' });
+    }
+    
+    // Get the clinic_id from the authenticated user
+    const clinicId = req.user.clinic_id;
+    
+    if (!clinicId) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+    
+    // First verify that this examination is for a pet that's a patient at this clinic
+    const examinationCheck = `
+      SELECT e.examination_id
+      FROM examinations e
+      JOIN clinic_patients cp ON e.pet_id = cp.pet_id
+      WHERE e.examination_id = $1 AND cp.clinic_id = $2
+    `;
+    
+    const examinationResult = await pool.query(examinationCheck, [examinationId, clinicId]);
+    
+    if (examinationResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You are not authorized to access this examination' });
+    }
+    
+    const query = `
+      SELECT 
+        diagnosis_id,
+        examination_id,
+        diagnosis_type,
+        diagnosis_code,
+        diagnosis_name,
+        description,
+        diagnosis_date,
+        severity,
+        notes,
+        created_at,
+        updated_at
+      FROM diagnoses
+      WHERE examination_id = $1
+      ORDER BY diagnosis_date
+    `;
+    
+    const { rows } = await pool.query(query, [examinationId]);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error(`Error fetching diagnoses for examination ${req.params.examinationId}:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
