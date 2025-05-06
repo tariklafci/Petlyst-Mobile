@@ -10,7 +10,11 @@ import {
   SafeAreaView,
   Dimensions,
   Image,
-  RefreshControl
+  RefreshControl,
+  ToastAndroid,
+  Platform,
+  Alert,
+  Linking,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import * as Clipboard from 'expo-clipboard';
@@ -83,6 +87,7 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   useEffect(() => {
@@ -206,6 +211,31 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
     if (platformLower.includes('tiktok')) return 'logo-tiktok';
     if (platformLower.includes('website')) return 'globe-outline';
     return 'link-outline';
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    await Clipboard.setStringAsync(text);
+    setCopiedText(text);
+    
+    // Show feedback based on platform
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(`${label} copied to clipboard`, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Copied', `${label} copied to clipboard`);
+    }
+  };
+
+  const callPhoneNumber = (phoneNumber: string) => {
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const openUrl = (url: string) => {
+    // Make sure the URL has a protocol prefix
+    const finalUrl = url.startsWith('http') ? url : `https://${url}`;
+    Linking.openURL(finalUrl).catch(err => {
+      console.error('Error opening URL:', err);
+      Alert.alert('Error', 'Could not open the URL');
+    });
   };
 
   if (isLoading) {
@@ -338,15 +368,25 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
               )}
 
               <View style={styles.addressBox}>
-                <Text style={styles.addressLabel}>Address:</Text>
-                <Text style={styles.addressValue}>
-                  {clinic.location?.address || clinic.address}
-                </Text>
-                {clinic.location?.province && (
-                  <Text style={styles.addressSubValue}>
-                    {clinic.location.district}, {clinic.location.province}
+                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <Text style={styles.addressLabel}>Address:</Text>
+                  {copiedText === (clinic.location?.address || clinic.address) && (
+                    <Text style={{fontSize: 12, color: '#6c63ff'}}>Copied</Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onLongPress={() => copyToClipboard(clinic.location?.address || clinic.address, 'Address')}
+                  style={styles.addressTouchable}
+                >
+                  <Text style={styles.addressValue}>
+                    {clinic.location?.address || clinic.address}
                   </Text>
-                )}
+                  {clinic.location?.province && (
+                    <Text style={styles.addressSubValue}>
+                      {clinic.location.district}, {clinic.location.province}
+                    </Text>
+                  )}
+                </TouchableOpacity>
               </View>
 
               <View style={styles.infoRow}>
@@ -359,7 +399,10 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={styles.infoValue}>{clinic.show_phone_number ? 'Yes' : 'No'}</Text>
               </View>
               
-              <TouchableOpacity style={styles.mapButton}>
+              <TouchableOpacity 
+                style={styles.mapButton}
+                onPress={() => navigation.navigate('MapScreen', { clinic_id: clinic.id })}
+              >
                 <Ionicons name="map-outline" size={18} color="#6c63ff" />
                 <Text style={styles.mapButtonText}>View on Map</Text>
               </TouchableOpacity>
@@ -382,9 +425,15 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                       <Ionicons name={getPhoneTypeIcon(phone.type)} size={20} color="#6c63ff" />
                       <Text style={styles.phoneTypeText}>{phone.type}</Text>
                     </View>
-                    <TouchableOpacity style={styles.phoneNumberButton}>
+                    <TouchableOpacity 
+                      style={styles.phoneNumberButton}
+                    >
                       <Text style={styles.phoneNumberText}>{phone.number}</Text>
-                      <Ionicons name="call-outline" size={16} color="#6c63ff" />
+                      <Ionicons 
+                        name={copiedText === phone.number ? "copy-outline" : "call-outline"} 
+                        size={16} 
+                        color="#6c63ff" 
+                      />
                     </TouchableOpacity>
                   </View>
                 ))
@@ -414,11 +463,19 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                       />
                       <Text style={styles.socialName}>{social.platform}</Text>
                     </View>
-                    <TouchableOpacity style={styles.socialLink}>
+                    <TouchableOpacity 
+                      style={styles.socialLink}
+                      onPress={() => openUrl(social.url)}
+                      onLongPress={() => copyToClipboard(social.url, 'URL')}
+                    >
                       <Text style={styles.socialLinkText} numberOfLines={1} ellipsizeMode="tail">
                         {social.url}
                       </Text>
-                      <Ionicons name="open-outline" size={18} color="#6c63ff" />
+                      <Ionicons 
+                        name={copiedText === social.url ? "copy-outline" : "open-outline"} 
+                        size={18} 
+                        color="#6c63ff" 
+                      />
                     </TouchableOpacity>
                   </View>
                 ))
@@ -591,6 +648,24 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
               >
                 <Ionicons name="list-outline" size={20} color="#fff" />
                 <Text style={styles.actionButtonText}>Inventory</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animatable.View>
+
+          {/* Additional Actions */}
+          <Animatable.View animation="fadeInUp" delay={850} duration={500} style={styles.actionButtonsContainer}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.patientsButton]}
+              onPress={() => navigation.navigate('ClinicPet')}
+            >
+              <LinearGradient
+                colors={['#ff9500', '#ff7f50']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.actionButtonGradient}
+              >
+                <Ionicons name="paw-outline" size={20} color="#fff" />
+                <Text style={styles.actionButtonText}>Clinic Patients</Text>
               </LinearGradient>
             </TouchableOpacity>
           </Animatable.View>
@@ -1005,7 +1080,14 @@ const styles = StyleSheet.create({
     color: '#6c63ff',
     flex: 1,
     marginRight: 4
-  }
+  },
+  addressTouchable: {
+    paddingVertical: 6,
+  },
+  patientsButton: {
+    marginLeft: 8,
+    shadowColor: '#ff9500',
+  },
 });
 
 export default VetDashboardScreen;
