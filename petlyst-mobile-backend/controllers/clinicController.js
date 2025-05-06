@@ -337,17 +337,21 @@ exports.fetchClinicHospitalizationRooms = async (req, res) => {
 // Clinic Patients
 exports.fetchClinicPatients = async (req, res) => {
   try {
-
     const userId = req.user.sub;
     
+    // Get clinic ID for the veterinarian
+    const clinicResult = await pool.query(
+      'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+      [userId]
+    );
 
-    const clinicId = (await pool.query('SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1', [userId])).rows[0].clinic_id;
-
-
-    if (!clinicId) {
+    if (clinicResult.rows.length === 0) {
       return res.status(400).json({ error: 'No clinic associated with this user' });
     }
+
+    const clinicId = clinicResult.rows[0].clinic_id;
     
+    // Get all patients for the clinic with their pet details
     const query = `
       SELECT 
         cp.id,
@@ -357,16 +361,18 @@ exports.fetchClinicPatients = async (req, res) => {
         cp.updated_at,
         p.pet_name,
         p.pet_species,
-        p.pet_breed
+        p.pet_breed,
+        p.owner_id,
+        u.first_name as owner_first_name,
+        u.last_name as owner_last_name
       FROM clinic_patients cp
       JOIN pets p ON cp.pet_id = p.pet_id
+      JOIN users u ON p.owner_id = u.user_id
       WHERE cp.clinic_id = $1
       ORDER BY cp.created_at DESC
     `;
     
     const { rows } = await pool.query(query, [clinicId]);
-
-    console.log('Clinic patients:', rows);
     
     res.json(rows);
   } catch (error) {
