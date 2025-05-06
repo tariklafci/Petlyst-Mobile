@@ -8,7 +8,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import LoginRegisterScreen from '../screens/LoginRegisterScreen';
 import MyPetScreen from '../screens/MyPetScreen';
 import HomeScreen from '../screens/HomeScreen';
-import InboxScreen from '../screens/InboxScreen';
 import AppointmentScreen from '../screens/AppointmentScreen';
 import AddPetScreen from '../screens/AddPetScreen';
 import MeetingScreen from '../screens/MeetingScreen';
@@ -104,8 +103,8 @@ function VetTabs() {
             iconName = focused ? 'compass' : 'compass-outline';
           } else if (route.name === 'MyPet') {
             iconName = focused ? 'paw' : 'paw-outline';
-          } else if (route.name === 'Appointment') {
-            iconName = focused ? 'mail' : 'mail-outline';
+          } else if (route.name === 'VetAppointment') {
+            iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -171,8 +170,7 @@ export default function RootNavigator() {
             <Stack.Screen name="VetTabs" component={VetTabs} options={{ headerShown: false }} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="VetAppointment" component={VetAppointmentScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ClinicPet" component={ClinicPet} options={{ headerShown: false }} />
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
           </>
