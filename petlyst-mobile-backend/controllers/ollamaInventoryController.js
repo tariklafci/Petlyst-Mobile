@@ -32,16 +32,21 @@ async function processInventoryData(clinicIds) {
     [numericClinicIds]
   );
 
-  // fetch usage transactions explicitly casting param to integer[]
+  // Get ALL transactions directly with a JOIN - this avoids ID matching issues
+  // By joining on inventory_items.id = inventory_transactions.inventory_item_id
   const txRes = await pool.query(
-    `SELECT * FROM inventory_transactions
-     WHERE clinic_id::integer = ANY($1::integer[])
-       AND transaction_type = 'usage'
-     ORDER BY transaction_date`,
+    `SELECT t.*, i.name as item_name 
+     FROM inventory_transactions t
+     JOIN inventory_items i ON t.inventory_item_id = i.id
+     WHERE t.clinic_id::integer = ANY($1::integer[])
+       AND t.transaction_type = 'usage'
+     ORDER BY t.transaction_date`,
     [numericClinicIds]
   );
 
-  // Group transactions by inventory_item_id
+  console.log(`Found ${txRes.rows.length} usage transactions via JOIN query`);
+
+  // Group transactions by item_id for easy access
   const txByItem = {};
   txRes.rows.forEach(tx => {
     const key = tx.inventory_item_id;
@@ -50,47 +55,22 @@ async function processInventoryData(clinicIds) {
     txByItem[key].push(tx);
   });
 
-  // Debug: Show all item IDs and their transaction counts
-  console.log('Item IDs in transactions:', Object.keys(txByItem).map(id => ({
-    inventory_item_id: id,
-    transaction_count: txByItem[id].length
-  })));
-
   return itemsRes.rows.map(item => {
-    // Debug the specific item we're looking at
-    console.log(`Processing item: ${item.name}, ID: ${item.id}`);
-    
-    // Try to match transactions by item ID - we need to handle both formats
-    let itemTx = txByItem[item.id] || [];
-    
-    if (itemTx.length === 0) {
-      console.log(`No direct match for ${item.name} (${item.id}), checking for transactions by name...`);
-      
-      // If no direct match by ID, try to find transactions for this item by name match
-      // This handles cases where inventory_item_id doesn't match the item.id format
-      const itemName = item.name.toLowerCase().trim();
-      const matchingItemId = Object.keys(txByItem).find(txItemId => {
-        // If the transaction item ID contains the name or vice versa
-        return txItemId.toLowerCase().includes(itemName) || 
-               itemName.includes(txItemId.toLowerCase());
-      });
-      
-      if (matchingItemId) {
-        console.log(`Found alternative match: ${matchingItemId} for ${item.name}`);
-        itemTx = txByItem[matchingItemId];
-      }
-    }
+    // Get transactions for this item using its ID
+    const itemTx = txByItem[item.id] || [];
+    console.log(`Processing ${item.name} (${item.id}): found ${itemTx.length} transactions`);
 
-    console.log(`Found ${itemTx.length} transactions for ${item.name}`);
+    // Calculate total usage and time period
+    const totalUsage = itemTx.reduce((sum, tx) => sum + tx.quantity, 0);
     
-    const totalUsage = itemTx.reduce((sum, t) => sum + t.quantity, 0);
-
     let daysSinceFirst = 1;
-    if (itemTx.length) {
+    if (itemTx.length > 0) {
       const firstDate = new Date(itemTx[0].transaction_date);
       daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
+      console.log(`${item.name}: First transaction on ${firstDate.toISOString().split('T')[0]}, ${daysSinceFirst} days ago`);
     }
 
+    // Calculate daily usage and days remaining
     const dailyUsage = totalUsage / daysSinceFirst;
     console.log(`${item.name}: ${totalUsage} units over ${daysSinceFirst} days = ${dailyUsage.toFixed(2)}/day`);
 
