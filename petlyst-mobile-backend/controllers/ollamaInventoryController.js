@@ -60,13 +60,29 @@ async function processInventoryData(clinicIds) {
     // Debug the specific item we're looking at
     console.log(`Processing item: ${item.name}, ID: ${item.id}`);
     
-    // Try both the id from the item and the direct inventory_item_id match
-    const itemTx = txByItem[item.id] || [];
+    // Try to match transactions by item ID - we need to handle both formats
+    let itemTx = txByItem[item.id] || [];
     
     if (itemTx.length === 0) {
-      console.log(`No transactions found for item ${item.name} with ID ${item.id}`);
+      console.log(`No direct match for ${item.name} (${item.id}), checking for transactions by name...`);
+      
+      // If no direct match by ID, try to find transactions for this item by name match
+      // This handles cases where inventory_item_id doesn't match the item.id format
+      const itemName = item.name.toLowerCase().trim();
+      const matchingItemId = Object.keys(txByItem).find(txItemId => {
+        // If the transaction item ID contains the name or vice versa
+        return txItemId.toLowerCase().includes(itemName) || 
+               itemName.includes(txItemId.toLowerCase());
+      });
+      
+      if (matchingItemId) {
+        console.log(`Found alternative match: ${matchingItemId} for ${item.name}`);
+        itemTx = txByItem[matchingItemId];
+      }
     }
 
+    console.log(`Found ${itemTx.length} transactions for ${item.name}`);
+    
     const totalUsage = itemTx.reduce((sum, t) => sum + t.quantity, 0);
 
     let daysSinceFirst = 1;
@@ -76,6 +92,8 @@ async function processInventoryData(clinicIds) {
     }
 
     const dailyUsage = totalUsage / daysSinceFirst;
+    console.log(`${item.name}: ${totalUsage} units over ${daysSinceFirst} days = ${dailyUsage.toFixed(2)}/day`);
+
     const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     const neededToMin = Math.max(0, item.min_quantity - item.current_quantity);
 
