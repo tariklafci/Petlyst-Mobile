@@ -24,6 +24,7 @@ import VetDashboardScreen from '../screens/VetDashboardScreen';
 import VetAppointmentScreen from '../screens/VetAppointmentScreen';
 import ChatAIScreen from '../screens/ChatAIScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import ClinicPet from '../screens/ClinicPet';
 
 
 /* -------------------------------
@@ -164,7 +165,6 @@ export default function RootNavigator() {
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ChatAIScreen" component={ChatAIScreen} options={{ headerShown: false }} />
-
           </>
         ) : state.user_type === 'veterinarian' ? (
           <>
@@ -173,6 +173,7 @@ export default function RootNavigator() {
             <Stack.Screen name="VetDashboard" component={VetDashboardScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Appointments" component={InboxScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VetProfile" component={VetAppointmentScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ClinicPet" component={ClinicPet} options={{ headerShown: false }} />
           </>
         ) : null}
       </Stack.Navigator>
