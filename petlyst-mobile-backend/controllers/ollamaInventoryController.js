@@ -32,21 +32,26 @@ async function processInventoryData(clinicIds) {
     [numericClinicIds]
   );
 
-  // Get ALL transactions directly with a JOIN - this avoids ID matching issues
-  // By joining on inventory_items.id = inventory_transactions.inventory_item_id
+  // Get usage transactions directly without JOIN - this is simpler and more reliable
+  // The issue could be with clinic_id casting or JOIN conditions
   const txRes = await pool.query(
-    `SELECT t.*, i.name as item_name 
-     FROM inventory_transactions t
-     JOIN inventory_items i ON t.inventory_item_id = i.id
-     WHERE t.clinic_id::integer = ANY($1::integer[])
-       AND t.transaction_type = 'usage'
-     ORDER BY t.transaction_date`,
-    [numericClinicIds]
+    `SELECT * FROM inventory_transactions
+     WHERE transaction_type = 'usage'
+     ORDER BY transaction_date`,
+    []
   );
 
-  console.log(`Found ${txRes.rows.length} usage transactions via JOIN query`);
+  console.log(`Found ${txRes.rows.length} total usage transactions`);
+  
+  // For debugging, let's see what item IDs we have in transactions
+  const transactionItemIds = [...new Set(txRes.rows.map(tx => tx.inventory_item_id))];
+  console.log(`Transaction item IDs: ${transactionItemIds.join(', ')}`);
+  
+  // For debugging, let's see what item IDs we have in inventory
+  const inventoryItemIds = itemsRes.rows.map(item => item.id);
+  console.log(`Inventory item IDs: ${inventoryItemIds.join(', ')}`);
 
-  // Group transactions by item_id for easy access
+  // Group transactions by inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
     const key = tx.inventory_item_id;
@@ -56,7 +61,7 @@ async function processInventoryData(clinicIds) {
   });
 
   return itemsRes.rows.map(item => {
-    // Get transactions for this item using its ID
+    // Get transactions for this item using its ID - direct match
     const itemTx = txByItem[item.id] || [];
     console.log(`Processing ${item.name} (${item.id}): found ${itemTx.length} transactions`);
 
@@ -65,7 +70,12 @@ async function processInventoryData(clinicIds) {
     
     let daysSinceFirst = 1;
     if (itemTx.length > 0) {
-      const firstDate = new Date(itemTx[0].transaction_date);
+      // Sort transactions by date to ensure we get the earliest one
+      const sortedTx = [...itemTx].sort((a, b) => 
+        new Date(a.transaction_date) - new Date(b.transaction_date)
+      );
+      
+      const firstDate = new Date(sortedTx[0].transaction_date);
       daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
       console.log(`${item.name}: First transaction on ${firstDate.toISOString().split('T')[0]}, ${daysSinceFirst} days ago`);
     }
@@ -107,7 +117,7 @@ async function getClinicIdsFromRequest(req) {
   );
   const clinicIds = vetClinics.rows.map(r => r.clinic_id);
   if (!clinicIds.length) { const err = new Error('No clinic associations found for this user'); err.status = 403; throw err; }
-  return clinicIds;
+  return clinicIds;g
 }
 
 async function getClinicName(req) {
