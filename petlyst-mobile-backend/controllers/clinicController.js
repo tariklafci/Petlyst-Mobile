@@ -230,6 +230,7 @@ exports.fetchClinicsAppointment = async (req, res) => {
 
       const result = await pool.query(query, [clinic_id]);
 
+
       if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Clinic not found' });
       }
@@ -364,6 +365,8 @@ exports.fetchClinicPatients = async (req, res) => {
     `;
     
     const { rows } = await pool.query(query, [clinicId]);
+
+    console.log('Clinic patients:', rows);
     
     res.json(rows);
   } catch (error) {
