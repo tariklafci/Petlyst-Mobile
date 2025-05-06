@@ -40,10 +40,39 @@ async function getClinicIdsFromRequest(req) {
   return clinicIds;
 }
 
+async function getClinicName(req) {
+
+  const userId = req.user && (req.user.user_id || req.user.userId);
+  if (!userId) {
+    const err = new Error('User not authenticated');
+    err.status = 401;
+    throw err;
+  }
+
+  const clinicIds = await getClinicIdsFromRequest(req);
+
+  const clinicName = await pool.query(
+    `SELECT clinic_name
+       FROM clinics
+      WHERE clinic_id = $1`,
+    [clinicIds]
+  );
+
+  const clinicNames = clinicName.rows.map(r => r.clinic_name);
+  
+  if (clinicNames.length === 0) {
+    const err = new Error('No clinic names found for this clinic');
+    err.status = 403;
+    throw err;
+  }
+
+  return clinicNames;
+}
+
 exports.checkReorder = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
-
+    const clinicName = await getClinicName(req);
     const itemsRes = await pool.query(
       `SELECT * 
          FROM inventory_items
@@ -57,9 +86,9 @@ exports.checkReorder = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Based on my current inventory and transaction history for clinic(s) ${clinicIds.join(
+    const prompt = `Based on my current inventory and transaction history for clinic(s) ${clinicName.join(
       ', '
-    )}, do I need to reorder any vaccine?
+    )}, do I need to reorder any vaccine? 
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
@@ -80,7 +109,7 @@ Answer succinctly.`;
 exports.calculateStockDays = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
-
+    const clinicName = await getClinicName(req);
     const itemsRes = await pool.query(
       `SELECT * 
          FROM inventory_items
@@ -94,7 +123,7 @@ exports.calculateStockDays = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Given my inventory and usage history for clinic(s) ${clinicIds.join(
+    const prompt = `Given my inventory and usage history for clinic(s) ${clinicName.join(
       ', '
     )}, how many days of stock do I have left for each item, assuming recent usage patterns continue?
 
@@ -117,7 +146,7 @@ Provide one line per item: item name – days of stock remaining.`;
 exports.averageWeeklyConsumption = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
-
+    const clinicName = await getClinicName(req);
     const itemsRes = await pool.query(
       `SELECT * 
          FROM inventory_items
@@ -131,7 +160,7 @@ exports.averageWeeklyConsumption = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `What is the average weekly consumption of each inventory item for clinic(s) ${clinicIds.join(
+    const prompt = `What is the average weekly consumption of each inventory item for clinic(s) ${clinicName.join(
       ', '
     )}, based on my transaction history?
 
@@ -154,7 +183,7 @@ List each item with its average weekly usage.`;
 exports.identifySlowMoving = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
-
+    const clinicName = await getClinicName(req);
     const itemsRes = await pool.query(
       `SELECT * 
          FROM inventory_items
@@ -168,7 +197,7 @@ exports.identifySlowMoving = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Identify which items in my inventory for clinic(s) ${clinicIds.join(
+    const prompt = `Identify which items in my inventory for clinic(s) ${clinicName.join(
       ', '
     )} are slow‐moving (i.e., haven't been used much recently), based on transaction history.
 
