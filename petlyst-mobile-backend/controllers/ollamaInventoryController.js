@@ -9,30 +9,21 @@ const systemPromptBase = `You are VetInventoryGPT, a veterinary inventory manage
 Respond directly to the user prompt that follows.`;
 
 const systemPromptReorder = `
-5. For the prompt: “Based on my current inventory and transaction history for clinic, do I need to reorder any vaccine?”:
-   - Use only transactions where transaction_type is "usage".
-   - Calculate daily usage: total usage quantity / number of full calendar days between the earliest usage transaction and today's date (2025-05-06).
-   - For each item, calculate: days_remaining = current_stock / daily_usage.
-   - Recommend reorder **only if** days_remaining < 7.
-   - If reorder is needed, explain briefly: e.g. “Expected to run out in 2.3 days based on recent usage.”`;
+    “Based on my current inventory and transaction history for clinic, do I need to reorder any vaccine?”:
+   - Only consider transactions where transaction_type is "usage".
+   - Calculate daily usage as: total usage quantity / number of full calendar days between the earliest usage transaction date and today's date (2025-05-06).
+   - Recommend reorder only if:
+     • current_stock < min_quantity
+     OR
+     • days_remaining < 7 (days_remaining = current_stock / daily_usage)
+   - Clearly explain which items need reorder and why, e.g., "Stock is below minimum threshold" or "Expected to run out in X days."`;
 
 const systemPromptDaysRemaining = `
-5. For the prompt: “How many days of stock do I have left for each item?”:
+    “How many days of stock do I have left for each item?”:
    - Use only "usage" transactions.
-   - Calculate daily usage as described above.
-   - Compute days_remaining = current_stock / daily_usage for each item.
+   - Calculate daily usage: total usage quantity / number of full calendar days between the earliest usage date and 2025-05-06.
+   - For each item, compute: days_remaining = current_stock / daily_usage
    - Present each item as: “Item Name: X days remaining.”`;
-
-const systemPromptWeeklyUsage = `
-5. For: “What is the average weekly consumption of each item?”:
-   - Compute daily usage.
-   - Weekly usage = daily_usage × 7.
-   - Present as: “Item Name: X units/week.”`;
-
-const systemPromptSlowMoving = `
-5. For: “Which items are slow-moving?”:
-   - Identify items with little or no usage in the past 30 days.
-   - List those items and explain with a short note like “No usage in last 30 days.”`;
 
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
@@ -181,82 +172,6 @@ Provide one line per item: item name – days of stock remaining.`;
     res.json({ title: data.title, code: data.code, raw: data.raw });
   } catch (err) {
     console.error('calculateStockDays error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-exports.averageWeeklyConsumption = async (req, res) => {
-  try {
-    const clinicIds = await getClinicIdsFromRequest(req);
-    const clinicName = await getClinicName(req);
-    const itemsRes = await pool.query(
-      `SELECT * 
-         FROM inventory_items
-        WHERE clinic_id = ANY($1)`,
-      [clinicIds]
-    );
-    const txRes = await pool.query(
-      `SELECT *
-         FROM inventory_transactions
-        WHERE clinic_id = ANY($1)`,
-      [clinicIds]
-    );
-
-    const prompt = `What is the average weekly consumption of each inventory item for clinic ${clinicName.join(
-      ', '
-    )}, based on my transaction history?
-
-Inventory Items:
-${JSON.stringify(itemsRes.rows)}
-
-Inventory Transactions:
-${JSON.stringify(txRes.rows)}
-
-List each item with its average weekly usage.`;
-
-    const system_instruction = systemPromptBase + systemPromptWeeklyUsage;
-    const data = await callLlama(prompt, system_instruction);
-    res.json({ title: data.title, code: data.code, raw: data.raw });
-  } catch (err) {
-    console.error('averageWeeklyConsumption error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-exports.identifySlowMoving = async (req, res) => {
-  try {
-    const clinicIds = await getClinicIdsFromRequest(req);
-    const clinicName = await getClinicName(req);
-    const itemsRes = await pool.query(
-      `SELECT * 
-         FROM inventory_items
-        WHERE clinic_id = ANY($1)`,
-      [clinicIds]
-    );
-    const txRes = await pool.query(
-      `SELECT *
-         FROM inventory_transactions
-        WHERE clinic_id = ANY($1)`,
-      [clinicIds]
-    );
-
-    const prompt = `Identify which items in my inventory for clinic ${clinicName.join(
-      ', '
-    )} are slow‐moving (i.e., haven't been used much recently), based on transaction history.
-
-Inventory Items:
-${JSON.stringify(itemsRes.rows)}
-
-Inventory Transactions:
-${JSON.stringify(txRes.rows)}
-
-Return a short list of item names that qualify as slow-moving.`;
-
-    const system_instruction = systemPromptBase + systemPromptSlowMoving;
-    const data = await callLlama(prompt, system_instruction);
-    res.json({ title: data.title, code: data.code, raw: data.raw });
-  } catch (err) {
-    console.error('identifySlowMoving error:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 };
