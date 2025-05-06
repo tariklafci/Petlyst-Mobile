@@ -86,7 +86,7 @@ exports.checkReorder = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Based on my current inventory and transaction history for clinic(s) ${clinicName.join(
+    const prompt = `Based on my current inventory and transaction history for clinic ${clinicName.join(
       ', '
     )}, do I need to reorder any vaccine? 
 
@@ -123,7 +123,7 @@ exports.calculateStockDays = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Given my inventory and usage history for clinic(s) ${clinicName.join(
+    const prompt = `Given my inventory and usage history for clinic ${clinicName.join(
       ', '
     )}, how many days of stock do I have left for each item, assuming recent usage patterns continue?
 
@@ -160,7 +160,7 @@ exports.averageWeeklyConsumption = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `What is the average weekly consumption of each inventory item for clinic(s) ${clinicName.join(
+    const prompt = `What is the average weekly consumption of each inventory item for clinic ${clinicName.join(
       ', '
     )}, based on my transaction history?
 
@@ -197,7 +197,7 @@ exports.identifySlowMoving = async (req, res) => {
       [clinicIds]
     );
 
-    const prompt = `Identify which items in my inventory for clinic(s) ${clinicName.join(
+    const prompt = `Identify which items in my inventory for clinic ${clinicName.join(
       ', '
     )} are slow‐moving (i.e., haven't been used much recently), based on transaction history.
 
