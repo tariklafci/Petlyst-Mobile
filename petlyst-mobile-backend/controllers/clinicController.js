@@ -303,7 +303,7 @@ exports.fetchClinicHospitalizationRooms = async (req, res) => {
   try {
     const userId = req.user.sub;
     
-    const clinicId = await pool.query('SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1', [userId]);
+    const clinicId = (await pool.query('SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1', [userId])).rows[0].clinic_id;
 
     console.log("clinicId:", clinicId);
 
