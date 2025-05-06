@@ -495,3 +495,289 @@ exports.fetchExaminationDiagnoses = async (req, res) => {
   }
 };
 
+// Fetch all pet hospitalizations for the clinic
+exports.fetchPetHospitalizations = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    
+    // Get clinic ID for the veterinarian
+    const clinicResult = await pool.query(
+      'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+      [userId]
+    );
+
+    if (clinicResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+
+    const clinicId = clinicResult.rows[0].clinic_id;
+    
+    const query = `
+      SELECT 
+        ph.id,
+        ph.room_id,
+        ph.pet_id,
+        ph.admission_date,
+        ph.expected_discharge_date,
+        ph.actual_discharge_date,
+        ph.created_at,
+        ph.updated_at,
+        chr.room_name,
+        chr.room_type,
+        p.pet_name,
+        p.pet_species,
+        p.pet_breed
+      FROM pet_hospitalizations ph
+      JOIN clinic_hospitalization_rooms chr ON ph.room_id = chr.id
+      JOIN pets p ON ph.pet_id = p.pet_id
+      WHERE chr.clinic_id = $1
+      ORDER BY ph.admission_date DESC
+    `;
+    
+    const { rows } = await pool.query(query, [clinicId]);
+    
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching pet hospitalizations:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Fetch hospitalization details for a specific room
+exports.fetchRoomHospitalization = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.sub;
+    
+    // Get clinic ID for the veterinarian
+    const clinicResult = await pool.query(
+      'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+      [userId]
+    );
+
+    if (clinicResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+
+    const clinicId = clinicResult.rows[0].clinic_id;
+    
+    // Verify room belongs to this clinic
+    const roomCheck = await pool.query(
+      'SELECT id FROM clinic_hospitalization_rooms WHERE id = $1 AND clinic_id = $2',
+      [roomId, clinicId]
+    );
+    
+    if (roomCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'This room does not belong to your clinic' });
+    }
+    
+    // Get active hospitalization (no discharge date)
+    const query = `
+      SELECT 
+        ph.id,
+        ph.room_id,
+        ph.pet_id,
+        ph.admission_date,
+        ph.expected_discharge_date,
+        ph.actual_discharge_date,
+        ph.created_at,
+        ph.updated_at,
+        p.pet_name,
+        p.pet_species,
+        p.pet_breed
+      FROM pet_hospitalizations ph
+      JOIN pets p ON ph.pet_id = p.pet_id
+      WHERE ph.room_id = $1 AND ph.actual_discharge_date IS NULL
+      ORDER BY ph.admission_date DESC
+      LIMIT 1
+    `;
+    
+    const { rows } = await pool.query(query, [roomId]);
+    
+    if (rows.length === 0) {
+      // No active hospitalization
+      return res.json(null);
+    }
+    
+    res.json(rows[0]);
+  } catch (error) {
+    console.error(`Error fetching hospitalization for room ${req.params.roomId}:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Create a new pet hospitalization
+exports.createPetHospitalization = async (req, res) => {
+  try {
+    const { roomId, petId, admissionDate, expectedDischargeDate } = req.body;
+    
+    if (!roomId || !petId || !admissionDate) {
+      return res.status(400).json({ error: 'Room ID, Pet ID, and Admission Date are required' });
+    }
+    
+    const userId = req.user.sub;
+    
+    // Get clinic ID for the veterinarian
+    const clinicResult = await pool.query(
+      'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+      [userId]
+    );
+
+    if (clinicResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+
+    const clinicId = clinicResult.rows[0].clinic_id;
+    
+    // Verify room belongs to this clinic and is vacant
+    const roomCheck = await pool.query(
+      'SELECT id, room_status FROM clinic_hospitalization_rooms WHERE id = $1 AND clinic_id = $2',
+      [roomId, clinicId]
+    );
+    
+    if (roomCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'This room does not belong to your clinic' });
+    }
+    
+    if (roomCheck.rows[0].room_status !== 'vacant') {
+      return res.status(400).json({ error: 'This room is not vacant' });
+    }
+    
+    // Verify pet is a patient at this clinic
+    const petCheck = await pool.query(
+      'SELECT id FROM clinic_patients WHERE pet_id = $1 AND clinic_id = $2',
+      [petId, clinicId]
+    );
+    
+    if (petCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'This pet is not a patient at your clinic' });
+    }
+    
+    // Begin transaction
+    await pool.query('BEGIN');
+    
+    // Create hospitalization record
+    const hospitalizationQuery = `
+      INSERT INTO pet_hospitalizations (
+        room_id, 
+        pet_id, 
+        admission_date, 
+        expected_discharge_date
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `;
+    
+    const hospitalizationValues = [
+      roomId,
+      petId,
+      admissionDate,
+      expectedDischargeDate || null
+    ];
+    
+    const hospitalizationResult = await pool.query(hospitalizationQuery, hospitalizationValues);
+    
+    // Update room status to occupied
+    const updateRoomQuery = `
+      UPDATE clinic_hospitalization_rooms
+      SET room_status = 'occupied', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `;
+    
+    await pool.query(updateRoomQuery, [roomId]);
+    
+    // Commit transaction
+    await pool.query('COMMIT');
+    
+    res.status(201).json({
+      id: hospitalizationResult.rows[0].id,
+      message: 'Pet hospitalized successfully'
+    });
+  } catch (error) {
+    // Rollback in case of error
+    await pool.query('ROLLBACK');
+    console.error('Error creating pet hospitalization:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+// Discharge a pet
+exports.dischargePet = async (req, res) => {
+  try {
+    const { hospitalizationId } = req.params;
+    const { actualDischargeDate } = req.body;
+    
+    if (!hospitalizationId) {
+      return res.status(400).json({ error: 'Hospitalization ID is required' });
+    }
+    
+    const dischargeDate = actualDischargeDate || new Date().toISOString();
+    
+    const userId = req.user.sub;
+    
+    // Get clinic ID for the veterinarian
+    const clinicResult = await pool.query(
+      'SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1',
+      [userId]
+    );
+
+    if (clinicResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No clinic associated with this user' });
+    }
+
+    const clinicId = clinicResult.rows[0].clinic_id;
+    
+    // Verify hospitalization belongs to this clinic
+    const hospitalizationCheck = `
+      SELECT ph.id, ph.room_id
+      FROM pet_hospitalizations ph
+      JOIN clinic_hospitalization_rooms chr ON ph.room_id = chr.id
+      WHERE ph.id = $1 AND chr.clinic_id = $2 AND ph.actual_discharge_date IS NULL
+    `;
+    
+    const hospitalizationResult = await pool.query(hospitalizationCheck, [hospitalizationId, clinicId]);
+    
+    if (hospitalizationResult.rows.length === 0) {
+      return res.status(403).json({ 
+        error: 'This hospitalization record does not exist, does not belong to your clinic, or the pet has already been discharged' 
+      });
+    }
+    
+    const roomId = hospitalizationResult.rows[0].room_id;
+    
+    // Begin transaction
+    await pool.query('BEGIN');
+    
+    // Update hospitalization record with discharge date
+    const updateHospitalizationQuery = `
+      UPDATE pet_hospitalizations
+      SET actual_discharge_date = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `;
+    
+    await pool.query(updateHospitalizationQuery, [dischargeDate, hospitalizationId]);
+    
+    // Update room status to vacant
+    const updateRoomQuery = `
+      UPDATE clinic_hospitalization_rooms
+      SET room_status = 'vacant', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `;
+    
+    await pool.query(updateRoomQuery, [roomId]);
+    
+    // Commit transaction
+    await pool.query('COMMIT');
+    
+    res.json({
+      message: 'Pet discharged successfully',
+      discharge_date: dischargeDate
+    });
+  } catch (error) {
+    // Rollback in case of error
+    await pool.query('ROLLBACK');
+    console.error(`Error discharging pet from hospitalization ${req.params.hospitalizationId}:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
