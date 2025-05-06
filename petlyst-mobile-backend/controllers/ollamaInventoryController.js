@@ -1,6 +1,5 @@
 const pool = require('../config/db');
 
-// Single, consolidated system prompt that covers all inventory analysis needs
 const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management expert. Provide concise, actionable inventory insights with these guidelines:
 
 1. Begin with a one-sentence summary of the overall inventory status.
@@ -39,9 +38,10 @@ async function processInventoryData(clinicIds) {
     [numericClinicIds]
   );
 
+  // Group transactions strictly by inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
-    const key = tx.inventory_item_id ?? tx.item_id;
+    const key = tx.inventory_item_id;
     if (!key) return;
     if (!txByItem[key]) txByItem[key] = [];
     txByItem[key].push(tx);
@@ -57,6 +57,7 @@ async function processInventoryData(clinicIds) {
       daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
     }
 
+    // calculate daily usage correctly
     const dailyUsage = totalUsage / daysSinceFirst;
     const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     const neededToMin = Math.max(0, item.min_quantity - item.current_quantity);
@@ -143,7 +144,7 @@ exports.calculateStockDays = async (req, res) => {
     const clinicName = await getClinicName(req);
     const metrics = await processInventoryData(clinicIds);
 
-    let prompt = `Analyze days of stock remaining for ${clinicName.join(', ')} clinic:`;
+    let prompt = `Analyze days of stock remaining for ${clinicName.join(', ')} clinic:`;    
     const sorted = [...metrics].sort((a, b) => {
       if (a.days_remaining === 'N/A') return 1;
       if (b.days_remaining === 'N/A') return -1;
@@ -157,46 +158,6 @@ exports.calculateStockDays = async (req, res) => {
     res.json({ title: data.title, code: data.code, raw: data.raw, stockDays: sorted });
   } catch (err) {
     console.error('calculateStockDays error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-exports.averageWeeklyConsumption = async (req, res) => {
-  try {
-    const clinicIds = await getClinicIdsFromRequest(req);
-    const metrics = await processInventoryData(clinicIds);
-
-    let prompt = 'Average weekly consumption for each item:';
-    metrics.forEach(item => {
-      const weekly = (parseFloat(item.daily_usage) * 7).toFixed(2);
-      prompt += `\n• ${item.name}: ${weekly} units/week`;
-    });
-
-    const data = await callLlama(prompt);
-    res.json({ title: data.title, code: data.code, raw: data.raw, weeklyConsumption: metrics });
-  } catch (err) {
-    console.error('averageWeeklyConsumption error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-exports.identifySlowMoving = async (req, res) => {
-  try {
-    const clinicIds = await getClinicIdsFromRequest(req);
-    const metrics = await processInventoryData(clinicIds);
-
-    const slow = metrics.filter(m => parseFloat(m.daily_usage) < 1);
-    let prompt = slow.length
-      ? 'Slow-moving items (usage < 1/day):'
-      : 'No slow-moving items.';
-    slow.forEach(item => {
-      prompt += `\n• ${item.name} (${item.daily_usage}/day)`;
-    });
-
-    const data = await callLlama(prompt);
-    res.json({ title: data.title, code: data.code, raw: data.raw, slowMoving: slow });
-  } catch (err) {
-    console.error('identifySlowMoving error:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 };
