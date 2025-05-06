@@ -1,14 +1,16 @@
+// src/controllers/ollamaInventoryController.js
 
 const pool = require('../config/db');
+const fetch = require('node-fetch'); // omit if using Node ≥18 which has global fetch
 
+// Single, consolidated system prompt that covers all inventory analysis needs
 const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management expert. Provide concise, actionable inventory insights with these guidelines:
 
 1. Begin with a one-sentence summary of the overall inventory status.
 2. Use bullet points for all lists and recommendations.
-3. Focus on items needing attention - those below minimum thresholds or with less than 10 days of supply.
+3. Focus on items needing attention - those below minimum thresholds or with less than 7 days of supply.
 4. Include specific recommendations for reordering and inventory optimization.
-5. Keep your response under 300 words, prioritizing actionable insights over general descriptions.
-`;
+5. Keep your response under 300 words, prioritizing actionable insights over general descriptions.`;
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
 
@@ -24,35 +26,25 @@ async function callLlama(prompt, system_instruction = systemPrompt) {
 
 async function processInventoryData(clinicIds) {
   const today = new Date();
+  const numericClinicIds = clinicIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (!numericClinicIds.length) throw new Error('No valid clinic IDs available for inventory data');
 
-  // parse IDs to integers & filter out invalid
-  const numericClinicIds = clinicIds
-    .map(id => parseInt(id, 10))
-    .filter(id => !isNaN(id));
-
-  if (numericClinicIds.length === 0) {
-    throw new Error('No valid clinic IDs available for inventory data');
-  }
-
-  // fetch items (clinic_id is integer in inventory_items)
+  // fetch items
   const itemsRes = await pool.query(
-    `SELECT * 
-       FROM inventory_items
-      WHERE clinic_id = ANY($1)`,
+    `SELECT * FROM inventory_items WHERE clinic_id = ANY($1)`,
     [numericClinicIds]
   );
 
-  // fetch usage transactions (clinic_id is varchar, so cast to integer)
+  // fetch usage transactions (clinic_id stored as varchar, cast to integer)
   const txRes = await pool.query(
-    `SELECT *
-       FROM inventory_transactions
-      WHERE clinic_id::integer = ANY($1)
-        AND transaction_type = 'usage'
-      ORDER BY transaction_date`,
+    `SELECT * FROM inventory_transactions
+     WHERE clinic_id::integer = ANY($1)
+       AND transaction_type = 'usage'
+     ORDER BY transaction_date`,
     [numericClinicIds]
   );
 
-  // group transactions by inventory_item_id
+  // group by inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
     const key = tx.inventory_item_id;
@@ -66,21 +58,14 @@ async function processInventoryData(clinicIds) {
     const itemTx = txByItem[item.id] || [];
     const totalUsage = itemTx.reduce((sum, t) => sum + t.quantity, 0);
 
-    let daysSinceFirstTx = 1;
+    let daysSinceFirst = 1;
     if (itemTx.length) {
       const firstDate = new Date(itemTx[0].transaction_date);
-      daysSinceFirstTx = Math.max(
-        1,
-        Math.floor((today - firstDate) / (1000 * 60 * 60 * 24))
-      );
+      daysSinceFirst = Math.max(1, Math.floor((today - firstDate) / (1000 * 60 * 60 * 24)));
     }
 
-    const dailyUsage = totalUsage / daysSinceFirstTx;
-    const daysRemaining =
-      dailyUsage > 0
-        ? Math.floor(item.current_quantity / dailyUsage)
-        : null;
-
+    const dailyUsage = totalUsage / daysSinceFirst;
+    const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     const neededToMin = Math.max(0, item.min_quantity - item.current_quantity);
 
     return {
@@ -93,7 +78,7 @@ async function processInventoryData(clinicIds) {
       is_below_minimum: item.current_quantity < item.min_quantity,
       needs_reorder:
         item.current_quantity < item.min_quantity ||
-        (daysRemaining !== null && daysRemaining < 10),
+        (daysRemaining !== null && daysRemaining < 7),
       needed_to_minimum: neededToMin,
       profit_per_item: (item.sale_price - item.purchase_price).toFixed(2),
       purchase_price: item.purchase_price,
@@ -111,14 +96,11 @@ async function getClinicIdsFromRequest(req) {
   }
 
   const vetClinics = await pool.query(
-    `SELECT clinic_id
-       FROM clinic_veterinarians
-      WHERE veterinarian_id = $1`,
+    `SELECT clinic_id FROM clinic_veterinarians WHERE veterinarian_id = $1`,
     [userId]
   );
-
   const clinicIds = vetClinics.rows.map(r => r.clinic_id);
-  if (clinicIds.length === 0) {
+  if (!clinicIds.length) {
     const err = new Error('No clinic associations found for this user');
     err.status = 403;
     throw err;
@@ -127,18 +109,45 @@ async function getClinicIdsFromRequest(req) {
   return clinicIds;
 }
 
-// Controller exports:
+async function getClinicName(req) {
+  const clinicIds = await getClinicIdsFromRequest(req);
+  const numeric = clinicIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  if (!numeric.length) throw new Error('No valid clinic IDs available for clinic names');
 
+  const res = await pool.query(
+    `SELECT clinic_name FROM clinics WHERE clinic_id = ANY($1)`,
+    [numeric]
+  );
+  const names = res.rows.map(r => r.clinic_name);
+  if (!names.length) {
+    const err = new Error('No clinic names found for this clinic');
+    err.status = 403;
+    throw err;
+  }
+  return names;
+}
+
+// 1) Reorder check
 exports.checkReorder = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
+    const clinicName = await getClinicName(req);
     const metrics = await processInventoryData(clinicIds);
-    const itemsNeeding = metrics.filter(m => m.needs_reorder);
 
-    let prompt = itemsNeeding.length
-      ? `The following items need reordering:\n` +
-        itemsNeeding.map(m => `• ${m.name}: needs ${m.needed_to_minimum} more to reach minimum`).join('\n')
-      : `All items are above minimum thresholds.`;
+    const itemsNeeding = metrics.filter(m => m.needs_reorder);
+    let prompt = `Analyze reordering needs for ${clinicName.join(', ')} clinic inventory:`;
+
+    if (!itemsNeeding.length) {
+      prompt += `\n\nAll ${metrics.length} inventory items are adequately stocked.`;
+    } else {
+      prompt += `\n\n${itemsNeeding.length} of ${metrics.length} items need attention:`;
+      itemsNeeding.forEach(item => {
+        const reason = item.is_below_minimum
+          ? `Below minimum (${item.current_quantity}/${item.min_quantity})`
+          : `Low supply (${item.days_remaining} days remaining)`;
+        prompt += `\n• ${item.name}: ${reason}, needs ${item.needed_to_minimum} more to reach minimum, uses ${item.daily_usage}/day`;
+      });
+    }
 
     const data = await callLlama(prompt);
     res.json({ title: data.title, raw: data.raw, itemsNeeding });
@@ -148,22 +157,25 @@ exports.checkReorder = async (req, res) => {
   }
 };
 
+// 2) Days of stock remaining
 exports.calculateStockDays = async (req, res) => {
   try {
     const clinicIds = await getClinicIdsFromRequest(req);
+    const clinicName = await getClinicName(req);
     const metrics = await processInventoryData(clinicIds);
 
-    let prompt =
-      'Days of stock remaining for each item:\n' +
-      metrics
-        .map(
-          m =>
-            `• ${m.name}: ${m.days_remaining} days remaining (usage ${m.daily_usage}/day)`
-        )
-        .join('\n');
+    let prompt = `Analyze days of stock remaining for ${clinicName.join(', ')} clinic:`;
+    const sorted = [...metrics].sort((a, b) => {
+      if (a.days_remaining === 'N/A') return 1;
+      if (b.days_remaining === 'N/A') return -1;
+      return a.days_remaining - b.days_remaining;
+    });
+    sorted.forEach(item => {
+      prompt += `\n• ${item.name}: ${item.days_remaining} days remaining (Current: ${item.current_quantity}, Usage: ${item.daily_usage}/day)`;
+    });
 
     const data = await callLlama(prompt);
-    res.json({ title: data.title, raw: data.raw, stockDays: metrics });
+    res.json({ title: data.title, raw: data.raw, stockDays: sorted });
   } catch (err) {
     console.error('calculateStockDays error:', err);
     res.status(err.status || 500).json({ error: err.message });
