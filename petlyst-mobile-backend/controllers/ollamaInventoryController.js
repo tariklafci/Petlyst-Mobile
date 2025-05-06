@@ -9,7 +9,6 @@ const systemPromptBase = `You are VetInventoryGPT, a veterinary inventory manage
 Respond directly to the user prompt that follows.`;
 
 const systemPromptReorder = `
-    “Based on my current inventory and transaction history for clinic, do I need to reorder any vaccine?”:
    - Only consider transactions where transaction_type is "usage".
    - Calculate daily usage as: total usage quantity / number of full calendar days between the earliest usage transaction date and today's date (2025-05-06).
    - Recommend reorder only if:
@@ -19,7 +18,6 @@ const systemPromptReorder = `
    - Clearly explain which items need reorder and why, e.g., "Stock is below minimum threshold" or "Expected to run out in X days."`;
 
 const systemPromptDaysRemaining = `
-    “How many days of stock do I have left for each item?”:
    - Use only "usage" transactions.
    - Calculate daily usage: total usage quantity / number of full calendar days between the earliest usage date and 2025-05-06.
    - For each item, compute: days_remaining = current_stock / daily_usage
