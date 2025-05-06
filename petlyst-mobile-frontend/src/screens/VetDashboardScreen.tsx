@@ -25,7 +25,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 const { width, height } = Dimensions.get('window');
 
 type VerificationStatus = 'pending' | 'archived' | 'active' | 'verified' | 'pending submission' | 'not_verified' | 'rejected';
-type CreationStatus = 'complete' | 'incomplete';
 type ClinicType = 'veterinary_clinic' | 'animal_hospital';
 type PhoneType = 'mobile' | 'landline' | 'emergency' | 'whatsapp';
 
@@ -64,7 +63,6 @@ interface Clinic {
   establishment_year: number;
   show_phone_number: boolean;
   allow_direct_messages: boolean;
-  clinic_creation_status: CreationStatus;
   show_mail_address: boolean;
   allow_online_meetings: boolean;
   available_days: boolean[];
@@ -265,20 +263,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
             <Text style={styles.statusText}>{clinic.verification_status}</Text>
           </View>
         </View>
-
-        {clinic.photos && clinic.photos.length > 0 && (
-          <Animatable.View animation="fadeIn" duration={800} style={styles.photoBanner}>
-            <Image 
-              source={{ uri: clinic.photos[0].presigned_url || clinic.photos[0].s3_url }} 
-              style={styles.clinicPhoto}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.7)']}
-              style={styles.photoBannerGradient}
-            />
-          </Animatable.View>
-        )}
       </LinearGradient>
       
       <Animatable.View 
@@ -318,11 +302,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={styles.infoValue}>{clinic.establishment_year}</Text>
               </View>
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Status:</Text>
-                <Text style={styles.infoValue}>{clinic.clinic_creation_status}</Text>
-              </View>
-
               {clinic.average_rating !== null && (
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Rating:</Text>
@@ -360,7 +339,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                   )}
                 </View>
                 <TouchableOpacity
-                  onLongPress={() => copyToClipboard(clinic.location?.address || clinic.address, 'Address')}
                   style={styles.addressTouchable}
                 >
                   <Text style={styles.addressValue}>
@@ -451,7 +429,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
                     <TouchableOpacity 
                       style={styles.socialLink}
                       onPress={() => openUrl(social.url)}
-                      onLongPress={() => copyToClipboard(social.url, 'URL')}
                     >
                       <Text style={styles.socialLinkText} numberOfLines={1} ellipsizeMode="tail">
                         {social.url}
