@@ -203,7 +203,7 @@ const ClinicPet = ({ navigation }: { navigation: any }) => {
     setPatientModalVisible(true);
     
     // Fetch examinations for this patient
-    const examData = await fetchPatientExaminations(patient.pet_id);
+    const examData = await fetchPatientExaminations(patient.pet_id.toString());
     setExaminations(examData);
     
     // Clear previous diagnoses
