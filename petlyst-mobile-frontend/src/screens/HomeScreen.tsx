@@ -22,7 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 
 type ClinicPhoto = {
   photo_id: number;
-  created_at: string;
+  s3_url: string;
   presigned_url: string;
 };
 
