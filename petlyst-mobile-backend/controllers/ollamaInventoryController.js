@@ -169,7 +169,7 @@ exports.calculateStockDays = async (req, res) => {
     const clinicName = await getClinicName(req);
     const metrics = await processInventoryData(clinicIds);
 
-    let prompt = `Analyze days of stock remaining for ${clinicName.join(', ')} clinic:`;    
+    let prompt = `Analyze days of stock remaining for each item in ${clinicName.join(', ')} clinic:`;    
     const sorted = [...metrics].sort((a, b) => {
       if (a.days_remaining === 'N/A') return 1;
       if (b.days_remaining === 'N/A') return -1;
