@@ -1,5 +1,4 @@
 const pool = require('../config/db');
-const fetch = require('node-fetch'); // omit if using Node ≥18 which has global fetch
 
 // Single, consolidated system prompt that covers all inventory analysis needs
 const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management expert. Provide concise, actionable inventory insights with these guidelines:
