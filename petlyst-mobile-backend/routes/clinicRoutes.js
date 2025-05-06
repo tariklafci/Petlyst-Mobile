@@ -22,7 +22,7 @@ router.get('/fetch-clinic-coordinates', authenticateToken, fetchClinicCoordinate
 // Clinic pet management routes
 router.get('/clinic-hospitalization-rooms', authenticateToken, fetchClinicHospitalizationRooms);
 router.get('/clinic-patients', authenticateToken, fetchClinicPatients);
-router.get('/clinic-examinations/pet/:petId', authenticateToken, fetchPetExaminations);
+router.get('/clinic-examinations:petId', authenticateToken, fetchPetExaminations);
 router.get('/clinic-diagnoses/examination/:examinationId', authenticateToken, fetchExaminationDiagnoses);
 
 module.exports = router;
