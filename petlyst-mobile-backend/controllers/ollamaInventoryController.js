@@ -54,7 +54,7 @@ async function getClinicName(req) {
   const clinicName = await pool.query(
     `SELECT clinic_name
        FROM clinics
-      WHERE clinic_id = $1`,
+      WHERE clinic_id = ANY($1)`,
     [clinicIds]
   );
 
