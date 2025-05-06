@@ -376,6 +376,26 @@ exports.updateAppointmentStatus = async (req, res) => {
     }
     const updatedAppointment = updatedRows[0];
 
+    // If appointment status is successfully changed, insert into clinic_patients
+    if (updatedAppointment) {
+      // Check if the pet is already a patient at this clinic
+      const checkPatientQuery = `
+        SELECT id FROM clinic_patients 
+        WHERE clinic_id = $1 AND pet_id = $2
+      `;
+      const { rows: existingPatient } = await pool.query(checkPatientQuery, [clinic_id, pet_id]);
+
+      // If not already a patient, insert into clinic_patients
+      if (!existingPatient.length) {
+        const insertPatientQuery = `
+          INSERT INTO clinic_patients (clinic_id, pet_id)
+          VALUES ($1, $2)
+          RETURNING *
+        `;
+        await pool.query(insertPatientQuery, [clinic_id, pet_id]);
+      }
+    }
+
     // Notify owner
     try {
       await notifyUserAppointmentStatusChanged(
