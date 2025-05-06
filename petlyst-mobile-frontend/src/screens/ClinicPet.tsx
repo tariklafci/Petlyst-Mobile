@@ -147,7 +147,7 @@ const ClinicPet = ({ navigation }: { navigation: any }) => {
   const fetchPatientExaminations = async (petId: string) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      const response = await fetch(`https://petlyst.com:3001/api/clinic-examinations?pet_id=${petId}`, {
+      const response = await fetch(`https://petlyst.com:3001/api/clinic-examinations/${petId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
