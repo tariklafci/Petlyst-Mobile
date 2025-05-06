@@ -12,7 +12,6 @@
     "bcrypt": "^5.1.1",
     "expo": "^52.0.24",
     "expo-camera": "~16.0.10",
-    "expo-clipboard": "^7.1.4",
     "expo-constants": "~17.0.8",
     "expo-device": "~7.0.3",
     "expo-image-picker": "~16.0.3",
