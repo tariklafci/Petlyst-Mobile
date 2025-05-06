@@ -26,23 +26,25 @@ async function processInventoryData(clinicIds) {
   const numericClinicIds = clinicIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
   if (!numericClinicIds.length) throw new Error('No valid clinic IDs available for inventory data');
 
+  // fetch items explicitly casting param to integer[]
   const itemsRes = await pool.query(
-    `SELECT * FROM inventory_items WHERE clinic_id = ANY($1)`,
+    `SELECT * FROM inventory_items WHERE clinic_id = ANY($1::integer[])`,
     [numericClinicIds]
   );
 
+  // fetch usage transactions explicitly casting param to integer[]
   const txRes = await pool.query(
     `SELECT * FROM inventory_transactions
-     WHERE clinic_id::integer = ANY($1)
+     WHERE clinic_id::integer = ANY($1::integer[])
        AND transaction_type = 'usage'
      ORDER BY transaction_date`,
     [numericClinicIds]
   );
 
-  // Group transactions by either inventory_item_id or fallback to item_id
+  // Group transactions by inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
-    const key = tx.inventory_item_id ?? tx.item_id;
+    const key = tx.inventory_item_id;
     if (!key) return;
     if (!txByItem[key]) txByItem[key] = [];
     txByItem[key].push(tx);
@@ -101,7 +103,7 @@ async function getClinicName(req) {
   if (!numeric.length) throw new Error('No valid clinic IDs available for clinic names');
 
   const res = await pool.query(
-    `SELECT clinic_name FROM clinics WHERE clinic_id = ANY($1)`,
+    `SELECT clinic_name FROM clinics WHERE clinic_id = ANY($1::integer[])`,
     [numeric]
   );
   const names = res.rows.map(r => r.clinic_name);
@@ -161,3 +163,4 @@ exports.calculateStockDays = async (req, res) => {
     res.status(err.status || 500).json({ error: err.message });
   }
 };
+
