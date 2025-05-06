@@ -5,7 +5,7 @@ const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management
 
 1. Begin with a one-sentence summary of the overall inventory status.
 2. Use bullet points for all lists and recommendations.
-3. Focus on items needing attention - those below minimum thresholds or with less than 7 days of supply.
+3. Focus on items needing attention - those below minimum thresholds or with less than 10 days of supply.
 4. Include specific recommendations for reordering and inventory optimization.
 5. Keep your response under 300 words, prioritizing actionable insights over general descriptions.`;
 
@@ -113,7 +113,7 @@ async function processInventoryData(clinicIds) {
       days_remaining: daysRemaining === null ? 'N/A' : daysRemaining,
       is_below_minimum: item.current_quantity < item.min_quantity,
       needs_reorder: (item.current_quantity < item.min_quantity) || 
-                    (daysRemaining !== null && daysRemaining < 7),
+                    (daysRemaining !== null && daysRemaining < 10),
       profit_per_item: (item.sale_price - item.purchase_price).toFixed(2),
       purchase_price: item.purchase_price,
       sale_price: item.sale_price
@@ -298,7 +298,7 @@ CRITICAL ITEMS (need attention):`;
         let status = "";
         if (item.is_below_minimum) {
           status = "BELOW MINIMUM THRESHOLD";
-        } else if (item.days_remaining !== 'N/A' && item.days_remaining < 7) {
+        } else if (item.days_remaining !== 'N/A' && item.days_remaining < 10) {
           status = `LOW STOCK (${item.days_remaining} days remaining)`;
         } else {
           status = `ATTENTION (${item.days_remaining} days remaining)`;
@@ -335,25 +335,6 @@ CRITICAL ITEMS (need attention):`;
     });
   } catch (err) {
     console.error('getInventoryMetrics error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-// Redirect other endpoints to use the optimized getInventoryMetrics
-exports.averageWeeklyConsumption = async (req, res) => {
-  try {
-    await exports.getInventoryMetrics(req, res);
-  } catch (err) {
-    console.error('averageWeeklyConsumption error:', err);
-    res.status(err.status || 500).json({ error: err.message });
-  }
-};
-
-exports.identifySlowMoving = async (req, res) => {
-  try {
-    await exports.getInventoryMetrics(req, res);
-  } catch (err) {
-    console.error('identifySlowMoving error:', err);
     res.status(err.status || 500).json({ error: err.message });
   }
 };
