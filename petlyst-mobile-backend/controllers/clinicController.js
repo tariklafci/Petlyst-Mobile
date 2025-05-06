@@ -369,6 +369,8 @@ exports.fetchClinicPatients = async (req, res) => {
     `;
     
     const { rows } = await pool.query(query, [clinicId]);
+
+    console.log("pets:", rows);
     
     res.json(rows);
   } catch (error) {
