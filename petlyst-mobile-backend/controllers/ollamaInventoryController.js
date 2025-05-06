@@ -37,7 +37,7 @@ const systemPromptSlowMoving = `
 
 const LLAMA_URL = 'http://10.0.0.25:5000/api/llama/generate';
 
-async function callLlama(prompt) {
+async function callLlama(prompt, system_instruction) {
   const resp = await fetch(LLAMA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -46,9 +46,11 @@ async function callLlama(prompt) {
       prompt: prompt
     })
   });
+
   if (!resp.ok) throw new Error(`Llama service responded ${resp.status}`);
   return resp.json();
 }
+
 
 // now just pull the user ID from req.user
 async function getClinicIdsFromRequest(req) {
