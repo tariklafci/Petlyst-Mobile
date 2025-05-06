@@ -29,7 +29,6 @@ exports.fetchClinics = async (req, res) => {
         c.clinic_operator_id AS operator_id,
         cap.clinic_album_photo_id AS photo_id,
         cap.clinic_album_photo_url AS s3_url,
-        cap.created_at,
         cpn.phone_number,
         cpn.phone_type,
         csm.platform AS social_media_platform,
@@ -81,7 +80,6 @@ exports.fetchClinics = async (req, res) => {
         clinic_creation_status,
         photo_id,
         s3_url,
-        created_at,
         phone_number,
         phone_type,
         social_media_platform,
@@ -143,7 +141,6 @@ exports.fetchClinics = async (req, res) => {
         if (!existingPhoto) {
           clinicMap.get(id).photos.push({
             photo_id,
-            created_at,
             s3_url,
           });
         }
