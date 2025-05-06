@@ -42,8 +42,10 @@ exports.fetchClinics = async (req, res) => {
           FROM clinic_medical_services cms 
           JOIN medical_services ms ON cms.medical_service_id = ms.medical_service_id 
           WHERE cms.clinic_id = c.clinic_id) AS medical_services,
-        (SELECT AVG(rating) FROM clinic_reviews WHERE clinic_id = c.clinic_id) AS average_rating,
-        (SELECT COUNT(*) FROM clinic_reviews WHERE clinic_id = c.clinic_id) AS total_reviews
+        (SELECT AVG((clinic_review_hygiene_rating + clinic_review_staff_behaviour_rating + clinic_review_price_rating) / 3.0) 
+          FROM reviews 
+          WHERE clinic_id = c.clinic_id) AS average_rating,
+        (SELECT COUNT(*) FROM reviews WHERE clinic_id = c.clinic_id) AS total_reviews
       FROM clinics AS c
       LEFT JOIN clinic_albums AS cap ON c.clinic_id = cap.clinic_id
       LEFT JOIN clinic_phone_numbers AS cpn ON c.clinic_id = cpn.clinic_id
