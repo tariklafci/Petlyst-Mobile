@@ -5,7 +5,7 @@ const systemPrompt = `You are VetInventoryGPT, a veterinary inventory management
 
 1. Begin with a one-sentence summary of the overall inventory status.
 2. Use bullet points for all lists and recommendations.
-3. Focus on items needing attention - those below minimum thresholds or with less than 10 days of supply.
+3. Focus on items needing attention - those below minimum thresholds or with less than 7 days of supply.
 4. Include specific recommendations for reordering and inventory optimization.
 5. Keep your response under 300 words, prioritizing actionable insights over general descriptions.`;
 
@@ -53,33 +53,46 @@ async function processInventoryData(clinicIds) {
   const itemsRes = await pool.query(
     `SELECT * 
        FROM inventory_items
-      WHERE clinic_id = ANY($1)`,
+      WHERE clinic_id = ANY($1::varchar[])`,
     [clinicIds]
   );
   
-  // Get relevant transactions
+  // Log query details for debugging
+  console.log(`Found ${itemsRes.rows.length} inventory items for clinics: ${clinicIds.join(', ')}`);
+  
+  // Get relevant transactions - updating to match new schema
   const txRes = await pool.query(
     `SELECT *
        FROM inventory_transactions
-      WHERE clinic_id = ANY($1)
-        AND transaction_type = 'usage'
+      WHERE clinic_id = ANY($1::varchar[])
+        AND transaction_type::text = 'usage'
       ORDER BY transaction_date ASC`,
     [clinicIds]
   );
+  
+  console.log(`Found ${txRes.rows.length} usage transactions for clinics: ${clinicIds.join(', ')}`);
+  
+  // Add debugging to see what fields are available
+  if (txRes.rows.length > 0) {
+    console.log('Sample transaction fields:', Object.keys(txRes.rows[0]));
+  }
 
-  // Group transactions by item
+  // Group transactions by item - update item_id to inventory_item_id
   const txByItem = {};
   txRes.rows.forEach(tx => {
-    if (!txByItem[tx.item_id]) {
-      txByItem[tx.item_id] = [];
+    if (!txByItem[tx.inventory_item_id]) {
+      txByItem[tx.inventory_item_id] = [];
     }
-    txByItem[tx.item_id].push(tx);
+    txByItem[tx.inventory_item_id].push(tx);
   });
 
   // Calculate metrics for each item
   const metrics = itemsRes.rows.map(item => {
-    // Get transactions for this item
-    const itemTx = txByItem[item.item_id] || [];
+    // Get transactions for this item - using id to match inventory_item_id
+    const itemTx = txByItem[item.id] || [];
+    
+    // Add debugging
+    console.log(`Item ${item.name} (${item.id}) has ${itemTx.length} transactions`);
     
     // Calculate daily usage
     let dailyUsage = 0;
@@ -99,13 +112,15 @@ async function processInventoryData(clinicIds) {
       
       // Calculate daily usage
       dailyUsage = totalUsage / daysSinceFirstTx;
+      
+      console.log(`Item ${item.name}: ${totalUsage} units used over ${daysSinceFirstTx} days = ${dailyUsage.toFixed(2)}/day`);
     }
     
     // Calculate days remaining
     const daysRemaining = dailyUsage > 0 ? Math.floor(item.current_quantity / dailyUsage) : null;
     
     return {
-      item_id: item.item_id,
+      item_id: item.id,
       name: item.name,
       current_quantity: item.current_quantity,
       min_quantity: item.min_quantity,
@@ -113,7 +128,7 @@ async function processInventoryData(clinicIds) {
       days_remaining: daysRemaining === null ? 'N/A' : daysRemaining,
       is_below_minimum: item.current_quantity < item.min_quantity,
       needs_reorder: (item.current_quantity < item.min_quantity) || 
-                    (daysRemaining !== null && daysRemaining < 10),
+                    (daysRemaining !== null && daysRemaining < 7),
       profit_per_item: (item.sale_price - item.purchase_price).toFixed(2),
       purchase_price: item.purchase_price,
       sale_price: item.sale_price
@@ -134,7 +149,7 @@ async function getClinicIdsFromRequest(req) {
   }
 
   const vetClinics = await pool.query(
-    `SELECT clinic_id
+    `SELECT clinic_id::varchar as clinic_id
        FROM clinic_veterinarians
       WHERE veterinarian_id = $1`,
     [userId]
@@ -163,7 +178,7 @@ async function getClinicName(req) {
   const clinicName = await pool.query(
     `SELECT clinic_name
        FROM clinics
-      WHERE clinic_id = ANY($1)`,
+      WHERE clinic_id::varchar = ANY($1::varchar[])`,
     [clinicIds]
   );
 
@@ -298,7 +313,7 @@ CRITICAL ITEMS (need attention):`;
         let status = "";
         if (item.is_below_minimum) {
           status = "BELOW MINIMUM THRESHOLD";
-        } else if (item.days_remaining !== 'N/A' && item.days_remaining < 10) {
+        } else if (item.days_remaining !== 'N/A' && item.days_remaining < 14) {
           status = `LOW STOCK (${item.days_remaining} days remaining)`;
         } else {
           status = `ATTENTION (${item.days_remaining} days remaining)`;
