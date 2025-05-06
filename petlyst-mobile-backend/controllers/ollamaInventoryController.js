@@ -15,7 +15,8 @@ async function callLlama(prompt) {
 
 // now just pull the user ID from req.user
 async function getClinicIdsFromRequest(req) {
-  const userId = req.user && req.user.user_id;
+  // Check for both formats
+  const userId = req.user && (req.user.user_id || req.user.userId);
   if (!userId) {
     const err = new Error('User not authenticated');
     err.status = 401;
@@ -169,7 +170,7 @@ exports.identifySlowMoving = async (req, res) => {
 
     const prompt = `Identify which items in my inventory for clinic(s) ${clinicIds.join(
       ', '
-    )} are slow‐moving (i.e., haven’t been used much recently), based on transaction history.
+    )} are slow‐moving (i.e., haven't been used much recently), based on transaction history.
 
 Inventory Items:
 ${JSON.stringify(itemsRes.rows)}
