@@ -73,6 +73,7 @@ exports.createAppointment = async (req, res) => {
 
     const result = await pool.query(insertQuery, values);
     const newAppointment = result.rows[0];
+    
 
     // Notify all veterinarians at this clinic
     try {

@@ -1,6 +1,4 @@
 const pool = require('../config/db');
-const fetch = global.fetch || require('node-fetch');
-
 // Validate Expo push token format
 function isValidExpoToken(token) {
   return typeof token === 'string' &&

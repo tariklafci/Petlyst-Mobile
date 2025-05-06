@@ -700,14 +700,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
             </ScrollView>
             
             {/* Scroll indicator - only shown when content is scrollable */}
-            {isScrollable && (
-              <Animated.View style={[styles.scrollIndicator, { opacity: scrollIndicatorOpacity }]}>
-                <View style={styles.scrollIndicatorInner}>
-                  <Ionicons name="chevron-down" size={20} color="#6c63ff" />
-                  <Text style={styles.scrollIndicatorText}>Scroll for more</Text>
-                </View>
-              </Animated.View>
-            )}
+            
           </View>
         </View>
       </Modal>
