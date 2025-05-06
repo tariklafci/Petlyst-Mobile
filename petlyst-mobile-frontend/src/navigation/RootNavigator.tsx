@@ -125,8 +125,8 @@ function VetTabs() {
       />
       <Tab.Screen
         name="MyPet"
-        component={AppointmentScreen}
-        options={{ tabBarLabel: 'My Pet' }}
+        component={ClinicPet}
+        options={{ tabBarLabel: 'Clinic Pets' }}
       />
       <Tab.Screen
         name="Inbox"
