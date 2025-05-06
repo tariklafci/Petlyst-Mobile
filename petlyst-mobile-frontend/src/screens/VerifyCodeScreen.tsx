@@ -213,53 +213,6 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
                 <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#aaa" />
               </TouchableOpacity>
             </View>
-
-            {/* Password validation indicators */}
-            <View style={styles.validationContainer}>
-              <View style={styles.validationRow}>
-                <Ionicons 
-                  name={passwordValidations.length ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={passwordValidations.length ? "green" : "#ccc"} 
-                />
-                <Text style={[styles.validationText, passwordValidations.length && styles.validText]}>
-                  At least 8 characters
-                </Text>
-              </View>
-              
-              <View style={styles.validationRow}>
-                <Ionicons 
-                  name={passwordValidations.uppercase ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={passwordValidations.uppercase ? "green" : "#ccc"} 
-                />
-                <Text style={[styles.validationText, passwordValidations.uppercase && styles.validText]}>
-                  At least one uppercase letter
-                </Text>
-              </View>
-              
-              <View style={styles.validationRow}>
-                <Ionicons 
-                  name={passwordValidations.lowercase ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={passwordValidations.lowercase ? "green" : "#ccc"} 
-                />
-                <Text style={[styles.validationText, passwordValidations.lowercase && styles.validText]}>
-                  At least one lowercase letter
-                </Text>
-              </View>
-              
-              <View style={styles.validationRow}>
-                <Ionicons 
-                  name={passwordValidations.number ? "checkmark-circle" : "ellipse-outline"} 
-                  size={16} 
-                  color={passwordValidations.number ? "green" : "#ccc"} 
-                />
-                <Text style={[styles.validationText, passwordValidations.number && styles.validText]}>
-                  At least one number
-                </Text>
-              </View>
-            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -290,6 +243,54 @@ const VerifyCodeScreen = ({ route, navigation }: { route: any; navigation: any }
               />
               <Text style={[styles.validationText, passwordsMatch && styles.validText]}>
                 Passwords match
+              </Text>
+            </View>
+          </View>
+
+          {/* Password validation indicators - moved after both password fields */}
+          <View style={[styles.validationContainer, { marginBottom: 15 }]}>
+            <Text style={styles.validationTitle}>Password must contain:</Text>
+            <View style={styles.validationRow}>
+              <Ionicons 
+                name={passwordValidations.length ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordValidations.length ? "green" : "#ccc"} 
+              />
+              <Text style={[styles.validationText, passwordValidations.length && styles.validText]}>
+                At least 8 characters
+              </Text>
+            </View>
+            
+            <View style={styles.validationRow}>
+              <Ionicons 
+                name={passwordValidations.uppercase ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordValidations.uppercase ? "green" : "#ccc"} 
+              />
+              <Text style={[styles.validationText, passwordValidations.uppercase && styles.validText]}>
+                At least one uppercase letter
+              </Text>
+            </View>
+            
+            <View style={styles.validationRow}>
+              <Ionicons 
+                name={passwordValidations.lowercase ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordValidations.lowercase ? "green" : "#ccc"} 
+              />
+              <Text style={[styles.validationText, passwordValidations.lowercase && styles.validText]}>
+                At least one lowercase letter
+              </Text>
+            </View>
+            
+            <View style={styles.validationRow}>
+              <Ionicons 
+                name={passwordValidations.number ? "checkmark-circle" : "ellipse-outline"} 
+                size={16} 
+                color={passwordValidations.number ? "green" : "#ccc"} 
+              />
+              <Text style={[styles.validationText, passwordValidations.number && styles.validText]}>
+                At least one number
               </Text>
             </View>
           </View>
@@ -407,6 +408,12 @@ const styles = StyleSheet.create({
   validationContainer: {
     marginTop: 10,
     marginLeft: 4,
+  },
+  validationTitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
   },
   validationRow: {
     flexDirection: 'row',

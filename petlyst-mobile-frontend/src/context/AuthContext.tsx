@@ -220,6 +220,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     signOut: async () => {
       try {
+        // Get the current token to make authenticated request
+        const token = await SecureStore.getItemAsync('userToken');
+        if (token) {
+          try {
+            // Call the API to delete Expo tokens
+            await fetch('https://petlyst.com:3001/api/delete-expo-tokens', {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            // We don't need to check the response - even if it fails, we want to clear local storage
+          } catch (e) {
+            console.error('Failed to delete Expo tokens:', e);
+            // Continue with sign out even if token deletion fails
+          }
+        }
+
+        // Clear all local storage data
         await SecureStore.deleteItemAsync('userToken');
         await SecureStore.deleteItemAsync('userId');
         await SecureStore.deleteItemAsync('userType');
