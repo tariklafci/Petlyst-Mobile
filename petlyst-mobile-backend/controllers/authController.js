@@ -105,7 +105,7 @@ exports.registerUser = async (req, res) => {
     const client = await pool.connect(); // Get a dedicated connection
 
     try {
-        const { name, surname, email, password, user_type } = req.body;
+        const { name, surname, email, password, user_type, veterinarian_graduate_barcode, veterinarian_tc_number } = req.body;
 
         await client.query('BEGIN'); // Start transaction
 
@@ -129,10 +129,24 @@ exports.registerUser = async (req, res) => {
 
         // Insert into the appropriate table based on user_type
         if (user_type === 'veterinarian') {
+            // Hash the TC number for security if provided
+            let hashedTcNumber = null;
+            if (veterinarian_tc_number) {
+                hashedTcNumber = await bcrypt.hash(veterinarian_tc_number, 10);
+            }
+
             await client.query(
                 'INSERT INTO veterinarians (veterinarian_id) VALUES ($1)',
                 [userId]
             );
+            
+            // Update veterinarian with additional info if provided
+            if (veterinarian_graduate_barcode || hashedTcNumber) {
+                await client.query(
+                    'UPDATE veterinarians SET veterinarian_graduate_barcode = $1, veterinarian_tc_number = $2 WHERE veterinarian_id = $3',
+                    [veterinarian_graduate_barcode || null, hashedTcNumber, userId]
+                );
+            }
         } else if (user_type === 'pet_owner') {
             await client.query(
                 'INSERT INTO pet_owners (pet_owner_id) VALUES ($1)',

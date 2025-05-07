@@ -23,6 +23,8 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showCriteriaModal, setShowCriteriaModal] = useState(false);
+  const [veterinarianGraduateBarcode, setVeterinarianGraduateBarcode] = useState('');
+  const [veterinarianTcNumber, setVeterinarianTcNumber] = useState('');
   const [passwordValidations, setPasswordValidations] = useState({
     length: false,
     uppercase: false,
@@ -30,11 +32,14 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     number: false,
     match: false,
   });
+  const [isEmailValid, setIsEmailValid] = useState(true);
   
   // Refs for TextInputs to enable navigation between fields
   const nameInputRef = useRef<TextInput>(null);
   const surnameInputRef = useRef<TextInput>(null);
   const emailInputRef = useRef<TextInput>(null);
+  const graduateBarcodeInputRef = useRef<TextInput>(null);
+  const tcNumberInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
   const confirmPasswordInputRef = useRef<TextInput>(null);
   
@@ -44,6 +49,21 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
   useEffect(() => {
     handlePasswordValidation();
   }, [password, confirmPassword]);
+
+  // Email validation function
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    return emailRegex.test(email);
+  };
+
+  // Check email validity when email changes
+  useEffect(() => {
+    if (email.length > 0) {
+      setIsEmailValid(validateEmail(email));
+    } else {
+      setIsEmailValid(true); // Don't show error for empty field
+    }
+  }, [email]);
 
   const handleSendNotificationToken = async () => {
     try {
@@ -102,6 +122,10 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     if (!email || !password) {
       return Alert.alert('Error', 'Please fill in both username and password.');
     }
+
+    if (!validateEmail(email)) {
+      return Alert.alert('Error', 'Please enter a valid email address.');
+    }
   
     try {
       await signIn({ email, password }); // ✅ token is stored inside here
@@ -143,6 +167,10 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
       return Alert.alert('Error', 'Please fill in all required fields.');
     }
     
+    if (!validateEmail(email)) {
+      return Alert.alert('Error', 'Please enter a valid email address.');
+    }
+    
     if (!allValidationsPassed) {
       return Alert.alert('Error', 'Password does not meet the required criteria.');
     }
@@ -150,9 +178,34 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
     if (password !== confirmPassword) {
       return Alert.alert('Error', 'Passwords do not match.');
     }
+
+    // Validate TC number if user is registering as a veterinarian
+    if (!isVeterinarianTab && user_type === 'veterinarian') {
+      if (!veterinarianGraduateBarcode) {
+        return Alert.alert('Error', 'Please enter your graduate barcode.');
+      }
+      
+      if (!veterinarianTcNumber) {
+        return Alert.alert('Error', 'Please enter your TC number.');
+      }
+      
+      if (veterinarianTcNumber.length !== 11 || !/^\d+$/.test(veterinarianTcNumber)) {
+        return Alert.alert('Error', 'TC number must be exactly 11 digits.');
+      }
+    }
     
     try {
-      await signUp({ name, surname, email, password, user_type });
+      await signUp({ 
+        name, 
+        surname, 
+        email, 
+        password, 
+        user_type,
+        ...(user_type === 'veterinarian' ? {
+          veterinarian_graduate_barcode: veterinarianGraduateBarcode,
+          veterinarian_tc_number: veterinarianTcNumber
+        } : {})
+      });
       Alert.alert('Success', 'You are now registered!');
     } catch (error) {
       console.error(error);
@@ -296,8 +349,8 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
           
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+            <View style={[styles.inputContainer, !isEmailValid && styles.inputError]}>
+              <Ionicons name="mail-outline" size={20} color={isEmailValid ? "#6c63ff" : "#ff6b6b"} style={styles.inputIcon} />
               <TextInput
                 ref={emailInputRef}
                 style={styles.input}
@@ -308,11 +361,73 @@ const LoginRegisterScreen = ({ navigation }: { navigation: any }) => {
                 autoCapitalize="none"
                 placeholderTextColor="#aaa"
                 returnKeyType="next"
-                onSubmitEditing={() => passwordInputRef.current?.focus()}
+                onSubmitEditing={() => {
+                  if (!isLoginTab && !isVeterinarianTab) {
+                    graduateBarcodeInputRef.current?.focus();
+                  } else {
+                    passwordInputRef.current?.focus();
+                  }
+                }}
                 blurOnSubmit={false}
               />
+              {!isEmailValid && email.length > 0 && (
+                <Ionicons name="alert-circle" size={20} color="#ff6b6b" />
+              )}
             </View>
+            {!isEmailValid && email.length > 0 && (
+              <Text style={styles.errorText}>Please enter a valid email address</Text>
+            )}
           </View>
+          
+          {/* Veterinarian-specific fields */}
+          {!isLoginTab && !isVeterinarianTab && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Graduate Barcode</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="barcode-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+                  <TextInput
+                    ref={graduateBarcodeInputRef}
+                    style={styles.input}
+                    placeholder="Enter your graduate barcode"
+                    value={veterinarianGraduateBarcode}
+                    onChangeText={setVeterinarianGraduateBarcode}
+                    placeholderTextColor="#aaa"
+                    returnKeyType="next"
+                    onSubmitEditing={() => tcNumberInputRef.current?.focus()}
+                    blurOnSubmit={false}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>TC Number (11 digits)</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="card-outline" size={20} color="#6c63ff" style={styles.inputIcon} />
+                  <TextInput
+                    ref={tcNumberInputRef}
+                    style={styles.input}
+                    placeholder="Enter your TC number"
+                    value={veterinarianTcNumber}
+                    onChangeText={(text) => {
+                      // Only allow digits and limit to 11 characters
+                      const formattedText = text.replace(/[^0-9]/g, '').slice(0, 11);
+                      setVeterinarianTcNumber(formattedText);
+                    }}
+                    keyboardType="numeric"
+                    maxLength={11}
+                    placeholderTextColor="#aaa"
+                    returnKeyType="next"
+                    onSubmitEditing={() => passwordInputRef.current?.focus()}
+                    blurOnSubmit={false}
+                  />
+                </View>
+                {veterinarianTcNumber.length > 0 && veterinarianTcNumber.length !== 11 && (
+                  <Text style={styles.errorText}>TC number must be 11 digits</Text>
+                )}
+              </View>
+            </>
+          )}
           
           <View style={styles.inputGroup}>
             <View style={styles.labelContainer}>
@@ -655,6 +770,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: 12,
+    marginTop: 5,
+    marginLeft: 4,
+  },
   passwordCriteriaContainer: {
     backgroundColor: '#f9f9f9',
     borderRadius: 12,
@@ -732,6 +853,10 @@ const styles = StyleSheet.create({
     right: 12,
     zIndex: 10,
     padding: 5,
+  },
+  inputError: {
+    borderColor: '#ff6b6b',
+    borderWidth: 1,
   },
 });
 

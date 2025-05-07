@@ -134,10 +134,13 @@ const EditProfileScreen = () => {
     }
     
     // Phone validation (optional field)
-    if (phone && !/^[0-9+\-\s()]{7,15}$/.test(phone)) {
-      Alert.alert('Invalid Phone', 'Please enter a valid phone number.');
-      return false;
-    }
+    const digitOnlyPhone = phone.replace(/\D/g, ''); // Strip non-digits
+if (digitOnlyPhone.length !== 11) {
+  Alert.alert('Invalid Phone', 'Phone number must have exactly 11 digits.');
+  return false;
+}
+
+    
     
     return true;
   };
