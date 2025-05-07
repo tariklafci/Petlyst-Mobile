@@ -17,4 +17,8 @@ const s3clinic = new S3Client({
   },
 });
 
-module.exports = { s3pet, s3clinic };
+const s3user = new S3Client({
+  region: 'eu-central-1',
+});
+
+module.exports = { s3pet, s3clinic, s3user };

@@ -24,6 +24,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
   const [selectedPetSpecies, setSelectedPetSpecies] = useState<string | null>(null);
   const [selectedPetBirthDate, setSelectedPetBirthDate] = useState<Date | null>(null);
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+  const [selectedPetImageUrl, setSelectedPetImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [editDeleteTab, setEditDeleteTab] = useState<boolean>(false);
@@ -116,10 +117,10 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  const handleLongPress = async (id: number, name: string, breed: string, species: string, birth_date: Date) => {
+  const handleLongPress = async (id: number, name: string, breed: string, species: string, birth_date: Date, imageUrl: string) => {
     try {
       setEditDeleteTab(true);
-      await selectPet(id, name, breed, species, birth_date);
+      await selectPet(id, name, breed, species, birth_date, imageUrl);
     } catch (error) {
       
     }
@@ -247,7 +248,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
     }
   };
 
-  const selectPet = async (id: number, name: string, breed: string, species: string, birthDate: Date) => {
+  const selectPet = async (id: number, name: string, breed: string, species: string, birthDate: Date, imageUrl: string | null) => {
     try {
       await AsyncStorage.setItem('selectedPetId', id.toString());
       await AsyncStorage.setItem('selectedPetName', name)
@@ -256,6 +257,7 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
       setSelectedPetBreed(breed);
       setSelectedPetSpecies(species);
       setSelectedPetBirthDate(birthDate);
+      setSelectedPetImageUrl(imageUrl);
       await loadSelectedPetId();
     } catch (error) {
       console.error('Error storing selected pet ID:', error);
@@ -306,8 +308,8 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
         delay={animationDelay}
       >
         <TouchableOpacity 
-          onPress={() => selectPet(item.id, item.name, item.breed, item.species, item.pet_birth_date)} 
-          onLongPress={() => handleLongPress(item.id, item.name, item.breed, item.species, item.pet_birth_date)}
+          onPress={() => selectPet(item.id, item.name, item.breed, item.species, item.pet_birth_date, item.imageUrl || '')} 
+          onLongPress={() => handleLongPress(item.id, item.name, item.breed, item.species, item.pet_birth_date, item.imageUrl || '')}
           style={[styles.petItem, selectedPetId === item.id && styles.selectedPetItem]}
           activeOpacity={0.8}
         >
@@ -368,7 +370,8 @@ const MyPetScreen = ({ navigation }: { navigation: any }) => {
                 petName: selectedPetName, 
                 petBreed: selectedPetBreed, 
                 petSpecies: selectedPetSpecies, 
-                petBirthDate: selectedPetBirthDate})}
+                petBirthDate: selectedPetBirthDate,
+                petImageUrl: selectedPetImageUrl})}
               style={styles.editButton}
             >
               <Ionicons name="create-outline" size={18} color="#fff" />

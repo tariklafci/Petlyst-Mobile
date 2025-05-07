@@ -14,14 +14,14 @@ interface EditPetScreenProps {
 
 export default function EditPetScreen({ route, navigation }: EditPetScreenProps) {
   // Expect petId (and optionally petName) to be passed from MyPetScreen
-  const { petId, petName, petBreed, petSpecies, petBirthDate } = route.params;
+  const { petId, petName, petBreed, petSpecies, petBirthDate, petImageUrl } = route.params;
 
   const [breed, setBreed] = useState(petBreed || '');
   const [birthDate, setBirthDate] = useState(petBirthDate?.split('T')[0] || '');
   const [species, setSpecies] = useState(petSpecies || '');
   // image will be used for a new selection, while currentPhoto holds the existing S3 URL
   const [image, setImage] = useState<string | null>(null);
-  const [currentPhoto, setCurrentPhoto] = useState<string | null>(null);
+  const [currentPhoto, setCurrentPhoto] = useState<string | null>(petImageUrl || null);
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);

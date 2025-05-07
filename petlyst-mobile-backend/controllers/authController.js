@@ -28,7 +28,7 @@ exports.loginUser = async (req, res) => {
         const clinicVetQuery = await pool.query('SELECT * FROM clinic_veterinarians WHERE veterinarian_id = $1', [user.user_id]);
         const clinic = clinicVetQuery.rows[0];
 
-        if(clinicVetQuery.rowCount === 0) {
+        if(clinicVetQuery.rowCount === 0 && user.user_type === 'veterinarian') {
             return res.status(401).json({ message: 'You are not registered to any clinic.' });
         }
 
