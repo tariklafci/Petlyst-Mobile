@@ -393,6 +393,20 @@ const ClinicPet = ({ navigation }: { navigation: any }) => {
     
     const success = await assignPatientToRoom(selectedRoom.id, patient.pet_id);
     if (success) {
+      // Update the room status in local state immediately
+      setRooms(prevRooms => 
+        prevRooms.map(room => 
+          room.id === selectedRoom.id 
+            ? { ...room, room_status: 'occupied' } 
+            : room
+        )
+      );
+      
+      // Update the selected room state to reflect the new status
+      setSelectedRoom(prevRoom => 
+        prevRoom ? { ...prevRoom, room_status: 'occupied' } : null
+      );
+      
       setAssignModalVisible(false);
       // Refresh room modal data
       const hospitalization = await fetchRoomHospitalization(selectedRoom.id);
@@ -648,18 +662,6 @@ const ClinicPet = ({ navigation }: { navigation: any }) => {
                 </View>
               )}
             </ScrollView>
-
-            <View style={styles.modalActionsContainer}>
-              <TouchableOpacity 
-                style={[styles.modalActionButton, styles.updateButton]}
-                onPress={() => {
-                  setRoomModalVisible(false);
-                }}
-              >
-                <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.modalActionButtonText}>Update Room</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -761,16 +763,7 @@ const ClinicPet = ({ navigation }: { navigation: any }) => {
             </ScrollView>
 
             <View style={styles.modalActionsContainer}>
-              <TouchableOpacity 
-                style={[styles.modalActionButton, styles.examButton]}
-                onPress={() => {
-                  setPatientModalVisible(false);
-                  navigation.navigate('NewExamination', { petId: selectedPatient?.pet_id });
-                }}
-              >
-                <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.modalActionButtonText}>New Examination</Text>
-              </TouchableOpacity>
+              {/* Button removed while preserving the container */}
             </View>
           </View>
         </View>
@@ -1332,6 +1325,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginTop: 8,
+    marginBottom: 12,
   },
   dischargeButtonText: {
     color: '#FFFFFF',

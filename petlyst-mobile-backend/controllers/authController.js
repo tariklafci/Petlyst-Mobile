@@ -27,6 +27,10 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        if(user.user_type === 'veterinarian' && user.veterinarian_verification_status === 'not_verified') {
+            return res.status(401).json({ message: 'Please wait until the administrator verifies your account' });
+        }
+
         // Set token expiration to 7 days
         const expiresIn = 7 * 24 * 60 * 60; // 7 days in seconds
         

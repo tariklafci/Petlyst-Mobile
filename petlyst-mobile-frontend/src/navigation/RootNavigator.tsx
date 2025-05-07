@@ -24,6 +24,7 @@ import VetAppointmentScreen from '../screens/VetAppointmentScreen';
 import ChatAIScreen from '../screens/ChatAIScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ClinicPet from '../screens/ClinicPet';
+import InventoryScreen from '../screens/InventoryScreen';
 
 
 /* -------------------------------
@@ -101,11 +102,13 @@ function VetTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'compass' : 'compass-outline';
-          } else if (route.name === 'MyPet') {
+          } else if (route.name === 'ClinicPet') {
             iconName = focused ? 'paw' : 'paw-outline';
           } else if (route.name === 'VetAppointment') {
             iconName = focused ? 'calendar' : 'calendar-outline';
-          } else if (route.name === 'Profile') {
+          } else if (route.name === 'Inventory') {
+            iconName = focused ? 'cube' : 'cube-outline';
+          }else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -123,12 +126,17 @@ function VetTabs() {
         options={{ tabBarLabel: 'Explore' }}
       />
       <Tab.Screen
-        name="MyPet"
+        name="ClinicPet"
         component={ClinicPet}
         options={{ tabBarLabel: 'Clinic Pets' }}
       />
       <Tab.Screen
-        name="Inbox"
+        name="Inventory"
+        component={InventoryScreen}
+        options={{ tabBarLabel: 'Inventory' }}
+      />
+      <Tab.Screen
+        name="VetAppointment"
         component={VetAppointmentScreen}
         options={{ tabBarLabel: 'Inbox' }}
       />

@@ -66,12 +66,6 @@ const ProfileScreen = () => {
         style={styles.header}
       >
         <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity
-          style={styles.settingsIcon}
-          onPress={() => navigation.navigate('Settings' as never)}
-        >
-          <Ionicons name="settings-outline" size={24} color="#fff" />
-        </TouchableOpacity>
       </LinearGradient>
 
       {/* avatar, name, email, edit button */}
