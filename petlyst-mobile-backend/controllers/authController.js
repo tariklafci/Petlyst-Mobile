@@ -13,12 +13,17 @@ exports.loginUser = async (req, res) => {
         // Query to find the user by email
         const userQuery = await pool.query('SELECT * FROM users WHERE user_email = $1', [email]);
 
+
         // If user is not found, return invalid credentials
         if (userQuery.rowCount === 0) {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
         const user = userQuery.rows[0];
+
+        const vetQuery = await pool.query('SELECT * FROM veterinarians WHERE veterinarian_id = $1', [user.user_id]);
+
+        const vet = vetQuery.rows[0];
 
         // Compare the input password with the hashed password in the database
         const isMatch = await bcrypt.compare(password, user.user_password); // Updated to `user_password`
@@ -27,7 +32,7 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        if(user.user_type === 'veterinarian' && user.veterinarian_verification_status === 'not_verified') {
+        if(user.user_type === 'veterinarian' && vet.veterinarian_verification_status === 'not_verified') {
             return res.status(401).json({ message: 'Please wait until the administrator verifies your account' });
         }
 
