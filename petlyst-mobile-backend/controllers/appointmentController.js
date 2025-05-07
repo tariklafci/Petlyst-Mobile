@@ -489,3 +489,56 @@ exports.fetchClinicAppointmentsByDate = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch clinic appointments' });
   }
 };
+
+/**
+ * Fetch clinic details including opening and closing hours
+ * Used by the appointment booking screen to determine available time slots
+ */
+exports.fetchClinic = async (req, res) => {
+  try {
+    const { clinic_id } = req.query;
+    
+    if (!clinic_id) {
+      return res.status(400).json({ error: 'clinic_id is required' });
+    }
+    
+    console.log(`Fetching details for clinic_id: ${clinic_id}`);
+    
+    // Query to get clinic details including opening and closing hours
+    const queryText = `
+      SELECT
+        clinic_id,
+        clinic_name,
+        clinic_address,
+        clinic_city,
+        clinic_country,
+        clinic_postal_code,
+        clinic_phone,
+        clinic_email,
+        clinic_description,
+        clinic_photo,
+        clinic_opening_hour,
+        clinic_closing_hour,
+        clinic_time_slots
+      FROM clinics
+      WHERE clinic_id = $1
+    `;
+    
+    const result = await pool.query(queryText, [clinic_id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Clinic not found' });
+    }
+    
+    const clinic = result.rows[0];
+    console.log(`Clinic hours: ${clinic.clinic_opening_hour} - ${clinic.clinic_closing_hour}`);
+    
+    res.status(200).json({ 
+      clinic,
+      message: 'Clinic details fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching clinic details:', error);
+    res.status(500).json({ error: 'Failed to fetch clinic details' });
+  }
+};
