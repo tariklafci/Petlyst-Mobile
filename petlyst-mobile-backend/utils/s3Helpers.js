@@ -24,6 +24,49 @@ async function uploadFileToS3(file, userId, name) {
   }
 }
 
+async function uploadPetOwnerImageToS3(file, userId, name) {
+  try {
+    const upload = new Upload({
+      client: s3user,
+      params: {
+        Bucket: 'petlyst-s3',
+        Key: `petowner-photos/petowner-${userId}/${name}.jpeg`,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      },
+    });
+
+    const result = await upload.done();
+    return result.Location; // Return the S3 URL
+  } catch (error) {
+    console.error('Error uploading file to S3:', error);
+    throw error;
+  }
+}
+
+async function uploadVeterinarianImageToS3(file, userId, name) {
+  try {
+    const upload = new Upload({
+      client: s3user,
+      params: {
+        Bucket: 'petlyst-s3',
+        Key: `veterinarian-photos/${userId}-veterinarian/${name}.jpeg`,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      },
+    });
+
+    const result = await upload.done();
+    return result.Location; // Return the S3 URL
+  } catch (error) {
+    console.error('Error uploading file to S3:', error);
+    throw error;
+  }
+}
+
+
+
+
 // Function to delete pet images from S3 bucket
 async function deleteFileFromS3(ownerId, petName) {
   try {
