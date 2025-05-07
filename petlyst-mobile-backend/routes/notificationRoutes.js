@@ -8,7 +8,7 @@ const {
 } = require('../controllers/notificationController');
 
 // Test route for triggering today's appointment notifications
-router.get('/test-notifications', authenticateToken, testSendAppointmentNotifications);
+router.get('/test-notifications', testSendAppointmentNotifications);
 
 // Test route for sending a notification to a specific user
 router.post('/test-user-notification', authenticateToken, sendUserTestNotification);
