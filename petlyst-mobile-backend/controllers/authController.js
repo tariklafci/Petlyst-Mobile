@@ -25,6 +25,13 @@ exports.loginUser = async (req, res) => {
 
         const vet = vetQuery.rows[0];
 
+        const clinicVetQuery = await pool.query('SELECT * FROM clinic_veterinarians WHERE veterinarian_id = $1', [user.user_id]);
+        const clinic = clinicVetQuery.rows[0];
+
+        if(clinicVetQuery.rowCount === 0) {
+            return res.status(401).json({ message: 'You are not registered to any clinic.' });
+        }
+
         // Compare the input password with the hashed password in the database
         const isMatch = await bcrypt.compare(password, user.user_password); // Updated to `user_password`
 
