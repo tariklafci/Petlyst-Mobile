@@ -55,6 +55,8 @@ function MainTabs() {
             iconName = focused ? 'calendar' : 'calendar-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'menu' : 'menu-outline';
+          } else if (route.name === 'AIScreen') {
+            iconName = focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -74,6 +76,11 @@ function MainTabs() {
         name="MyPet"
         component={MyPetScreen}
         options={{ tabBarLabel: 'My Pet' }}
+      />
+      <Tab.Screen
+        name="AIScreen"
+        component={ChatAIScreen}
+        options={{ tabBarLabel: 'AI Chat' }}
       />
       <Tab.Screen
         name="Appointment"

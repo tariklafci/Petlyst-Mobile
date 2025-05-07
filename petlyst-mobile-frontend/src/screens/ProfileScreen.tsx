@@ -93,9 +93,6 @@ const ProfileScreen = () => {
         {renderOption('add-circle-outline', 'Add Pet', () =>
           navigation.navigate('AddPet' as never)
         )}
-        {renderOption('chatbubble-ellipses-outline', 'Chat with AI', () =>
-          navigation.navigate('ChatAIScreen')
-        )}
         {renderOption('notifications-outline', 'Notifications', () =>
           navigation.navigate('Notifications' as never)
         )}
