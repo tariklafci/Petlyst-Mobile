@@ -584,36 +584,6 @@ const VetDashboardScreen = ({ navigation }: { navigation: any }) => {
             </View>
           </Animatable.View>
 
-          {/* Action Buttons */}
-          <Animatable.View animation="fadeInUp" delay={800} duration={500} style={styles.actionButtonsContainer}>
-            <TouchableOpacity style={[styles.actionButton, styles.editButton]}>
-              <LinearGradient
-                colors={['#6c63ff', '#3b5998']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionButtonGradient}
-              >
-                <Ionicons name="create-outline" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Edit Details</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.inventoryButton]}
-              onPress={() => navigation.navigate('InventoryScreen')}
-            >
-              <LinearGradient
-                colors={['#34c759', '#28a745']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionButtonGradient}
-              >
-                <Ionicons name="list-outline" size={20} color="#fff" />
-                <Text style={styles.actionButtonText}>Inventory</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animatable.View>
-
           {/* Additional Actions */}
           <Animatable.View animation="fadeInUp" delay={850} duration={500} style={styles.actionButtonsContainer}>
             <TouchableOpacity 
