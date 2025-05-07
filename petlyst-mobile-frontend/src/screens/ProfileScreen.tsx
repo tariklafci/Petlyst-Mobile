@@ -90,12 +90,6 @@ const ProfileScreen = () => {
 
       {/* options list */}
       <View style={styles.optionsContainer}>
-        {renderOption('add-circle-outline', 'Add Pet', () =>
-          navigation.navigate('AddPet' as never)
-        )}
-        {renderOption('notifications-outline', 'Notifications', () =>
-          navigation.navigate('Notifications' as never)
-        )}
         {renderOption('log-out-outline', 'Sign Out', handleSignOut)}
       </View>
     </View>
