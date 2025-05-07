@@ -49,6 +49,8 @@ interface AuthContextType {
     email: string;
     password: string;
     user_type: string;
+    veterinarian_graduate_barcode?: string;
+    veterinarian_tc_number?: string;
   }) => Promise<void>;
   signOut: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
@@ -187,12 +189,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       email,
       password,
       user_type,
+      veterinarian_graduate_barcode,
+      veterinarian_tc_number,
     }: {
       name: string;
       surname: string;
       email: string;
       password: string;
       user_type: string;
+      veterinarian_graduate_barcode?: string;
+      veterinarian_tc_number?: string;
     }) => {
       try {
         const response = await fetch('https://petlyst.com:3001/api/register', {
@@ -204,6 +210,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             email,
             password,
             user_type,
+            veterinarian_graduate_barcode,
+            veterinarian_tc_number,
           }),
         });
 
