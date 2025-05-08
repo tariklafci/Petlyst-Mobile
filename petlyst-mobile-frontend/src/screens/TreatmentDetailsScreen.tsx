@@ -34,16 +34,10 @@ interface VitalSigns {
   weight?: number;
 }
 
-interface Veterinarian {
-  name: string;
-  email: string;
-}
-
 interface Examination {
   examination_id: number;
   examination_date: string;
   status: 'started' | 'in_progress' | 'completed';
-  veterinarian: Veterinarian;
   vital_signs: VitalSigns;
   notes?: string;
   diagnoses: Diagnosis[];
@@ -331,19 +325,6 @@ const TreatmentDetailsScreen = ({ route, navigation }: any) => {
                 </View>
               </View>
 
-              {/* Veterinarian Info */}
-              <View style={styles.vetContainer}>
-                <Ionicons name="person-outline" size={20} color="#6c63ff" />
-                <View style={styles.vetInfo}>
-                  <Text style={styles.vetName}>
-                    {treatmentDetails.examinations[activeExamIndex].veterinarian.name}
-                  </Text>
-                  <Text style={styles.vetEmail}>
-                    {treatmentDetails.examinations[activeExamIndex].veterinarian.email}
-                  </Text>
-                </View>
-              </View>
-
               {/* Vital Signs */}
               {renderVitalSigns(treatmentDetails.examinations[activeExamIndex].vital_signs)}
 
@@ -521,26 +502,6 @@ const styles = StyleSheet.create({
     color: '#00acc1',
     fontWeight: '500',
     textTransform: 'capitalize',
-  },
-  vetContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  vetInfo: {
-    marginLeft: 10,
-  },
-  vetName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  vetEmail: {
-    fontSize: 14,
-    color: '#777',
   },
   vitalSignsContainer: {
     marginBottom: 15,
