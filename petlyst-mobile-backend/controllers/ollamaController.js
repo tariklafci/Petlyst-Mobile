@@ -1,59 +1,8 @@
 const pool = require('../config/db');
 
-exports.generateResponse = async (req, res) => {
-  const { prompt, history } = req.body;
-
-  // 0) Validate
-  if (!prompt) {
-    return res.status(400).json({ error: 'Prompt is required' });
-  }
-  if (!req.user || !req.user.sub) {
-    return res.status(401).json({ error: 'User not authenticated' });
-  }
-
-  // 1) Decode userId
-  const userId = parseInt(req.user.sub, 10);
-  if (isNaN(userId)) {
-    return res.status(400).json({ error: 'Invalid user ID' });
-  }
-
-  try {
-    // 2) Fetch the owner's pets
-    const petsRes = await pool.query(
-      `SELECT
-         pet_id, pet_name, pet_species, pet_breed, pet_gender,
-         pet_birth_date, chip_number, pet_photo
-       FROM public.pets
-       WHERE pet_owner_id = $1
-         AND pet_status = 'active'`,
-      [userId]
-    );
-    const pets = petsRes.rows;
-
-    const examPromises = pets.map(async pet => {
-      const examRes = await pool.query(
-        `SELECT e.examination_id, e.examination_date, e.weight, e.temperature,
-                json_agg(json_build_object(
-                  'diagnosis_id', d.diagnosis_id,
-                  'name', d.diagnosis_name,
-                  'severity', d.severity,
-                  'notes', d.notes
-                )) AS diagnoses
-         FROM public.examinations e
-         LEFT JOIN public.diagnoses d
-           ON d.examination_id = e.examination_id
-         WHERE e.pet_id = $1
-         ORDER BY e.examination_date DESC
-         LIMIT 1
-         GROUP BY e.examination_id`,
-        [pet.pet_id]
-      );
-      return { petId: pet.pet_id, lastExam: examRes.rows[0] || null };
-    });
-    const exams = await Promise.all(examPromises);
-
-    const systemInstruction = `
-You are a professional and friendly AI assistant specialized in veterinary medicine.
+// Helper to build the system instruction for the AI
+function getSystemInstruction() {
+  return `You are a professional and friendly AI assistant specialized in veterinary medicine.
 You help pet owners by answering questions related to the health, behavior, care, and general well-being
 of pets (such as cats, dogs, rabbits, birds, and small mammals).
 
@@ -75,52 +24,111 @@ Never provide information on:
 - Legal or financial issues
 - Non-animal-related topics
 `.trim();
+}
 
-    let convoPrompt = '';
-    if (Array.isArray(history)) {
-      history.forEach(({ sender, text }) => {
-        const who = sender === 'bot' ? 'Assistant' : 'User';
-        convoPrompt += `${who}: ${text}\n`;
+// Helper to build the conversation prompt history
+function buildConversationPrompt(history = [], userPrompt) {
+  const convo = history.map(({ sender, text }) => {
+    const who = sender === 'bot' ? 'Assistant' : 'User';
+    return `${who}: ${text}`;
+  }).join('\n');
+  return `${convo}\nUser: ${userPrompt}\nAssistant:`;
+}
+
+exports.generateResponse = async (req, res) => {
+  const { prompt, history } = req.body;
+
+  // Validate inputs
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
+  if (!req.user || !req.user.sub) {
+    return res.status(401).json({ error: 'User not authenticated' });
+  }
+
+  const userId = parseInt(req.user.sub, 10);
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+
+  try {
+    // Fetch active pets and their latest examination in one query using DISTINCT ON
+    const petQuery = `
+      SELECT
+        p.pet_id,
+        p.pet_name,
+        p.pet_species,
+        p.pet_breed,
+        p.pet_gender,
+        p.pet_birth_date,
+        e.examination_date,
+        e.weight,
+        e.temperature,
+        COALESCE(json_agg(json_build_object(
+          'diagnosis_id', d.diagnosis_id,
+          'name',        d.diagnosis_name,
+          'severity',    d.severity,
+          'notes',       d.notes
+        )) FILTER (WHERE d.diagnosis_id IS NOT NULL), '[]') AS diagnoses
+      FROM public.pets p
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM public.examinations ex
+        WHERE ex.pet_id = p.pet_id
+        ORDER BY ex.examination_date DESC
+        LIMIT 1
+      ) e ON true
+      LEFT JOIN public.diagnoses d ON d.examination_id = e.examination_id
+      WHERE p.pet_owner_id = $1
+        AND p.pet_status = 'active'
+      GROUP BY p.pet_id, e.examination_id
+      ORDER BY p.pet_id;
+    `;
+    const { rows: pets } = await pool.query(petQuery, [userId]);
+
+    if (!pets.length) {
+      return res.status(200).json({
+        title: "No Pets Found",
+        code: null,
+        raw: "I couldn't find any active pets in your profile. Please add a pet to get started!"
       });
     }
-    convoPrompt += `User: ${prompt}\nAssistant:`;
 
+    // Build augmented prompt
     const petInfoLines = pets.map(p => {
-      const birth = p.pet_birth_date
+      const birthday = p.pet_birth_date
         ? `born ${p.pet_birth_date.toISOString().split('T')[0]}`
         : '';
-      return `- ${p.pet_name} (${p.pet_species}, ${p.pet_breed}, ${p.pet_gender}) ${birth}`;
+      return `- ${p.pet_name} (${p.pet_species}, ${p.pet_breed}, ${p.pet_gender}) ${birthday}`;
     });
-    let augmentedPrompt = 
-      `I am the owner of the following pets:\n` +
-      petInfoLines.join('\n') +
-      '\n\n';
 
-    exams.forEach(({ petId, lastExam }) => {
-      if (lastExam) {
-        augmentedPrompt += `Latest exam for pet ID ${petId} on ${lastExam.examination_date.toISOString().split('T')[0]}: ` +
-          `weight ${lastExam.weight} kg, temp ${lastExam.temperature}°C. ` +
-          `Diagnoses: ${lastExam.diagnoses.map(d => `${d.name} (${d.severity})`).join(', ')}.\n`;
+    let augmentedPrompt = `I am the owner of the following pets:\n${petInfoLines.join('\n')}\n\n`;
+    pets.forEach(p => {
+      if (p.examination_date) {
+        augmentedPrompt += `Latest exam for ${p.pet_name} on ${p.examination_date.toISOString().split('T')[0]}: ` +
+          `weight ${p.weight} kg, temp ${p.temperature}°C. ` +
+          `Diagnoses: ${p.diagnoses.map(d => `${d.name} (${d.severity})`).join(', ')}.\n`;
       }
     });
     augmentedPrompt += '\n';
 
     const llamaBody = {
-      system_instruction: systemInstruction,
-      prompt: augmentedPrompt + convoPrompt
+      system_instruction: getSystemInstruction(),
+      prompt: augmentedPrompt + buildConversationPrompt(history, prompt)
     };
 
+    // Call Llama API
     const llamaRes = await fetch('http://10.0.0.25:5000/api/llama/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(llamaBody),
+      body: JSON.stringify(llamaBody)
     });
     if (!llamaRes.ok) {
       throw new Error(`Llama service responded ${llamaRes.status}`);
     }
     const data = await llamaRes.json();
 
-    // 8) Return the assistant’s reply
+    // Return the assistant’s reply
     return res.status(200).json({
       title: data.title,
       code: data.code,
@@ -129,6 +137,6 @@ Never provide information on:
 
   } catch (err) {
     console.error('⚠️ generateResponse error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
