@@ -52,7 +52,7 @@ exports.generateResponse = async (req, res) => {
   }
 
   try {
-    // Fetch active pets and their latest examination in one query using DISTINCT ON
+    // Fetch active pets along with their latest exam and diagnoses using LATERAL
     const petQuery = `
       SELECT
         p.pet_id,
@@ -61,27 +61,36 @@ exports.generateResponse = async (req, res) => {
         p.pet_breed,
         p.pet_gender,
         p.pet_birth_date,
-        e.examination_date,
-        e.weight,
-        e.temperature,
-        COALESCE(json_agg(json_build_object(
-          'diagnosis_id', d.diagnosis_id,
-          'name',        d.diagnosis_name,
-          'severity',    d.severity,
-          'notes',       d.notes
-        )) FILTER (WHERE d.diagnosis_id IS NOT NULL), '[]') AS diagnoses
+        ex.examination_date,
+        ex.weight,
+        ex.temperature,
+        ex.diagnoses
       FROM public.pets p
       LEFT JOIN LATERAL (
-        SELECT *
-        FROM public.examinations ex
-        WHERE ex.pet_id = p.pet_id
-        ORDER BY ex.examination_date DESC
+        SELECT
+          e.examination_date,
+          e.weight,
+          e.temperature,
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'diagnosis_id', d.diagnosis_id,
+                'name',        d.diagnosis_name,
+                'severity',    d.severity,
+                'notes',       d.notes
+              )
+            ) FILTER (WHERE d.diagnosis_id IS NOT NULL),
+            '[]'
+          ) AS diagnoses
+        FROM public.examinations e
+        LEFT JOIN public.diagnoses d ON d.examination_id = e.examination_id
+        WHERE e.pet_id = p.pet_id
+        GROUP BY e.examination_id, e.examination_date, e.weight, e.temperature
+        ORDER BY e.examination_date DESC
         LIMIT 1
-      ) e ON true
-      LEFT JOIN public.diagnoses d ON d.examination_id = e.examination_id
+      ) ex ON true
       WHERE p.pet_owner_id = $1
         AND p.pet_status = 'active'
-      GROUP BY p.pet_id, e.examination_id
       ORDER BY p.pet_id;
     `;
     const { rows: pets } = await pool.query(petQuery, [userId]);
