@@ -116,7 +116,6 @@ exports.fetchAppointments = async (req, res) => {
         p.pet_breed,
         p.pet_photo,
         c.clinic_name,
-        c.clinic_address
       FROM appointments a
       JOIN pets p ON a.pet_id = p.pet_id
       JOIN clinics c ON a.clinic_id = c.clinic_id
@@ -165,7 +164,6 @@ exports.fetchAppointments = async (req, res) => {
         },
         clinic: {
           name: appointment.clinic_name,
-          address: appointment.clinic_address
         }
       };
     });
@@ -201,7 +199,6 @@ exports.fetchAppointmentsClinic = async (req, res) => {
         p.pet_breed,
         p.pet_photo,
         c.clinic_name,
-        c.clinic_address
       FROM appointments a
       JOIN pets p ON a.pet_id = p.pet_id
       JOIN clinics c ON a.clinic_id = c.clinic_id
@@ -249,7 +246,6 @@ exports.fetchAppointmentsClinic = async (req, res) => {
         },
         clinic: {
           name: appointment.clinic_name,
-          address: appointment.clinic_address
         }
       };
     });
