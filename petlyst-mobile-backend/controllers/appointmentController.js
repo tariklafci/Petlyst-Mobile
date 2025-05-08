@@ -575,11 +575,8 @@ exports.fetchTreatmentDetails = async (req, res) => {
         e.heart_rate,
         e.respiratory_rate,
         e.weight,
-        e.notes as examination_notes,
-        v.veterinarian_name,
-        v.veterinarian_email
-      FROM examinations e
-      JOIN veterinarians v ON e.vet_id = v.veterinarian_id
+        e.notes as examination_notes
+      FROM examinations
       WHERE e.appointment_id = $1
     `;
     
@@ -617,10 +614,6 @@ exports.fetchTreatmentDetails = async (req, res) => {
           examination_id: exam.examination_id,
           examination_date: exam.examination_date,
           status: exam.status,
-          veterinarian: {
-            name: exam.veterinarian_name,
-            email: exam.veterinarian_email
-          },
           vital_signs: {
             temperature: exam.temperature,
             heart_rate: exam.heart_rate,
