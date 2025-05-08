@@ -25,6 +25,7 @@ import ChatAIScreen from '../screens/ChatAIScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ClinicPet from '../screens/ClinicPet';
 import InventoryScreen from '../screens/InventoryScreen';
+import TreatmentDetailsScreen from '../screens/TreatmentDetailsScreen';
 
 
 /* -------------------------------
@@ -179,6 +180,7 @@ export default function RootNavigator() {
             <Stack.Screen name="MapScreen" component={MapScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MakeAppointment" component={MakeAppointmentScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ChatAIScreen" component={ChatAIScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="TreatmentDetails" component={TreatmentDetailsScreen} options={{ headerShown: false }} />
           </>
         ) : state.user_type === 'veterinarian' ? (
           <>

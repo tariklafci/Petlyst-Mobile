@@ -142,31 +142,16 @@ const AppointmentScreen = ({ navigation }: any) => {
   };
 
   // Fetch treatment details for completed
-  const fetchTreatmentDetails = async (id: number) => {
+  const fetchTreatmentDetails = async (id: number, petName: string, date: string) => {
     try {
-      setIsLoading(true);
-      const token = await SecureStore.getItemAsync('userToken');
-      if (!token) throw new Error('No token');
-      const res = await fetch(
-        `https://petlyst.com:3001/api/fetch-treatments?appointment_id=${id}`,
-        {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      if (data.treatments?.length) {
-        // TODO: navigate to a proper details screen
-        Alert.alert('Treatment Details', `Found ${data.treatments.length} record(s).`);
-      } else {
-        Alert.alert('No Treatments', 'No treatment records found.');
-      }
+      navigation.navigate('TreatmentDetails', {
+        appointmentId: id,
+        petName: petName,
+        date: date
+      });
     } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'Could not fetch treatment details');
-    } finally {
-      setIsLoading(false);
+      console.error('Navigation error:', err);
+      Alert.alert('Error', 'Could not open treatment details');
     }
   };
 
@@ -279,9 +264,9 @@ const AppointmentScreen = ({ navigation }: any) => {
           {item.status === 'completed' && (
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => fetchTreatmentDetails(item.id)}
+              onPress={() => fetchTreatmentDetails(item.id, item.pet.name, item.date)}
             >
-              <Ionicons name="chevron-forward-outline" size={16} color="#2196F3" />
+              <Ionicons name="document-text-outline" size={16} color="#2196F3" />
               <Text style={[styles.cancelButtonText, { color: '#2196F3' }]}>
                 Details
               </Text>

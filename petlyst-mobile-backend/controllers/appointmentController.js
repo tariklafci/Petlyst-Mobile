@@ -538,3 +538,106 @@ exports.fetchClinic = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch clinic details' });
   }
 };
+
+/**
+ * Fetch examination and diagnosis details for a completed appointment
+ */
+exports.fetchTreatmentDetails = async (req, res) => {
+  try {
+    const { appointment_id } = req.query;
+    
+    if (!appointment_id) {
+      return res.status(400).json({ error: 'Appointment ID is required' });
+    }
+    
+    const userId = req.user.sub;
+    
+    // First verify that this appointment belongs to the requesting user
+    const appointmentCheck = `
+      SELECT appointment_id, pet_id 
+      FROM appointments 
+      WHERE appointment_id = $1 AND pet_owner_id = $2
+    `;
+    
+    const appointmentResult = await pool.query(appointmentCheck, [appointment_id, userId]);
+    
+    if (appointmentResult.rows.length === 0) {
+      return res.status(403).json({ error: 'You are not authorized to access this appointment' });
+    }
+    
+    // Fetch examination details related to this appointment
+    const examinationQuery = `
+      SELECT 
+        e.examination_id,
+        e.examination_date,
+        e.status,
+        e.temperature,
+        e.heart_rate,
+        e.respiratory_rate,
+        e.weight,
+        e.notes as examination_notes,
+        v.veterinarian_name,
+        v.veterinarian_email
+      FROM examinations e
+      JOIN veterinarians v ON e.vet_id = v.veterinarian_id
+      WHERE e.appointment_id = $1
+    `;
+    
+    const examinationResult = await pool.query(examinationQuery, [appointment_id]);
+    
+    // Prepare response object
+    const response = {
+      appointment_id: Number(appointment_id),
+      examinations: []
+    };
+    
+    // Process examination data and fetch associated diagnoses
+    if (examinationResult.rows.length > 0) {
+      for (const exam of examinationResult.rows) {
+        // Fetch diagnoses for this examination
+        const diagnosisQuery = `
+          SELECT 
+            diagnosis_id,
+            diagnosis_type,
+            diagnosis_code,
+            diagnosis_name,
+            description,
+            diagnosis_date,
+            severity,
+            notes as diagnosis_notes
+          FROM diagnoses
+          WHERE examination_id = $1
+          ORDER BY diagnosis_date DESC
+        `;
+        
+        const diagnosisResult = await pool.query(diagnosisQuery, [exam.examination_id]);
+        
+        // Format the examination data with its diagnoses
+        const examination = {
+          examination_id: exam.examination_id,
+          examination_date: exam.examination_date,
+          status: exam.status,
+          veterinarian: {
+            name: exam.veterinarian_name,
+            email: exam.veterinarian_email
+          },
+          vital_signs: {
+            temperature: exam.temperature,
+            heart_rate: exam.heart_rate,
+            respiratory_rate: exam.respiratory_rate,
+            weight: exam.weight
+          },
+          notes: exam.examination_notes,
+          diagnoses: diagnosisResult.rows
+        };
+        
+        response.examinations.push(examination);
+      }
+    }
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching treatment details:', error);
+    res.status(500).json({ error: 'Failed to fetch treatment details' });
+  }
+};
