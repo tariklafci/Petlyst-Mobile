@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -40,12 +40,32 @@ interface DayItem {
   dateObj: Date;
 }
 
+interface RouteParams {
+  clinic_id: number;
+  clinic_time_slots?: number;
+  openingTime?: string;
+  closingTime?: string;
+}
+
 const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigation: any }) => {
-  // Appointment configuration (fallback values provided)
-  const clinic_id = route?.params?.clinic_id;
-  const openingTime = route?.params?.openingTime || '10:00';
-  const closingTime = route?.params?.closingTime || '17:00';
-  const interval = route?.params?.clinic_time_slots || 30;
+  // Extract and log route parameters
+  const params = route?.params as RouteParams || {};
+  const clinic_id = params.clinic_id;
+  const interval = params.clinic_time_slots || 30;
+  
+  // Set default times if not provided
+  const [clinicHours, setClinicHours] = useState({
+    openingTime: params.openingTime || '10:00',
+    closingTime: params.closingTime || '17:00'
+  });
+  
+  // Debug log the parameters
+  console.log('Appointment Screen Params:', {
+    clinic_id,
+    openingTime: params.openingTime,
+    closingTime: params.closingTime,
+    interval
+  });
 
   // State variables
   const [days, setDays] = useState<DayItem[]>([]);
@@ -85,38 +105,156 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   };
 
   // Utility: Generate time slots based on opening/closing times and interval
+  // Enhanced to handle various time formats
   const generateTimeSlots = (open: string, close: string, intervalMinutes: number): string[] => {
-    const [openHour, openMinute] = open.split(':').map(Number);
-    const [closeHour, closeMinute] = close.split(':').map(Number);
-    let currentHour = openHour;
-    let currentMinute = openMinute;
+    console.log(`Generating time slots with: open=${open}, close=${close}, interval=${intervalMinutes}`);
+    
+    // Try to normalize the time format
+    const normalizeTime = (timeStr: string): { hour: number, minute: number } => {
+      // Handle various possible formats
+      let hour = 0;
+      let minute = 0;
+      
+      // Format: HH:MM:SS
+      if (timeStr.includes(':')) {
+        const parts = timeStr.split(':');
+        hour = parseInt(parts[0], 10);
+        minute = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+      } 
+      // Format: HHMM (military time)
+      else if (timeStr.length === 4) {
+        hour = parseInt(timeStr.substring(0, 2), 10);
+        minute = parseInt(timeStr.substring(2), 10);
+      }
+      // Format: HH.MM
+      else if (timeStr.includes('.')) {
+        const parts = timeStr.split('.');
+        hour = parseInt(parts[0], 10);
+        minute = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+      }
+      // Default to parsing as a number (assuming hours)
+      else {
+        hour = parseInt(timeStr, 10);
+        minute = 0;
+      }
+      
+      // Validate hour and minute
+      if (isNaN(hour) || hour < 0 || hour > 23) hour = 9; // Default to 9 AM if invalid
+      if (isNaN(minute) || minute < 0 || minute > 59) minute = 0;
+      
+      return { hour, minute };
+    };
+    
+    // Normalize the times
+    const openTime = normalizeTime(open);
+    const closeTime = normalizeTime(close);
+    
+    console.log('Normalized times:', {
+      open: `${openTime.hour}:${openTime.minute}`,
+      close: `${closeTime.hour}:${closeTime.minute}`
+    });
+    
+    // Default interval if invalid
+    const interval = isNaN(intervalMinutes) || intervalMinutes <= 0 ? 30 : intervalMinutes;
+    
+    let currentHour = openTime.hour;
+    let currentMinute = openTime.minute;
     const slots: string[] = [];
 
+    // Loop to generate time slots
     while (
-      currentHour < closeHour ||
-      (currentHour === closeHour && currentMinute < closeMinute)
+      currentHour < closeTime.hour ||
+      (currentHour === closeTime.hour && currentMinute < closeTime.minute)
     ) {
       const startHour = currentHour.toString().padStart(2, '0');
       const startMin = currentMinute.toString().padStart(2, '0');
-      let nextMinute = currentMinute + intervalMinutes;
+      
+      let nextMinute = currentMinute + interval;
       let nextHour = currentHour;
+      
       if (nextMinute >= 60) {
         nextHour += 1;
         nextMinute -= 60;
       }
+      
       if (
-        nextHour > closeHour ||
-        (nextHour === closeHour && nextMinute > closeMinute)
+        nextHour > closeTime.hour ||
+        (nextHour === closeTime.hour && nextMinute > closeTime.minute)
       ) {
         break;
       }
+      
       const endHour = nextHour.toString().padStart(2, '0');
       const endMin = nextMinute.toString().padStart(2, '0');
-      slots.push(`${startHour}.${startMin} - ${endHour}.${endMin}`);
+      
+      const slot = `${startHour}.${startMin} - ${endHour}.${endMin}`;
+      slots.push(slot);
+      
       currentHour = nextHour;
       currentMinute = nextMinute;
     }
+    
+    console.log(`Generated ${slots.length} time slots`);
     return slots;
+  };
+
+  // Fetch clinic details to get the actual opening/closing hours
+  const fetchClinicDetails = async () => {
+    if (!clinic_id) return;
+    
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        console.error('Authentication token not found');
+        return;
+      }
+      
+      const response = await fetch(
+        `https://petlyst.com:3001/api/fetch-clinic?clinic_id=${clinic_id}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch clinic details');
+      }
+      
+      const data = await response.json();
+      console.log('Clinic details:', data);
+      
+      if (data.clinic) {
+        // Try different possible field names for backward compatibility
+        const openTime = data.clinic.clinic_opening_hour || 
+                        data.clinic.opening_time || 
+                        data.clinic.opening_hour || 
+                        params.openingTime || 
+                        '10:00';
+                        
+        const closeTime = data.clinic.clinic_closing_hour || 
+                         data.clinic.closing_time || 
+                         data.clinic.closing_hour || 
+                         params.closingTime || 
+                         '17:00';
+        
+        console.log('Using clinic hours:', { openTime, closeTime });
+        
+        setClinicHours({
+          openingTime: openTime,
+          closingTime: closeTime
+        });
+        
+        // Regenerate time slots with the fetched hours
+        const slots = generateTimeSlots(openTime, closeTime, interval);
+        setAllSlots(slots);
+        const { left, right } = splitIntoTwoColumns(slots);
+        setLeftSlots(left);
+        setRightSlots(right);
+      }
+    } catch (error) {
+      console.error('Error fetching clinic details:', error);
+    }
   };
 
   // Utility: Split array into two columns
@@ -218,7 +356,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  // Update the fetchReservedSlots function with robust error handling for timestamp formats
+  // Fetch reserved slots for the selected day
   const fetchReservedSlots = async (selectedDate: Date) => {
     if (!clinic_id) return;
     
@@ -336,22 +474,76 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
     }
   };
 
-  // On component mount, generate days, time slots, and fetch pets
+  // Check if a time slot is in the past (for current day)
+  const isTimeSlotInPast = (timeSlot: string, dayId: string): boolean => {
+    // If it's not today, no need to check
+    const selectedDay = days.find(day => day.id === dayId);
+    if (!selectedDay) return false;
+    
+    const today = new Date();
+    const selectedDate = selectedDay.dateObj;
+    
+    // Only check for current day
+    if (
+      selectedDate.getDate() !== today.getDate() ||
+      selectedDate.getMonth() !== today.getMonth() ||
+      selectedDate.getFullYear() !== today.getFullYear()
+    ) {
+      return false;
+    }
+    
+    // Parse the time slot
+    try {
+      const [startTime] = timeSlot.split(' - ');
+      const [startHour, startMinute] = startTime.split('.').map(Number);
+      
+      const now = new Date();
+      const slotTime = new Date();
+      slotTime.setHours(startHour, startMinute, 0, 0);
+      
+      // Add a buffer (e.g., 15 minutes) to prevent booking slots that are too close
+      const bufferTime = new Date(now.getTime() + 15 * 60 * 1000);
+      
+      return slotTime < bufferTime;
+    } catch (error) {
+      console.error('Error checking if time slot is in past:', error);
+      return false;
+    }
+  };
+
+  // On component mount, generate days, time slots, and fetch clinic details
   useEffect(() => {
+    // Generate the next days
     const nextDays = generateNextDays(15);
     setDays(nextDays);
+    
+    // Set the first day as selected and fetch its reserved slots
     if (nextDays.length > 0) {
       setSelectedDayId(nextDays[0].id);
-      // Fetch reserved slots for the first day
       fetchReservedSlots(nextDays[0].dateObj);
     }
-    const slots = generateTimeSlots(openingTime, closingTime, interval);
+    
+    // Generate initial time slots with current hours
+    const slots = generateTimeSlots(clinicHours.openingTime, clinicHours.closingTime, interval);
     setAllSlots(slots);
     const { left, right } = splitIntoTwoColumns(slots);
     setLeftSlots(left);
     setRightSlots(right);
+    
+    // Fetch pets and clinic details
     fetchPets();
+    fetchClinicDetails();
   }, []);
+  
+  // When clinic hours change, regenerate time slots
+  useEffect(() => {
+    console.log('Clinic hours changed, regenerating time slots');
+    const slots = generateTimeSlots(clinicHours.openingTime, clinicHours.closingTime, interval);
+    setAllSlots(slots);
+    const { left, right } = splitIntoTwoColumns(slots);
+    setLeftSlots(left);
+    setRightSlots(right);
+  }, [clinicHours, interval]);
 
   // Refresh pets when the screen gains focus
   useEffect(() => {
@@ -361,15 +553,17 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
 
   // Handlers for pet, day, and time selection
   const handlePetCardPress = () => setShowPetModal(true);
+  
   const handlePetSelect = (pet: Pet) => {
     setSelectedPet(pet);
     setShowPetModal(false);
     AsyncStorage.setItem('selectedPetId', pet.id.toString());
     AsyncStorage.setItem('selectedPetName', pet.name);
   };
+  
   const handleDayPress = (dayId: string) => {
     setSelectedDayId(dayId);
-    setSelectedTime(null);
+    setSelectedTime(null); // Reset selected time when changing day
     
     // Find the selected day and fetch reserved slots
     const selectedDay = days.find(day => day.id === dayId);
@@ -377,6 +571,7 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
       fetchReservedSlots(selectedDay.dateObj);
     }
   };
+  
   const handleTimePress = (time: string) => setSelectedTime(time);
 
   // Parse the selected time slot into start and end Date objects
@@ -569,6 +764,10 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
   const renderTimeButton = (time: string, column: 'left' | 'right') => {
     const isSelected = time === selectedTime;
     const isReserved = reservedSlots.includes(time);
+    const isPast = isTimeSlotInPast(time, selectedDayId);
+    
+    // Determine if the slot should be disabled
+    const isDisabled = isReserved || isPast;
     
     return (
       <TouchableOpacity
@@ -576,22 +775,27 @@ const AppointmentDetailsScreen = ({ route, navigation }: { route: any; navigatio
         style={[
           styles.timeSlot, 
           isSelected && styles.timeSlotSelected,
-          isReserved && styles.timeSlotReserved
+          isReserved && styles.timeSlotReserved,
+          isPast && styles.timeSlotPast
         ]}
-        onPress={() => !isReserved && handleTimePress(time)}
-        disabled={isReserved}
+        onPress={() => !isDisabled && handleTimePress(time)}
+        disabled={isDisabled}
       >
         <Text 
           style={[
             styles.timeText, 
             isSelected && styles.timeTextSelected,
-            isReserved && styles.timeTextReserved
+            isReserved && styles.timeTextReserved,
+            isPast && styles.timeTextPast
           ]}
         >
           {time}
         </Text>
         {isReserved && (
           <Text style={styles.reservedText}>Reserved</Text>
+        )}
+        {isPast && !isReserved && (
+          <Text style={styles.pastText}>Unavailable</Text>
         )}
       </TouchableOpacity>
     );
@@ -1035,6 +1239,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     opacity: 0.7,
   },
+  timeSlotPast: {
+    backgroundColor: '#f0f0f0',
+    borderColor: '#e0e0e0',
+    borderWidth: 1,
+    opacity: 0.7,
+  },
   timeText: {
     fontSize: 14,
     color: '#333',
@@ -1046,7 +1256,16 @@ const styles = StyleSheet.create({
   timeTextReserved: {
     color: '#aaa',
   },
+  timeTextPast: {
+    color: '#aaa',
+  },
   reservedText: {
+    fontSize: 10,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  pastText: {
     fontSize: 10,
     color: '#999',
     fontStyle: 'italic',

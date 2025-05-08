@@ -20,9 +20,24 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
+
+// Define the app navigation types
+type RootStackParamList = {
+  HomeScreen: undefined;
+  MapScreen: { clinic_id: number };
+  MakeAppointment: { 
+    clinic_id: number;
+    clinic_time_slots?: number;
+    openingTime?: string;
+    closingTime?: string;
+  };
+};
+
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 // Types for clinic data
 interface ClinicPhoto {
@@ -101,7 +116,7 @@ const HomeScreen: React.FC = () => {
   // Animation refs
   const scrollIndicatorOpacity = useState(new Animated.Value(1))[0];
   const scrollViewRef = useRef<ScrollView>(null);
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   
   // Filter clinics when search query changes
   useEffect(() => {
@@ -230,15 +245,15 @@ const HomeScreen: React.FC = () => {
     if (!selectedClinic) return;
 
     const clinic_time_slots = selectedClinic.clinic_time_slots;
-    const opening_hour = selectedClinic.opening_time;
-    const closing_hour = selectedClinic.closing_time;
+    const openingTime = selectedClinic.opening_time;
+    const closingTime = selectedClinic.closing_time;
     
     setModalVisible(false);
     navigation.navigate('MakeAppointment', { 
       clinic_id: selectedClinic.id,
       clinic_time_slots,
-      opening_hour,
-      closing_hour
+      openingTime,
+      closingTime
     });
   };
 
