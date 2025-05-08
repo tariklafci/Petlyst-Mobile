@@ -115,7 +115,7 @@ exports.fetchAppointments = async (req, res) => {
         p.pet_species,
         p.pet_breed,
         p.pet_photo,
-        c.clinic_name,
+        c.clinic_name
       FROM appointments a
       JOIN pets p ON a.pet_id = p.pet_id
       JOIN clinics c ON a.clinic_id = c.clinic_id
