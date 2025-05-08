@@ -104,6 +104,8 @@ exports.fetchAppointments = async (req, res) => {
     let queryText = `
       SELECT
         a.appointment_id,
+        a.clinic_id,
+        a.pet_id,
         a.appointment_date,
         a.appointment_start_hour,
         a.appointment_end_hour,
@@ -148,6 +150,8 @@ exports.fetchAppointments = async (req, res) => {
 
       return {
         id: appointment.appointment_id,
+        clinic_id: appointment.clinic_id,
+        pet_id: appointment.pet_id,
         date: formattedDate,
         rawDate: appointment.appointment_date,
         startTime: formattedStartTime,

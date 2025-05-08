@@ -37,6 +37,8 @@ interface Clinic {
 
 interface Appointment {
   id: number;
+  clinic_id: number;
+  pet_id: number;
   date: string;
   rawDate: string;
   startTime: string;
@@ -212,6 +214,12 @@ const AppointmentScreen = ({ navigation }: any) => {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) throw new Error('Authentication token not found');
 
+      console.log('Submitting review with data:', {
+        appointment_id: selectedAppointment.id,
+        clinic_id: selectedAppointment.clinic_id,
+        pet_id: selectedAppointment.pet_id
+      });
+
       const response = await fetch('https://petlyst.com:3001/api/create-clinic-review', {
         method: 'POST',
         headers: {
@@ -220,8 +228,8 @@ const AppointmentScreen = ({ navigation }: any) => {
         },
         body: JSON.stringify({
           appointment_id: selectedAppointment.id,
-          clinic_id: selectedAppointment.clinic.id,
-          pet_id: selectedAppointment.pet.id,
+          clinic_id: selectedAppointment.clinic_id,
+          pet_id: selectedAppointment.pet_id,
           hygiene_rating: hygieneRating,
           staff_behaviour_rating: staffRating,
           price_rating: priceRating,
@@ -400,7 +408,7 @@ const AppointmentScreen = ({ navigation }: any) => {
               {selectedAppointment && (
                 <View style={styles.appointmentInfo}>
                   <Text style={styles.clinicName}>{selectedAppointment.clinic.name}</Text>
-                  <Text style={styles.petName}>
+                  <Text style={styles.modalPetName}>
                     {selectedAppointment.pet.name} • {selectedAppointment.date}
                   </Text>
                 </View>
@@ -722,7 +730,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  petName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  modalPetName: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
   ratingSection: {
     marginBottom: 20,
   },
