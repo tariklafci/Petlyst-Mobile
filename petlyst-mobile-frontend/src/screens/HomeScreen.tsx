@@ -354,11 +354,11 @@ const HomeScreen: React.FC = () => {
     setIsDescriptionExpanded(false);
     
     // Reset scroll position when modal opens
-    setTimeout(() => {
+      setTimeout(() => {
       if (scrollViewRef.current) {
         scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
         scrollIndicatorOpacity.setValue(1);
-      }
+    }
     }, 300);
   };
 
@@ -490,7 +490,7 @@ const HomeScreen: React.FC = () => {
     const firstPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
     const animationDelay = index * 100; // Staggered animation effect
     const { isOpen } = isClinicOpenNow(item);
-    
+
     return (
       <Animatable.View 
         animation="fadeInUp" 
@@ -547,7 +547,7 @@ const HomeScreen: React.FC = () => {
               ]}>
                 {isOpen ? 'Open' : 'Closed'}
               </Text>
-            </View>
+          </View>
             
             {/* 24/7 Badge */}
             {item.is_open_24_7 === 'yes' && (
@@ -676,122 +676,122 @@ const HomeScreen: React.FC = () => {
           <Text style={styles.loadingText}>Loading clinics...</Text>
         </View>
       ) : (
-        <View style={styles.clinicsContainer}>
-          <FlatList
-            data={filteredClinics}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderClinicCard}
-            numColumns={2}
-            columnWrapperStyle={styles.columnWrapper}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContentContainer}
-            refreshControl={
-              <RefreshControl 
-                refreshing={refreshing} 
+      <View style={styles.clinicsContainer}>
+        <FlatList
+          data={filteredClinics}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderClinicCard}
+          numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContentContainer}
+          refreshControl={
+            <RefreshControl 
+              refreshing={refreshing} 
                 onRefresh={handleRefresh}
-                colors={['#6c63ff']}
-                tintColor={'#6c63ff'}
-              />
-            }
+              colors={['#6c63ff']}
+              tintColor={'#6c63ff'}
+            />
+          }
             ListEmptyComponent={renderEmptyState}
-          />
-        </View>
+        />
+      </View>
       )}
 
       {/* Clinic Detail Modal */}
       {selectedClinic && (
-        <Modal
-          visible={modalVisible}
-          animationType="slide"
-          transparent={false}
-          onRequestClose={handleModalClose}
-        >
-          <View style={styles.modalContainer}>
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={handleModalClose}
+      >
+        <View style={styles.modalContainer}>
             {/* Top Header with Close Button */}
-            <LinearGradient
-              colors={['rgba(0,0,0,0.7)', 'transparent']}
-              style={styles.modalHeaderGradient}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.7)', 'transparent']}
+            style={styles.modalHeaderGradient}
+          >
+            <TouchableOpacity 
+              onPress={handleModalClose}
+              style={styles.closeButton}
             >
-              <TouchableOpacity 
-                onPress={handleModalClose}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-              
-              {/* Image Counter */}
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            {/* Image Counter */}
               {selectedClinic.photos && selectedClinic.photos.length > 0 && (
-                <View style={styles.imageCounter}>
-                  <Text style={styles.imageCounterText}>
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
                     {carouselIndex + 1}/{selectedClinic.photos.length}
-                  </Text>
-                </View>
-              )}
-            </LinearGradient>
+                </Text>
+              </View>
+            )}
+          </LinearGradient>
 
             {/* Image Carousel */}
-            <View style={styles.carouselContainer}>
+          <View style={styles.carouselContainer}>
               {selectedClinic.photos && selectedClinic.photos.length > 0 ? (
-                <>
-                  <FlatList
-                    data={selectedClinic.photos}
-                    keyExtractor={(photo) => String(photo.photo_id)}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
+              <>
+                <FlatList
+                  data={selectedClinic.photos}
+                  keyExtractor={(photo) => String(photo.photo_id)}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
                     onMomentumScrollEnd={handleCarouselScroll}
-                    renderItem={({ item: photo }) => (
-                      <Image
-                        source={{ uri: photo.presigned_url }}
-                        style={styles.carouselImage}
-                        resizeMode="cover"
-                      />
-                    )}
-                  />
+                  renderItem={({ item: photo }) => (
+                    <Image
+                      source={{ uri: photo.presigned_url }}
+                      style={styles.carouselImage}
+                      resizeMode="cover"
+                    />
+                  )}
+                />
 
-                  {/* Pagination Dots */}
-                  <View style={styles.dotsContainer}>
-                    {selectedClinic.photos.map((_, index) => (
-                      <View
-                        key={index}
-                        style={[
-                          styles.dot,
+                {/* Pagination Dots */}
+                <View style={styles.dotsContainer}>
+                  {selectedClinic.photos.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
                           index === carouselIndex && styles.activeDot,
-                        ]}
-                      />
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <View style={styles.noCarouselImage}>
-                  <Ionicons name="images-outline" size={60} color="#ccc" />
-                  <Text style={styles.noImagesText}>No clinic images available</Text>
+                      ]}
+                    />
+                  ))}
                 </View>
-              )}
-            </View>
+              </>
+            ) : (
+              <View style={styles.noCarouselImage}>
+                <Ionicons name="images-outline" size={60} color="#ccc" />
+                <Text style={styles.noImagesText}>No clinic images available</Text>
+              </View>
+            )}
+          </View>
 
             {/* Bottom Card: Clinic Details */}
-            <View style={styles.bottomCardContainer}>
-              <ScrollView 
-                ref={scrollViewRef}
-                style={styles.bottomCard} 
-                showsVerticalScrollIndicator={false}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
+          <View style={styles.bottomCardContainer}>
+            <ScrollView 
+              ref={scrollViewRef}
+              style={styles.bottomCard} 
+              showsVerticalScrollIndicator={false}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
                 onContentSizeChange={checkScrollability}
                 onLayout={checkScrollability}
-                contentContainerStyle={styles.scrollContentContainer}
+              contentContainerStyle={styles.scrollContentContainer}
                 bounces={true}
-              >
+            >
                 {/* Clinic Header */}
-                <View style={styles.clinicHeaderRow}>
-                  <View style={styles.clinicTitleContainer}>
-                    <Text style={styles.modalTitle}>{selectedClinic.name}</Text>
+                  <View style={styles.clinicHeaderRow}>
+                    <View style={styles.clinicTitleContainer}>
+                      <Text style={styles.modalTitle}>{selectedClinic.name}</Text>
                     <Text style={styles.clinicType}>
                       {selectedClinic.type || 'Veterinary Clinic'}
                     </Text>
-                  </View>
-                  
+                    </View>
+                    
                   <View style={styles.clinicStatusContainer}>
                     {/* Clinic Status Indicator */}
                     {(() => {
@@ -841,78 +841,78 @@ const HomeScreen: React.FC = () => {
                       </View>
                     )}
                   </View>
-                </View>
-
-                {/* Description with Show More button */}
-                <View style={styles.descriptionContainer}>
-                  <Text style={styles.sectionTitle}>About</Text>
-                  <Text 
-                    style={[
-                      styles.descriptionText,
-                      !isDescriptionExpanded && styles.descriptionCollapsed
-                    ]}
-                    numberOfLines={isDescriptionExpanded ? undefined : 3}
-                  >
-                    {selectedClinic.description || 'No description available for this clinic.'}
-                  </Text>
-                  
-                  {selectedClinic.description && 
-                   selectedClinic.description.length > 120 && (
-                    <TouchableOpacity 
-                      style={styles.showMoreButton}
-                      onPress={toggleDescription}
-                    >
-                      <Text style={styles.showMoreText}>
-                        {isDescriptionExpanded ? 'Show less' : 'Show more'}
-                      </Text>
-                      <Ionicons 
-                        name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
-                        size={16} 
-                        color="#6c63ff" 
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Clinic Info Section */}
-                <View style={styles.infoSection}>
-                  <Text style={styles.sectionTitle}>Clinic Information</Text>
-                  
-                  {/* Address */}
-                  <View style={styles.infoRow}>
-                    <View style={styles.infoIconContainer}>
-                      <Ionicons name="location-outline" size={20} color="#6c63ff" />
-                    </View>
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Address</Text>
-                      <Text style={styles.infoValue}>
-                        {selectedClinic?.location?.province && selectedClinic?.location?.district 
-                          ? `${selectedClinic.location.address}, ${selectedClinic.location.district}, ${selectedClinic.location.province}`
-                          : selectedClinic?.location?.address || 'Not provided'}
-                      </Text>
-                    </View>
                   </View>
-                  
-                  {/* Phone */}
-                  {selectedClinic.phone_numbers && selectedClinic.phone_numbers.length > 0 && (
+
+                  {/* Description with Show More button */}
+                  <View style={styles.descriptionContainer}>
+                    <Text style={styles.sectionTitle}>About</Text>
+                    <Text 
+                      style={[
+                        styles.descriptionText,
+                        !isDescriptionExpanded && styles.descriptionCollapsed
+                      ]}
+                      numberOfLines={isDescriptionExpanded ? undefined : 3}
+                    >
+                      {selectedClinic.description || 'No description available for this clinic.'}
+                    </Text>
+                    
+                    {selectedClinic.description && 
+                     selectedClinic.description.length > 120 && (
+                      <TouchableOpacity 
+                        style={styles.showMoreButton}
+                        onPress={toggleDescription}
+                      >
+                        <Text style={styles.showMoreText}>
+                          {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                        </Text>
+                        <Ionicons 
+                          name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
+                          size={16} 
+                          color="#6c63ff" 
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Clinic Info Section */}
+                  <View style={styles.infoSection}>
+                    <Text style={styles.sectionTitle}>Clinic Information</Text>
+                    
+                  {/* Address */}
                     <View style={styles.infoRow}>
                       <View style={styles.infoIconContainer}>
-                        <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                        <Ionicons name="location-outline" size={20} color="#6c63ff" />
                       </View>
                       <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Phone</Text>
-                        <Text style={styles.infoValue}>{selectedClinic.phone_numbers[0].number}</Text>
+                        <Text style={styles.infoLabel}>Address</Text>
+                        <Text style={styles.infoValue}>
+                          {selectedClinic?.location?.province && selectedClinic?.location?.district 
+                            ? `${selectedClinic.location.address}, ${selectedClinic.location.district}, ${selectedClinic.location.province}`
+                          : selectedClinic?.location?.address || 'Not provided'}
+                        </Text>
                       </View>
                     </View>
-                  )}
-                  
+                    
+                  {/* Phone */}
+                  {selectedClinic.phone_numbers && selectedClinic.phone_numbers.length > 0 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Phone</Text>
+                          <Text style={styles.infoValue}>{selectedClinic.phone_numbers[0].number}</Text>
+                        </View>
+                      </View>
+                    )}
+                    
                   {/* Working Hours */}
-                  <View style={styles.infoRow}>
-                    <View style={styles.infoIconContainer}>
-                      <Ionicons name="time-outline" size={20} color="#6c63ff" />
-                    </View>
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Working Hours</Text>
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="time-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Working Hours</Text>
                       <View style={{flexDirection: 'row', alignItems: 'center'}}>
                         <Text style={styles.infoValue}>
                           {selectedClinic.is_open_24_7 === 'yes'
@@ -923,10 +923,10 @@ const HomeScreen: React.FC = () => {
                         {selectedClinic.is_open_24_7 === 'yes' && (
                           <View style={styles.badge24_7Small}>
                             <Text style={styles.badge24_7TextSmall}>24/7</Text>
-                          </View>
-                        )}
                       </View>
-                      
+                        )}
+                    </View>
+                    
                       {/* Add the open/closed indicator specifically to the hours section */}
                       {(() => {
                         const { isOpen } = isClinicOpenNow(selectedClinic);
@@ -949,77 +949,77 @@ const HomeScreen: React.FC = () => {
                   
                   {/* Email */}
                   {selectedClinic.email && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="mail-outline" size={20} color="#6c63ff" />
-                      </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Email</Text>
-                        <Text style={styles.infoValue}>{selectedClinic.email}</Text>
-                      </View>
-                    </View>
-                  )}
-                  
-                  {/* Services */}
-                  {selectedClinic.medical_services && selectedClinic.medical_services.length > 0 && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
-                      </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Services</Text>
-                        <View style={styles.serviceContainer}>
-                          {selectedClinic.medical_services.map((service, index) => (
-                            <View key={index} style={styles.serviceBadge}>
-                              <Text style={styles.serviceText}>{service}</Text>
-                            </View>
-                          ))}
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="mail-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Email</Text>
+                          <Text style={styles.infoValue}>{selectedClinic.email}</Text>
                         </View>
                       </View>
-                    </View>
-                  )}
-                  
+                    )}
+                    
+                  {/* Services */}
+                  {selectedClinic.medical_services && selectedClinic.medical_services.length > 0 && (
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Services</Text>
+                          <View style={styles.serviceContainer}>
+                            {selectedClinic.medical_services.map((service, index) => (
+                              <View key={index} style={styles.serviceBadge}>
+                                <Text style={styles.serviceText}>{service}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                    
                   {/* Video Meetings */}
                   {selectedClinic.allows_video_meetings && (
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="videocam-outline" size={20} color="#6c63ff" />
+                      <View style={styles.infoRow}>
+                        <View style={styles.infoIconContainer}>
+                          <Ionicons name="videocam-outline" size={20} color="#6c63ff" />
+                        </View>
+                        <View style={styles.infoContent}>
+                          <Text style={styles.infoLabel}>Online Consultations</Text>
+                          <Text style={styles.infoValue}>Available</Text>
+                        </View>
                       </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Online Consultations</Text>
-                        <Text style={styles.infoValue}>Available</Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
+                    )}
+                  </View>
 
-                {/* Action Buttons */}
-                <View style={styles.buttonGroup}>
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
+                  {/* Action Buttons */}
+                  <View style={styles.buttonGroup}>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
                     onPress={handleViewOnMap}
-                  >
-                    <Ionicons name="map-outline" size={20} color="#6c63ff" />
-                    <Text style={styles.secondaryButtonText}>View on Map</Text>
-                  </TouchableOpacity>
+                    >
+                      <Ionicons name="map-outline" size={20} color="#6c63ff" />
+                      <Text style={styles.secondaryButtonText}>View on Map</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.primaryButton}
+                    <TouchableOpacity 
+                      style={styles.primaryButton}
                     onPress={handleMakeAppointment}
-                  >
-                    <Ionicons name="calendar-outline" size={20} color="#fff" />
-                    <Text style={styles.primaryButtonText}>
-                      Book Appointment
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                
+                    >
+                      <Ionicons name="calendar-outline" size={20} color="#fff" />
+                      <Text style={styles.primaryButtonText}>
+                        Book Appointment
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  
                 {/* Bottom padding to ensure content is visible */}
-                <View style={{ height: 20 }} />
-              </ScrollView>
-            </View>
+                  <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
-        </Modal>
+        </View>
+      </Modal>
       )}
     </SafeAreaView>
   );
