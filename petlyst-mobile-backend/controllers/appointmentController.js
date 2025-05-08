@@ -568,14 +568,14 @@ exports.fetchTreatmentDetails = async (req, res) => {
     // Fetch examination details related to this appointment
     const examinationQuery = `
       SELECT 
-        e.examination_id,
-        e.examination_date,
-        e.status,
-        e.temperature,
-        e.heart_rate,
-        e.respiratory_rate,
-        e.weight,
-        e.notes as examination_notes
+        examination_id,
+        examination_date,
+        status,
+        temperature,
+        heart_rate,
+        respiratory_rate,
+        weight,
+        notes as examination_notes
       FROM examinations
       WHERE appointment_id = $1
     `;
