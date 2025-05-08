@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { 
   fetchClinics, 
+  fetchClinic,
   fetchClinicsAppointment, 
   fetchClinicsVeterinarian, 
   fetchClinicCoordinates,
@@ -16,12 +17,14 @@ const {
 } = require('../controllers/clinicController');
 const authenticateToken = require('../middlewares/authenticateToken');
 
-
-// GET /fetch-clinics
+// Clinic listing and details routes
 router.get('/fetch-clinics', authenticateToken, fetchClinics);
+router.get('/fetch-clinic', authenticateToken, fetchClinic);
+router.get('/fetch-clinic-coordinates', authenticateToken, fetchClinicCoordinates);
+
+// Appointment related routes
 router.get('/fetch-clinic-info-appointments', authenticateToken, fetchClinicsAppointment);
 router.get('/fetch-clinic-veterinarian', authenticateToken, fetchClinicsVeterinarian);
-router.get('/fetch-clinic-coordinates', authenticateToken, fetchClinicCoordinates);
 
 // Clinic pet management routes
 router.get('/clinic-hospitalization-rooms', authenticateToken, fetchClinicHospitalizationRooms);

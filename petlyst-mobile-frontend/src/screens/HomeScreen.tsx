@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,10 @@ import {
   RefreshControl,
   ScrollView,
   Animated,
+  ActivityIndicator,
+  StatusBar,
+  Platform,
+  SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,39 +24,38 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
 
-type ClinicPhoto = {
+// Types for clinic data
+interface ClinicPhoto {
   photo_id: number;
   s3_url: string;
   presigned_url: string;
-};
+}
 
-type PhoneNumber = {
+interface PhoneNumber {
   number: string;
   type?: string;
-};
+}
 
-type SocialMedia = {
+interface SocialMedia {
   platform: string;
   url: string;
-};
+}
 
-type Location = {
+interface Location {
   province?: string;
   district?: string;
   address?: string;
   latitude?: number;
   longitude?: number;
-};
+}
 
-type ClinicItem = {
+interface Clinic {
   id: number;
   name: string;
   email: string | null;
-  address: string;
-  clinic_operator_id: number;
   description: string;
-  opening_time: Date;
-  closing_time: Date;
+  opening_time: string;
+  closing_time: string;
   verification_status: string;
   establishment_year: number;
   show_phone_number: boolean;
@@ -62,7 +65,7 @@ type ClinicItem = {
   available_days: boolean[];
   emergency_available_days: boolean[];
   clinic_time_slots?: number;
-  is_open_24_7?: boolean;
+  is_open_24_7?: string;
   type?: string;
   operator_id: number;
   photos: ClinicPhoto[];
@@ -73,38 +76,34 @@ type ClinicItem = {
   allows_video_meetings?: boolean;
   average_rating?: number;
   total_reviews?: number;
-};
+}
 
-const { width } = Dimensions.get('window');
-const { height } = Dimensions.get('window');
-const cardWidth = width * 0.42; // making cards fit two in a row with spacing
+const { width, height } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.42; // Two cards per row with spacing
+const CAROUSEL_HEIGHT = height * 0.4;
+const HEADER_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 
-const HomeScreen = ({ navigation }: { navigation: any }) => {
+const HomeScreen: React.FC = () => {
+  // State for screen data
   const [searchQuery, setSearchQuery] = useState('');
-  const [allClinics, setAllClinics] = useState<ClinicItem[]>([]);
-  const [filteredClinics, setFilteredClinics] = useState<ClinicItem[]>([]);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [allClinics, setAllClinics] = useState<Clinic[]>([]);
+  const [filteredClinics, setFilteredClinics] = useState<Clinic[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [bestFor, setBestFor] = useState('');
   
+  // Modal state
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedClinic, setSelectedClinic] = useState<ClinicItem | null>(null);
-  
-  // Track photo carousel index
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [scrollIndicatorOpacity] = useState(new Animated.Value(1));
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [isScrollable, setIsScrollable] = useState(false);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useFocusEffect(() => {
-    fetchSelectedPet();
-  });
-
-  // Add effect to filter clinics when search query changes
+  
+  // Animation refs
+  const scrollIndicatorOpacity = useState(new Animated.Value(1))[0];
+  const scrollViewRef = useRef<ScrollView>(null);
+  const navigation = useNavigation();
+  
+  // Filter clinics when search query changes
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredClinics(allClinics);
@@ -120,9 +119,18 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     }
   }, [searchQuery, allClinics]);
 
-  const fetchData = async () => {
+  // Fetch clinics data from API
+  const fetchClinics = async () => {
     try {
+      setLoading(true);
       const token = await SecureStore.getItemAsync('userToken');
+      
+      if (!token) {
+        console.error('No authentication token found');
+        setLoading(false);
+        return;
+      }
+      
       const response = await fetch('https://petlyst.com:3001/api/fetch-clinics', {
         method: 'GET',
         headers: {
@@ -134,57 +142,22 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server returned error:', errorText);
+        setLoading(false);
         return;
       }
+      
       const data = await response.json();
-
-      // Filter clinics to include only those with verification_status === 'verified'
-      const verifiedClinics = data.filter((clinic: any) => clinic.verification_status === 'verified');
-
-      const transformed: ClinicItem[] = verifiedClinics.map((clinic: any) => ({
-        id: clinic.id,
-        name: clinic.name,
-        email: clinic.email,
-        address: clinic.address,
-        clinic_operator_id: clinic.clinic_operator_id,
-        description: clinic.description,
-        opening_time: clinic.opening_time,
-        closing_time: clinic.closing_time,
-        verification_status: clinic.verification_status,
-        establishment_year: clinic.establishment_year,
-        show_phone_number: clinic.show_phone_number,
-        allow_direct_messages: clinic.allow_direct_messages,
-        show_mail_address: clinic.show_mail_address,
-        allow_online_meetings: clinic.allow_online_meetings,
-        available_days: clinic.available_days,
-        emergency_available_days: clinic.emergency_available_days,
-        clinic_time_slots: clinic.clinic_time_slots,
-        is_open_24_7: clinic.is_open_24_7,
-        type: clinic.type,
-        operator_id: clinic.operator_id,
-        photos: clinic.photos || [],
-        phone_numbers: clinic.phone_numbers || [],
-        social_media: clinic.social_media || [],
-        location: {
-          province: clinic.province,
-          district: clinic.district,
-          address: clinic.address,
-          latitude: clinic.latitude,
-          longitude: clinic.longitude,
-        },
-        medical_services: clinic.medical_services,
-        allows_video_meetings: clinic.allows_video_meetings,
-        average_rating: clinic.average_rating,
-        total_reviews: clinic.total_reviews,
-      }));
-
-      setAllClinics(transformed);
-      setFilteredClinics(transformed); // Initialize filtered clinics with all clinics
+      setAllClinics(data);
+      setFilteredClinics(data);
+      
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching clinic data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Fetch pet name for recommendations
   const fetchSelectedPet = async () => {
     try {
       const storedName = await AsyncStorage.getItem('selectedPetName');
@@ -195,48 +168,138 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       }
     } catch (error) {
       console.error('Error loading selected pet name:', error);
+      setBestFor('Recommended by Petlyst');
     }
   };
 
+  // Refresh data
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchClinics(), fetchSelectedPet()]);
+    setRefreshing(false);
+  };
+
+  // Load data on initial mount
+  useEffect(() => {
+    fetchClinics();
+    fetchSelectedPet();
+  }, []);
+
+  // Refresh data when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchSelectedPet();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchClinics();
     await fetchSelectedPet();
     setRefreshing(false);
   };
 
-  const handleCardPress = (clinic: ClinicItem) => {
+  // Handle clinic card press to open modal
+  const handleCardPress = (clinic: Clinic) => {
     setSelectedClinic(clinic);
     setModalVisible(true);
-    setCurrentIndex(0); // reset carousel index
-    setIsDescriptionExpanded(false); // Reset description to collapsed state
+    setCarouselIndex(0);
+    setIsDescriptionExpanded(false);
     
-    // Reset scrollability state to ensure it gets rechecked
-    setIsScrollable(true);
-    
-    // Reset the scroll position and ensure scroll is enabled
-    if (scrollViewRef.current) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ x: 0, y: 0, animated: false });
+    // Reset scroll position when modal opens
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
         scrollIndicatorOpacity.setValue(1);
-      }, 100);
+      }
+    }, 300);
+  };
+
+  // Navigate to map view
+  const handleViewOnMap = () => {
+    if (!selectedClinic) return;
+    
+    setModalVisible(false);
+    navigation.navigate('MapScreen', { 
+      clinic_id: selectedClinic.id,
+    });
+  };
+
+  // Navigate to make appointment screen
+  const handleMakeAppointment = () => {
+    if (!selectedClinic) return;
+
+    const clinic_time_slots = selectedClinic.clinic_time_slots;
+    const opening_hour = selectedClinic.opening_time;
+    const closing_hour = selectedClinic.closing_time;
+    
+    setModalVisible(false);
+    navigation.navigate('MakeAppointment', { 
+      clinic_id: selectedClinic.id,
+      clinic_time_slots,
+      opening_hour,
+      closing_hour
+    });
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setIsDescriptionExpanded(false);
+  };
+
+  // Handle carousel scroll to track current index
+  const handleCarouselScroll = (e: any) => {
+    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
+    setCarouselIndex(newIndex);
+  };
+
+  // Toggle description expansion
+  const toggleDescription = () => {
+    setIsDescriptionExpanded(!isDescriptionExpanded);
+  };
+
+  // Handle scroll events for animation
+  const handleScroll = (event: any) => {
+    try {
+      if (!event?.nativeEvent) return;
+      
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      
+      // Ensure we have valid values
+      const layoutHeight = layoutMeasurement?.height || 0;
+      const contentOffsetY = contentOffset?.y || 0;
+      const contentHeight = contentSize?.height || 0;
+      
+      const paddingToBottom = 20;
+      const isCloseToBottom = layoutHeight + contentOffsetY >= contentHeight - paddingToBottom;
+      
+      // Fade out the scroll indicator when near the bottom
+      Animated.timing(scrollIndicatorOpacity, {
+        toValue: isCloseToBottom ? 0 : 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } catch (error) {
+      console.error('Error handling scroll event:', error);
     }
   };
 
-  const handleViewinTheMap = async () => {
-    const clinicId = selectedClinic?.id;
-    
-    setModalVisible(false);
-    navigation.navigate('MapScreen', { clinic_id: clinicId, }); // Pass the location string
+  // Update scroll indicator when content size changes
+  const checkScrollability = () => {
+    // Always enable scrolling and show indicator initially
+    Animated.timing(scrollIndicatorOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const renderClinicCard = ({ item, index }: { item: ClinicItem, index: number }) => {
+  // Render a clinic card
+  const renderClinicCard = ({ item, index }: { item: Clinic, index: number }) => {
     const firstPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
+    const animationDelay = index * 100; // Staggered animation effect
     
-    // Create staggered animation effect
-    const animationDelay = index * 100;
-
     return (
       <Animatable.View 
         animation="fadeInUp" 
@@ -249,6 +312,7 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
           style={styles.card}
           activeOpacity={0.9}
         >
+          {/* Card Image */}
           <View style={styles.imagePlaceholder}>
             {firstPhoto ? (
               <Image
@@ -261,6 +325,8 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <Ionicons name="image" size={40} color="#ddd" />
               </View>
             )}
+            
+            {/* Rating Badge */}
             {item.average_rating ? (
               <View style={styles.ratingBadge}>
                 <Ionicons name="star" size={12} color="#FFD700" />
@@ -271,18 +337,22 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
                 <Text style={styles.noRatingText}>New</Text>
               </View>
             )}
+            
+            {/* Video Meeting Badge */}
             {item.allows_video_meetings && (
               <View style={styles.videoBadge}>
                 <Ionicons name="videocam" size={12} color="#fff" />
               </View>
             )}
           </View>
+          
+          {/* Card Content */}
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
             <View style={styles.cardDetails}>
               <Ionicons name="location-outline" size={14} color="#6c63ff" />
               <Text style={styles.cardAddress} numberOfLines={1}>
-                {item.location?.address || item.address || 'No address provided'}
+                {item.location?.address || 'No address provided'}
               </Text>
             </View>
             {item.type && (
@@ -296,100 +366,19 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
     );
   };
 
-  // Carousel scroll callback to track index
-  const handleScrollEnd = (e: any) => {
-    const newIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-    setCurrentIndex(newIndex);
-  };
-
-  const handleMakeAppointment = async (clinicId: any) => {
-    const clinic_time_slots = selectedClinic?.clinic_time_slots;
-    const clinic_is_open_24_7 = selectedClinic?.is_open_24_7;
-    navigation.navigate('MakeAppointment', { clinic_id: clinicId, clinic_time_slots});
-    setModalVisible(false);
-  };
-
-  // Add a function to handle modal close
-  const handleModalClose = () => {
-    setModalVisible(false);
-    setIsDescriptionExpanded(false); // Reset description to collapsed state
-  };
-
-  // Function to handle scroll events
-  const handleScroll = (event: any) => {
-    try {
-      if (!event || !event.nativeEvent || 
-          !event.nativeEvent.layoutMeasurement || 
-          !event.nativeEvent.contentOffset || 
-          !event.nativeEvent.contentSize) {
-        return;
-      }
-      
-      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-      
-      // Ensure we have valid height values
-      const layoutHeight = layoutMeasurement.height || 0;
-      const contentOffsetY = contentOffset.y || 0;
-      const contentHeight = contentSize.height || 0;
-      
-      const paddingToBottom = 20;
-      const isCloseToBottom = layoutHeight + contentOffsetY >= 
-        contentHeight - paddingToBottom;
-      
-      // Fade out the scroll indicator when near the bottom
-      Animated.timing(scrollIndicatorOpacity, {
-        toValue: isCloseToBottom ? 0 : 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } catch (error) {
-      console.error('Error handling scroll event:', error);
-    }
-  };
-
-  // Update the checkIfScrollable function to always enable scrolling
-  const checkIfScrollable = (event: any) => {
-    try {
-      // Always set scrollable to true to avoid the issue
-      setIsScrollable(true);
-      
-      // Always show scroll indicator initially
-      Animated.timing(scrollIndicatorOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } catch (error) {
-      console.error('Error checking if content is scrollable:', error);
-      // Default to showing the scroll indicator if there's an error
-      setIsScrollable(true);
-      Animated.timing(scrollIndicatorOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  };
-
-  // Function to toggle description expansion
-  const toggleDescription = () => {
-    setIsDescriptionExpanded(!isDescriptionExpanded);
-  };
-
-  // Add a callback for when the modal is shown
-  const handleModalShow = () => {
-    // Force scrollability check after modal is fully rendered
-    setTimeout(() => {
-      setIsScrollable(true);
-      if (scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({ x: 0, y: 0, animated: false });
-        scrollIndicatorOpacity.setValue(1);
-      }
-    }, 300);
-  };
+  // Render empty state when no clinics match the search
+  const renderEmptyState = () => (
+    <View style={styles.emptyListContainer}>
+      <Ionicons name="search-outline" size={80} color="#e0e0ff" />
+      <Text style={styles.emptyListText}>No clinics found</Text>
+      <Text style={styles.emptyListSubtext}>Try a different search term</Text>
+    </View>
+  );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
       {/* Gradient Header */}
       <LinearGradient
         colors={['#6c63ff', '#3b5998']}
@@ -419,292 +408,301 @@ const HomeScreen = ({ navigation }: { navigation: any }) => {
       </LinearGradient>
 
       {/* Clinics Grid */}
-      <View style={styles.clinicsContainer}>
-        <FlatList
-          data={filteredClinics}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderClinicCard}
-          numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContentContainer}
-          refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh}
-              colors={['#6c63ff']}
-              tintColor={'#6c63ff'}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyListContainer}>
-              <Ionicons name="search-outline" size={80} color="#e0e0ff" />
-              <Text style={styles.emptyListText}>No clinics found</Text>
-              <Text style={styles.emptyListSubtext}>Try a different search term</Text>
-            </View>
-          }
-        />
-      </View>
+      {loading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6c63ff" />
+          <Text style={styles.loadingText}>Loading clinics...</Text>
+        </View>
+      ) : (
+        <View style={styles.clinicsContainer}>
+          <FlatList
+            data={filteredClinics}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderClinicCard}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContentContainer}
+            refreshControl={
+              <RefreshControl 
+                refreshing={refreshing} 
+                onRefresh={handleRefresh}
+                colors={['#6c63ff']}
+                tintColor={'#6c63ff'}
+              />
+            }
+            ListEmptyComponent={renderEmptyState}
+          />
+        </View>
+      )}
 
-      {/* Detail Modal */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={handleModalClose}
-        onShow={handleModalShow}
-      >
-        <View style={styles.modalContainer}>
-          {/* Top Header with "X" */}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.7)', 'transparent']}
-            style={styles.modalHeaderGradient}
-          >
-            <TouchableOpacity 
-              onPress={handleModalClose}
-              style={styles.closeButton}
+      {/* Clinic Detail Modal */}
+      {selectedClinic && (
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={handleModalClose}
+        >
+          <View style={styles.modalContainer}>
+            {/* Top Header with Close Button */}
+            <LinearGradient
+              colors={['rgba(0,0,0,0.7)', 'transparent']}
+              style={styles.modalHeaderGradient}
             >
-              <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
-            
-            {/* Image Counter */}
-            {selectedClinic?.photos && selectedClinic.photos.length > 0 && (
-              <View style={styles.imageCounter}>
-                <Text style={styles.imageCounterText}>
-                  {currentIndex + 1}/{selectedClinic.photos.length}
-                </Text>
-              </View>
-            )}
-          </LinearGradient>
-
-          {/* Carousel Area */}
-          <View style={styles.carouselContainer}>
-            {selectedClinic?.photos && selectedClinic.photos.length > 0 ? (
-              <>
-                <FlatList
-                  data={selectedClinic.photos}
-                  keyExtractor={(photo) => String(photo.photo_id)}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onMomentumScrollEnd={handleScrollEnd}
-                  renderItem={({ item: photo }) => (
-                    <Image
-                      source={{ uri: photo.presigned_url }}
-                      style={styles.carouselImage}
-                      resizeMode="cover"
-                    />
-                  )}
-                />
-
-                {/* Pagination Dots */}
-                <View style={styles.dotsContainer}>
-                  {selectedClinic.photos.map((_, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.dot,
-                        index === currentIndex && styles.activeDot,
-                      ]}
-                    />
-                  ))}
+              <TouchableOpacity 
+                onPress={handleModalClose}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+              
+              {/* Image Counter */}
+              {selectedClinic.photos && selectedClinic.photos.length > 0 && (
+                <View style={styles.imageCounter}>
+                  <Text style={styles.imageCounterText}>
+                    {carouselIndex + 1}/{selectedClinic.photos.length}
+                  </Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.noCarouselImage}>
-                <Ionicons name="images-outline" size={60} color="#ccc" />
-                <Text style={styles.noImagesText}>No clinic images available</Text>
-              </View>
-            )}
-          </View>
+              )}
+            </LinearGradient>
 
-          {/* Bottom Card: Clinic Details - Now Scrollable */}
-          <View style={styles.bottomCardContainer}>
-            <ScrollView 
-              ref={scrollViewRef}
-              style={styles.bottomCard} 
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              onContentSizeChange={checkIfScrollable}
-              onLayout={checkIfScrollable}
-              contentContainerStyle={styles.scrollContentContainer}
-              alwaysBounceVertical={true} // Add this to ensure scrollability
-            >
-              {selectedClinic && (
+            {/* Image Carousel */}
+            <View style={styles.carouselContainer}>
+              {selectedClinic.photos && selectedClinic.photos.length > 0 ? (
                 <>
-                  <View style={styles.clinicHeaderRow}>
-                    <View style={styles.clinicTitleContainer}>
-                      <Text style={styles.modalTitle}>{selectedClinic.name}</Text>
-                      <Text style={styles.clinicType}>{selectedClinic.type || 'Veterinary Clinic'}</Text>
-                    </View>
-                    
-                    {selectedClinic.average_rating ? (
-                      <View style={styles.ratingContainer}>
-                        <Ionicons name="star" size={20} color="#FFD700" />
-                        <Text style={styles.ratingValue}>{selectedClinic.average_rating.toFixed(1)}</Text>
-                        <Text style={styles.reviewCount}>{`(${selectedClinic.total_reviews || 0})`}</Text>
-                      </View>
-                    ) : (
-                      <View style={styles.noRatingContainer}>
-                        <Ionicons name="star-outline" size={20} color="#aaa" />
-                        <Text style={styles.noRatingText}>No reviews yet</Text>
-                      </View>
+                  <FlatList
+                    data={selectedClinic.photos}
+                    keyExtractor={(photo) => String(photo.photo_id)}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onMomentumScrollEnd={handleCarouselScroll}
+                    renderItem={({ item: photo }) => (
+                      <Image
+                        source={{ uri: photo.presigned_url }}
+                        style={styles.carouselImage}
+                        resizeMode="cover"
+                      />
                     )}
-                  </View>
+                  />
 
-                  {/* Description with Show More button */}
-                  <View style={styles.descriptionContainer}>
-                    <Text style={styles.sectionTitle}>About</Text>
-                    <Text 
-                      style={[
-                        styles.descriptionText,
-                        !isDescriptionExpanded && styles.descriptionCollapsed
-                      ]}
-                      numberOfLines={isDescriptionExpanded ? undefined : 3}
-                    >
-                      {selectedClinic.description || 'No description available for this clinic.'}
+                  {/* Pagination Dots */}
+                  <View style={styles.dotsContainer}>
+                    {selectedClinic.photos.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.dot,
+                          index === carouselIndex && styles.activeDot,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <View style={styles.noCarouselImage}>
+                  <Ionicons name="images-outline" size={60} color="#ccc" />
+                  <Text style={styles.noImagesText}>No clinic images available</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Bottom Card: Clinic Details */}
+            <View style={styles.bottomCardContainer}>
+              <ScrollView 
+                ref={scrollViewRef}
+                style={styles.bottomCard} 
+                showsVerticalScrollIndicator={false}
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
+                onContentSizeChange={checkScrollability}
+                onLayout={checkScrollability}
+                contentContainerStyle={styles.scrollContentContainer}
+                bounces={true}
+              >
+                {/* Clinic Header */}
+                <View style={styles.clinicHeaderRow}>
+                  <View style={styles.clinicTitleContainer}>
+                    <Text style={styles.modalTitle}>{selectedClinic.name}</Text>
+                    <Text style={styles.clinicType}>
+                      {selectedClinic.type || 'Veterinary Clinic'}
                     </Text>
-                    
-                    {selectedClinic.description && 
-                     selectedClinic.description.length > 120 && (
-                      <TouchableOpacity 
-                        style={styles.showMoreButton}
-                        onPress={toggleDescription}
-                      >
-                        <Text style={styles.showMoreText}>
-                          {isDescriptionExpanded ? 'Show less' : 'Show more'}
-                        </Text>
-                        <Ionicons 
-                          name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
-                          size={16} 
-                          color="#6c63ff" 
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  {/* Clinic Info Section */}
-                  <View style={styles.infoSection}>
-                    <Text style={styles.sectionTitle}>Clinic Information</Text>
-                    
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="location-outline" size={20} color="#6c63ff" />
-                      </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Address</Text>
-                        <Text style={styles.infoValue}>
-                          {selectedClinic?.location?.province && selectedClinic?.location?.district 
-                            ? `${selectedClinic.location.address}, ${selectedClinic.location.district}, ${selectedClinic.location.province}`
-                            : selectedClinic?.location?.address || selectedClinic?.address || 'Not provided'}
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    {selectedClinic?.phone_numbers && selectedClinic.phone_numbers.length > 0 && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIconContainer}>
-                          <Ionicons name="call-outline" size={20} color="#6c63ff" />
-                        </View>
-                        <View style={styles.infoContent}>
-                          <Text style={styles.infoLabel}>Phone</Text>
-                          <Text style={styles.infoValue}>{selectedClinic.phone_numbers[0].number}</Text>
-                        </View>
-                      </View>
-                    )}
-                    
-                    <View style={styles.infoRow}>
-                      <View style={styles.infoIconContainer}>
-                        <Ionicons name="time-outline" size={20} color="#6c63ff" />
-                      </View>
-                      <View style={styles.infoContent}>
-                        <Text style={styles.infoLabel}>Working Hours</Text>
-                        <Text style={styles.infoValue}>
-                          {selectedClinic?.is_open_24_7 
-                            ? '24/7' 
-                            : `${selectedClinic?.opening_time || ''} - ${selectedClinic?.closing_time || ''}`
-                          }
-                        </Text>
-                      </View>
-                    </View>
-                    
-                    {selectedClinic?.email && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIconContainer}>
-                          <Ionicons name="mail-outline" size={20} color="#6c63ff" />
-                        </View>
-                        <View style={styles.infoContent}>
-                          <Text style={styles.infoLabel}>Email</Text>
-                          <Text style={styles.infoValue}>{selectedClinic.email}</Text>
-                        </View>
-                      </View>
-                    )}
-                    
-                    {selectedClinic?.medical_services && selectedClinic.medical_services.length > 0 && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIconContainer}>
-                          <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
-                        </View>
-                        <View style={styles.infoContent}>
-                          <Text style={styles.infoLabel}>Services</Text>
-                          <View style={styles.serviceContainer}>
-                            {selectedClinic.medical_services.map((service, index) => (
-                              <View key={index} style={styles.serviceBadge}>
-                                <Text style={styles.serviceText}>{service}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        </View>
-                      </View>
-                    )}
-                    
-                    {selectedClinic?.allows_video_meetings && (
-                      <View style={styles.infoRow}>
-                        <View style={styles.infoIconContainer}>
-                          <Ionicons name="videocam-outline" size={20} color="#6c63ff" />
-                        </View>
-                        <View style={styles.infoContent}>
-                          <Text style={styles.infoLabel}>Online Consultations</Text>
-                          <Text style={styles.infoValue}>Available</Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Action Buttons */}
-                  <View style={styles.buttonGroup}>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() => handleViewinTheMap()}
-                    >
-                      <Ionicons name="map-outline" size={20} color="#6c63ff" />
-                      <Text style={styles.secondaryButtonText}>View on Map</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={styles.primaryButton}
-                      onPress={() => handleMakeAppointment(selectedClinic.id)}
-                    >
-                      <Ionicons name="calendar-outline" size={20} color="#fff" />
-                      <Text style={styles.primaryButtonText}>
-                        Book Appointment
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                   
-                  {/* Add some padding at the bottom to ensure buttons are fully visible */}
-                  <View style={{ height: 20 }} />
-                </>
-              )}
-            </ScrollView>
-            
-            {/* Scroll indicator - only shown when content is scrollable */}
-            
+                  {/* Rating Badge */}
+                  {selectedClinic.average_rating ? (
+                    <View style={styles.ratingContainer}>
+                      <Ionicons name="star" size={20} color="#FFD700" />
+                      <Text style={styles.ratingValue}>
+                        {selectedClinic.average_rating.toFixed(1)}
+                      </Text>
+                      <Text style={styles.reviewCount}>
+                        {`(${selectedClinic.total_reviews || 0})`}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.noRatingContainer}>
+                      <Ionicons name="star-outline" size={20} color="#aaa" />
+                      <Text style={styles.noRatingText}>No reviews yet</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Description with Show More button */}
+                <View style={styles.descriptionContainer}>
+                  <Text style={styles.sectionTitle}>About</Text>
+                  <Text 
+                    style={[
+                      styles.descriptionText,
+                      !isDescriptionExpanded && styles.descriptionCollapsed
+                    ]}
+                    numberOfLines={isDescriptionExpanded ? undefined : 3}
+                  >
+                    {selectedClinic.description || 'No description available for this clinic.'}
+                  </Text>
+                  
+                  {selectedClinic.description && 
+                   selectedClinic.description.length > 120 && (
+                    <TouchableOpacity 
+                      style={styles.showMoreButton}
+                      onPress={toggleDescription}
+                    >
+                      <Text style={styles.showMoreText}>
+                        {isDescriptionExpanded ? 'Show less' : 'Show more'}
+                      </Text>
+                      <Ionicons 
+                        name={isDescriptionExpanded ? "chevron-up" : "chevron-down"} 
+                        size={16} 
+                        color="#6c63ff" 
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Clinic Info Section */}
+                <View style={styles.infoSection}>
+                  <Text style={styles.sectionTitle}>Clinic Information</Text>
+                  
+                  {/* Address */}
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoIconContainer}>
+                      <Ionicons name="location-outline" size={20} color="#6c63ff" />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Address</Text>
+                      <Text style={styles.infoValue}>
+                        {selectedClinic?.location?.province && selectedClinic?.location?.district 
+                          ? `${selectedClinic.location.address}, ${selectedClinic.location.district}, ${selectedClinic.location.province}`
+                          : selectedClinic?.location?.address || 'Not provided'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Phone */}
+                  {selectedClinic.phone_numbers && selectedClinic.phone_numbers.length > 0 && (
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="call-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Phone</Text>
+                        <Text style={styles.infoValue}>{selectedClinic.phone_numbers[0].number}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Working Hours */}
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoIconContainer}>
+                      <Ionicons name="time-outline" size={20} color="#6c63ff" />
+                    </View>
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Working Hours</Text>
+                      <Text style={styles.infoValue}>
+                        {selectedClinic.is_open_24_7 === 'yes'
+                          ? '24/7' 
+                          : `${selectedClinic.opening_time || ''} - ${selectedClinic.closing_time || ''}`
+                        }
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Email */}
+                  {selectedClinic.email && (
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="mail-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Email</Text>
+                        <Text style={styles.infoValue}>{selectedClinic.email}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Services */}
+                  {selectedClinic.medical_services && selectedClinic.medical_services.length > 0 && (
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="medkit-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Services</Text>
+                        <View style={styles.serviceContainer}>
+                          {selectedClinic.medical_services.map((service, index) => (
+                            <View key={index} style={styles.serviceBadge}>
+                              <Text style={styles.serviceText}>{service}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Video Meetings */}
+                  {selectedClinic.allows_video_meetings && (
+                    <View style={styles.infoRow}>
+                      <View style={styles.infoIconContainer}>
+                        <Ionicons name="videocam-outline" size={20} color="#6c63ff" />
+                      </View>
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Online Consultations</Text>
+                        <Text style={styles.infoValue}>Available</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.buttonGroup}>
+                  <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={handleViewOnMap}
+                  >
+                    <Ionicons name="map-outline" size={20} color="#6c63ff" />
+                    <Text style={styles.secondaryButtonText}>View on Map</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.primaryButton}
+                    onPress={handleMakeAppointment}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color="#fff" />
+                    <Text style={styles.primaryButtonText}>
+                      Book Appointment
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Bottom padding to ensure content is visible */}
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -714,7 +712,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
   },
   headerGradient: {
-    paddingTop: 30,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingBottom: 8,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 25,
@@ -749,6 +747,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
   clinicsContainer: {
     flex: 1,
     marginTop: 15,
@@ -758,7 +766,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   cardWrapper: {
-    width: cardWidth,
+    width: CARD_WIDTH,
     marginBottom: 15,
   },
   card: {
@@ -772,7 +780,7 @@ const styles = StyleSheet.create({
   },
   imagePlaceholder: {
     width: '100%',
-    height: cardWidth * 0.7,
+    height: CARD_WIDTH * 0.7,
     position: 'relative',
   },
   cardImage: {
@@ -802,6 +810,31 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
     marginLeft: 3,
+  },
+  noRatingBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  noRatingText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  videoBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#6c63ff',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   cardContent: {
     padding: 12,
@@ -856,7 +889,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   
-  /* MODAL STYLES */
+  // Modal Styles
   modalContainer: {
     flex: 1,
     backgroundColor: '#f9f9f9',
@@ -868,7 +901,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: 100,
     zIndex: 10,
-    paddingTop: 45,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
     paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -884,9 +917,13 @@ const styles = StyleSheet.create({
   },
   carouselContainer: {
     width: '100%',
-    height: height * 0.4,
+    height: CAROUSEL_HEIGHT,
     position: 'relative',
     backgroundColor: '#f0f0f0',
+  },
+  carouselImage: {
+    width,
+    height: '100%',
   },
   noCarouselImage: {
     width: '100%',
@@ -898,10 +935,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: '#999',
     fontSize: 16,
-  },
-  carouselImage: {
-    width,
-    height: '100%',
   },
   dotsContainer: {
     position: 'absolute',
@@ -952,6 +985,9 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
   },
+  scrollContentContainer: {
+    paddingBottom: 30,
+  },
   clinicHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -990,6 +1026,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginLeft: 3,
+  },
+  noRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   descriptionContainer: {
     marginBottom: 20,
@@ -1048,6 +1092,24 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  serviceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  serviceBadge: {
+    backgroundColor: '#f0f0ff',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  serviceText: {
+    fontSize: 12,
+    color: '#6c63ff',
+    fontWeight: '500',
+  },
   buttonGroup: {
     flexDirection: 'row',
     marginTop: 10,
@@ -1088,87 +1150,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
     marginLeft: 5,
-  },
-  scrollIndicator: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  scrollIndicatorInner: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  scrollIndicatorText: {
-    color: '#6c63ff',
-    fontWeight: '500',
-    marginLeft: 5,
-    fontSize: 14,
-  },
-  scrollContentContainer: {
-    paddingBottom: 30, // Add extra padding at the bottom
-    minHeight: height * 0.6, // Force minimum height to ensure scrollability
-  },
-  videoBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#6c63ff',
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  serviceContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 4,
-  },
-  serviceBadge: {
-    backgroundColor: '#f0f0ff',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  serviceText: {
-    fontSize: 12,
-    color: '#6c63ff',
-    fontWeight: '500',
-  },
-  noRatingBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  noRatingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  noRatingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
   },
 });
 
