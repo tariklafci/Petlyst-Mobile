@@ -126,14 +126,34 @@ exports.generateResponse = async (req, res) => {
       prompt: augmentedPrompt + buildConversationPrompt(history, prompt)
     };
 
-    // Call Llama API
-    const llamaRes = await fetch('http://10.0.0.25:5000/api/llama/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(llamaBody)
-    });
+    // Call Llama API with a timeout
+    const AbortController = global.AbortController || require('abort-controller');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+    let llamaRes;
+    try {
+      llamaRes = await fetch('http://10.0.0.25:5000/api/llama/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(llamaBody),
+        signal: controller.signal
+      });
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        console.error('Llama fetch timeout:', err);
+        return res.status(504).json({ error: 'Llama service timed out' });
+      }
+      console.error('Llama fetch error:', err);
+      return res.status(502).json({ error: 'Failed to connect to Llama service' });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
     if (!llamaRes.ok) {
-      throw new Error(`Llama service responded ${llamaRes.status}`);
+      console.error(`Llama service responded with status ${llamaRes.status}`);
+      return res.status(502).json({ error: `Llama service error: ${llamaRes.status}` });
     }
     const data = await llamaRes.json();
 
