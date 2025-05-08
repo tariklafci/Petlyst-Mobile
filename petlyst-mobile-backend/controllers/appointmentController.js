@@ -577,7 +577,7 @@ exports.fetchTreatmentDetails = async (req, res) => {
         e.weight,
         e.notes as examination_notes
       FROM examinations
-      WHERE e.appointment_id = $1
+      WHERE appointment_id = $1
     `;
     
     const examinationResult = await pool.query(examinationQuery, [appointment_id]);
