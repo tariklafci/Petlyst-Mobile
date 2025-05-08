@@ -433,10 +433,54 @@ const HomeScreen: React.FC = () => {
     }).start();
   };
 
+  // Add a function to check if a clinic is currently open
+  const isClinicOpenNow = (clinic: Clinic): { isOpen: boolean; is24Hours: boolean } => {
+    // Check if clinic is open 24/7
+    if (clinic.is_open_24_7 === 'yes') {
+      return { isOpen: true, is24Hours: true };
+    }
+    
+    // Get current time
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Check if clinic is open on current day
+    if (clinic.available_days && !clinic.available_days[currentDay]) {
+      return { isOpen: false, is24Hours: false };
+    }
+    
+    // Parse operating hours
+    try {
+      if (!clinic.opening_time || !clinic.closing_time) {
+        return { isOpen: false, is24Hours: false };
+      }
+      
+      // Create date objects for opening and closing times
+      const [openHour, openMinute] = clinic.opening_time.split(':').map(Number);
+      const [closeHour, closeMinute] = clinic.closing_time.split(':').map(Number);
+      
+      const openTime = new Date();
+      openTime.setHours(openHour, openMinute, 0);
+      
+      const closeTime = new Date();
+      closeTime.setHours(closeHour, closeMinute, 0);
+      
+      // Check if current time is between opening and closing time
+      return { 
+        isOpen: now >= openTime && now <= closeTime,
+        is24Hours: false
+      };
+    } catch (error) {
+      console.error('Error parsing clinic hours:', error);
+      return { isOpen: false, is24Hours: false };
+    }
+  };
+
   // Render a clinic card
   const renderClinicCard = ({ item, index }: { item: Clinic & { distance?: number }, index: number }) => {
     const firstPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
     const animationDelay = index * 100; // Staggered animation effect
+    const { isOpen } = isClinicOpenNow(item);
     
     return (
       <Animatable.View 
@@ -480,6 +524,27 @@ const HomeScreen: React.FC = () => {
             {item.allows_video_meetings && (
               <View style={styles.videoBadge}>
                 <Ionicons name="videocam" size={12} color="#fff" />
+              </View>
+            )}
+
+            {/* Open/Closed Status Badge */}
+            <View style={[
+              styles.cardStatusBadge, 
+              isOpen ? styles.cardOpenBadge : styles.cardClosedBadge
+            ]}>
+              <Text style={[
+                styles.cardStatusText,
+                { color: isOpen ? '#4CAF50' : '#F44336' }
+              ]}>
+                {isOpen ? 'Open' : 'Closed'}
+              </Text>
+            </View>
+            
+            {/* 24/7 Badge */}
+            {item.is_open_24_7 === 'yes' && (
+              <View style={styles.card24_7Badge}>
+                <Ionicons name="time" size={12} color="#fff" />
+                <Text style={styles.card24_7Text}>24/7</Text>
               </View>
             )}
 
@@ -718,23 +783,55 @@ const HomeScreen: React.FC = () => {
                     </Text>
                   </View>
                   
-                  {/* Rating Badge */}
-                  {selectedClinic.average_rating ? (
-                    <View style={styles.ratingContainer}>
-                      <Ionicons name="star" size={20} color="#FFD700" />
-                      <Text style={styles.ratingValue}>
-                        {selectedClinic.average_rating.toFixed(1)}
-                      </Text>
-                      <Text style={styles.reviewCount}>
-                        {`(${selectedClinic.total_reviews || 0})`}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.noRatingContainer}>
-                      <Ionicons name="star-outline" size={20} color="#aaa" />
-                      <Text style={styles.noRatingText}>No reviews yet</Text>
-                    </View>
-                  )}
+                  <View style={styles.clinicStatusContainer}>
+                    {/* Clinic Status Indicator */}
+                    {(() => {
+                      const { isOpen, is24Hours } = isClinicOpenNow(selectedClinic);
+                      return (
+                        <View style={[
+                          styles.modalStatusIndicator, 
+                          isOpen ? styles.modalOpenIndicator : styles.modalClosedIndicator
+                        ]}>
+                          <View style={[
+                            styles.statusDot,
+                            { backgroundColor: isOpen ? '#4CAF50' : '#F44336' }
+                          ]} />
+                          <Text style={[
+                            styles.statusText,
+                            { color: isOpen ? '#4CAF50' : '#F44336' }
+                          ]}>
+                            {isOpen ? 'Open Now' : 'Closed'}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                    
+                    {/* 24/7 Badge */}
+                    {selectedClinic.is_open_24_7 === 'yes' && (
+                      <View style={styles.modalBadge24_7}>
+                        <Ionicons name="time" size={14} color="#fff" />
+                        <Text style={styles.badge24_7Text}>24/7</Text>
+                      </View>
+                    )}
+                    
+                    {/* Rating Badge */}
+                    {selectedClinic.average_rating ? (
+                      <View style={styles.ratingContainer}>
+                        <Ionicons name="star" size={20} color="#FFD700" />
+                        <Text style={styles.ratingValue}>
+                          {selectedClinic.average_rating.toFixed(1)}
+                        </Text>
+                        <Text style={styles.reviewCount}>
+                          {`(${selectedClinic.total_reviews || 0})`}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.noRatingContainer}>
+                        <Ionicons name="star-outline" size={20} color="#aaa" />
+                        <Text style={styles.noRatingText}>No reviews yet</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
 
                 {/* Description with Show More button */}
@@ -807,12 +904,37 @@ const HomeScreen: React.FC = () => {
                     </View>
                     <View style={styles.infoContent}>
                       <Text style={styles.infoLabel}>Working Hours</Text>
-                      <Text style={styles.infoValue}>
-                        {selectedClinic.is_open_24_7 === 'yes'
-                          ? '24/7' 
-                          : `${selectedClinic.opening_time || ''} - ${selectedClinic.closing_time || ''}`
-                        }
-                      </Text>
+                      <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <Text style={styles.infoValue}>
+                          {selectedClinic.is_open_24_7 === 'yes'
+                            ? '24/7' 
+                            : `${selectedClinic.opening_time || ''} - ${selectedClinic.closing_time || ''}`
+                          }
+                        </Text>
+                        {selectedClinic.is_open_24_7 === 'yes' && (
+                          <View style={styles.badge24_7Small}>
+                            <Text style={styles.badge24_7TextSmall}>24/7</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      {/* Add the open/closed indicator specifically to the hours section */}
+                      {(() => {
+                        const { isOpen } = isClinicOpenNow(selectedClinic);
+                        return (
+                          <View style={[
+                            styles.hourStatusBadge,
+                            isOpen ? styles.hourOpenBadge : styles.hourClosedBadge
+                          ]}>
+                            <Text style={[
+                              styles.hourStatusText,
+                              { color: isOpen ? '#4CAF50' : '#F44336' }
+                            ]}>
+                              {isOpen ? 'Open Now' : 'Closed'}
+                            </Text>
+                          </View>
+                        );
+                      })()}
                     </View>
                   </View>
                   
@@ -1395,6 +1517,161 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#fff',
     fontWeight: '600',
+  },
+  clinicMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  statusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  openIndicator: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  closedIndicator: {
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  badge24_7: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6c63ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    position: 'absolute',
+    top: 0,
+    right: 80,
+    zIndex: 1,
+  },
+  badge24_7Text: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginLeft: 4,
+  },
+  badge24_7Small: {
+    backgroundColor: '#6c63ff', 
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginLeft: 6,
+  },
+  badge24_7TextSmall: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  cardStatusBadge: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 1,
+  },
+  cardOpenBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  cardClosedBadge: {
+    backgroundColor: 'rgba(244, 67, 54, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.3)',
+  },
+  cardStatusText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  card24_7Badge: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: '#6c63ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 1,
+  },
+  card24_7Text: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 2,
+  },
+  clinicStatusContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalStatusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-end',
+  },
+  modalOpenIndicator: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  modalClosedIndicator: {
+    backgroundColor: 'rgba(244, 67, 54, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.3)',
+  },
+  modalBadge24_7: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6c63ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-end',
+  },
+  hourStatusBadge: {
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  hourOpenBadge: {
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
+  },
+  hourClosedBadge: {
+    backgroundColor: 'rgba(244, 67, 54, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.3)',
+  },
+  hourStatusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 
