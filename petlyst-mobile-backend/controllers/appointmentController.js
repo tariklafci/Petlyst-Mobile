@@ -634,3 +634,98 @@ exports.fetchTreatmentDetails = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch treatment details' });
   }
 };
+
+/**
+ * Create a clinic review for a completed appointment
+ */
+exports.createClinicReview = async (req, res) => {
+  try {
+    const {
+      appointment_id,
+      clinic_id,
+      pet_id,
+      hygiene_rating,
+      staff_behaviour_rating,
+      price_rating,
+      comments
+    } = req.body;
+    
+    const pet_owner_id = req.user.sub;
+    
+    // Validate required fields
+    if (!appointment_id || !clinic_id || !pet_id) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: appointment_id, clinic_id, and pet_id are required' 
+      });
+    }
+    
+    // Check if appointment exists and belongs to this user
+    const appointmentCheck = `
+      SELECT appointment_id, appointment_status
+      FROM appointments 
+      WHERE appointment_id = $1 
+      AND pet_owner_id = $2
+    `;
+    
+    const appointmentResult = await pool.query(appointmentCheck, [appointment_id, pet_owner_id]);
+    
+    if (appointmentResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Appointment not found or not authorized' });
+    }
+    
+    // Check if appointment is completed
+    if (appointmentResult.rows[0].appointment_status !== 'completed') {
+      return res.status(400).json({ error: 'Only completed appointments can be reviewed' });
+    }
+    
+    // Check if a review already exists for this appointment
+    const existingReviewCheck = `
+      SELECT clinic_review_id 
+      FROM reviews 
+      WHERE appointment_id = $1
+    `;
+    
+    const existingReview = await pool.query(existingReviewCheck, [appointment_id]);
+    
+    if (existingReview.rows.length > 0) {
+      return res.status(400).json({ error: 'A review already exists for this appointment' });
+    }
+    
+    // Insert the review
+    const insertReview = `
+      INSERT INTO reviews (
+        appointment_id,
+        clinic_id,
+        pet_owner_id,
+        pet_id,
+        clinic_review_hygiene_rating,
+        clinic_review_stuff_behaviour_rating,
+        clinic_review_price_rating,
+        comments
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    
+    const values = [
+      appointment_id,
+      clinic_id,
+      pet_owner_id,
+      pet_id,
+      hygiene_rating,
+      staff_behaviour_rating,
+      price_rating,
+      comments
+    ];
+    
+    const result = await pool.query(insertReview, values);
+    
+    res.status(201).json({
+      message: 'Review submitted successfully',
+      review: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Error creating clinic review:', error);
+    res.status(500).json({ error: 'Failed to submit review' });
+  }
+};

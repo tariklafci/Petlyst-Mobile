@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const upload = multer(); // Or configure as needed
 const authenticateToken = require('../middlewares/authenticateToken');
-const { createAppointment, fetchAppointments, fetchAppointmentsClinic, cancelPendingAppointment, updateAppointmentStatus, fetchClinicAppointmentsByDate, fetchClinic, fetchTreatmentDetails } = require('../controllers/appointmentController');
+const { createAppointment, fetchAppointments, fetchAppointmentsClinic, cancelPendingAppointment, updateAppointmentStatus, fetchClinicAppointmentsByDate, fetchClinic, fetchTreatmentDetails, createClinicReview } = require('../controllers/appointmentController');
 
 
 router.post('/create-appointment', authenticateToken, createAppointment);
@@ -14,6 +14,7 @@ router.patch('/update-appointment-status', authenticateToken, updateAppointmentS
 router.get('/fetch-clinic-appointments', authenticateToken, fetchClinicAppointmentsByDate);
 router.get('/fetch-clinic', authenticateToken, fetchClinic);
 router.get('/fetch-treatment-details', authenticateToken, fetchTreatmentDetails);
+router.post('/create-clinic-review', authenticateToken, createClinicReview);
 
 
 module.exports = router;

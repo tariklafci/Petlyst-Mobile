@@ -12,6 +12,8 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -20,6 +22,7 @@ import * as Animatable from 'react-native-animatable';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface Pet {
+  id: number;
   name: string;
   species: string;
   breed: string;
@@ -27,6 +30,7 @@ interface Pet {
 }
 
 interface Clinic {
+  id: number;
   name: string;
   address: string;
 }
@@ -52,6 +56,15 @@ const AppointmentScreen = ({ navigation }: any) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Review modal state
+  const [isReviewModalVisible, setIsReviewModalVisible] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [hygieneRating, setHygieneRating] = useState(0);
+  const [staffRating, setStaffRating] = useState(0);
+  const [priceRating, setPriceRating] = useState(0);
+  const [reviewComments, setReviewComments] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const statusOptions = ['pending', 'confirmed', 'completed'];
   const displayOptions = ['Pending', 'Active', 'Completed'];
@@ -174,14 +187,88 @@ const AppointmentScreen = ({ navigation }: any) => {
     }, [selectedIndex])
   );
 
+  // Open review modal
+  const openReviewModal = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setHygieneRating(0);
+    setStaffRating(0);
+    setPriceRating(0);
+    setReviewComments('');
+    setIsReviewModalVisible(true);
+  };
+
+  // Submit review
+  const submitReview = async () => {
+    if (!selectedAppointment) return;
+
+    // Validate ratings
+    if (hygieneRating === 0 || staffRating === 0 || priceRating === 0) {
+      Alert.alert('Missing Ratings', 'Please provide a rating for all categories');
+      return;
+    }
+
+    try {
+      setIsSubmittingReview(true);
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) throw new Error('Authentication token not found');
+
+      const response = await fetch('https://petlyst.com:3001/api/create-clinic-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          appointment_id: selectedAppointment.id,
+          clinic_id: selectedAppointment.clinic.id,
+          pet_id: selectedAppointment.pet.id,
+          hygiene_rating: hygieneRating,
+          staff_behaviour_rating: staffRating,
+          price_rating: priceRating,
+          comments: reviewComments,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit review');
+      }
+
+      Alert.alert('Success', 'Your review has been submitted successfully');
+      setIsReviewModalVisible(false);
+      fetchAppointments(statusOptions[selectedIndex]); // Refresh to reflect any changes
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', error.message || 'Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  // Render star rating component
+  const renderRatingStars = (rating: number, setRating: (rating: number) => void) => {
+    return (
+      <View style={styles.ratingContainer}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <TouchableOpacity
+            key={star}
+            onPress={() => setRating(star)}
+            style={styles.starButton}
+          >
+            <Ionicons
+              name={star <= rating ? 'star' : 'star-outline'}
+              size={28}
+              color={star <= rating ? '#FFC107' : '#BDBDBD'}
+            />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   // Render each card
-  const renderAppointment = ({
-    item,
-    index,
-  }: {
-    item: Appointment;
-    index: number;
-  }) => {
+  const renderAppointment = ({ item, index }: { item: Appointment; index: number }) => {
     const color = getStatusColor(item.status);
     return (
       <Animatable.View
@@ -241,36 +328,47 @@ const AppointmentScreen = ({ navigation }: any) => {
         <View style={styles.actions}>
           {item.status === 'pending' && (
             <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: 'rgba(244,67,54,0.1)' }]}
+              style={[styles.actionButton, { backgroundColor: 'rgba(244,67,54,0.1)' }]}
               onPress={() => confirmCancel(item.id)}
             >
               <Ionicons name="close-circle-outline" size={16} color="#F44336" />
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Cancel</Text>
             </TouchableOpacity>
           )}
           {item.status === 'confirmed' && item.isVideoMeeting && item.meeting_url && (
             <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: 'rgba(52,152,219,0.1)' }]}
+              style={[styles.actionButton, { backgroundColor: 'rgba(52,152,219,0.1)' }]}
               onPress={() =>
                 navigation.navigate('Meeting', { meetingUrl: item.meeting_url })
               }
             >
               <Ionicons name="videocam" size={16} color="#3498db" />
-              <Text style={[styles.cancelButtonText, { color: '#3498db' }]}>
+              <Text style={[styles.actionButtonText, { color: '#3498db' }]}>
                 Join Video
               </Text>
             </TouchableOpacity>
           )}
           {item.status === 'completed' && (
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => fetchTreatmentDetails(item.id, item.pet.name, item.date)}
-            >
-              <Ionicons name="document-text-outline" size={16} color="#2196F3" />
-              <Text style={[styles.cancelButtonText, { color: '#2196F3' }]}>
-                Details
-              </Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: 'rgba(76,175,80,0.1)' }]}
+                onPress={() => openReviewModal(item)}
+              >
+                <Ionicons name="star-outline" size={16} color="#4CAF50" />
+                <Text style={[styles.actionButtonText, { color: '#4CAF50' }]}>
+                  Rate
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: 'rgba(33,150,243,0.1)' }]}
+                onPress={() => fetchTreatmentDetails(item.id, item.pet.name, item.date)}
+              >
+                <Ionicons name="document-text-outline" size={16} color="#2196F3" />
+                <Text style={[styles.actionButtonText, { color: '#2196F3' }]}>
+                  Details
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </Animatable.View>
@@ -279,6 +377,87 @@ const AppointmentScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      {/* Review Modal */}
+      <Modal
+        visible={isReviewModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsReviewModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rate Your Experience</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setIsReviewModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              {selectedAppointment && (
+                <View style={styles.appointmentInfo}>
+                  <Text style={styles.clinicName}>{selectedAppointment.clinic.name}</Text>
+                  <Text style={styles.petName}>
+                    {selectedAppointment.pet.name} • {selectedAppointment.date}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingLabel}>Hygiene</Text>
+                {renderRatingStars(hygieneRating, setHygieneRating)}
+              </View>
+
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingLabel}>Staff Behavior</Text>
+                {renderRatingStars(staffRating, setStaffRating)}
+              </View>
+
+              <View style={styles.ratingSection}>
+                <Text style={styles.ratingLabel}>Value for Price</Text>
+                {renderRatingStars(priceRating, setPriceRating)}
+              </View>
+
+              <View style={styles.commentSection}>
+                <Text style={styles.ratingLabel}>Comments</Text>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Share your experience (optional)"
+                  multiline={true}
+                  numberOfLines={4}
+                  value={reviewComments}
+                  onChangeText={setReviewComments}
+                />
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                onPress={() => setIsReviewModalVisible(false)}
+                disabled={isSubmittingReview}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={submitReview}
+                disabled={isSubmittingReview}
+              >
+                {isSubmittingReview ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Review</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Gradient Header */}
       <LinearGradient
         colors={['#6c63ff', '#3b5998']}
@@ -473,24 +652,134 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
+  // Action Buttons
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginTop: 12,
     gap: 8,
   },
-  cancelButton: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
-  cancelButtonText: {
+  actionButtonText: {
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 6,
-    color: '#F44336',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    padding: 16,
+    maxHeight: '70%',
+  },
+  appointmentInfo: {
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+  },
+  clinicName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  petName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  ratingSection: {
+    marginBottom: 20,
+  },
+  ratingLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#444',
+    marginBottom: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  starButton: {
+    padding: 8,
+  },
+  commentSection: {
+    marginBottom: 16,
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  cancelModalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  cancelModalButtonText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  submitButton: {
+    backgroundColor: '#6c63ff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
