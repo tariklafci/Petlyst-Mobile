@@ -198,10 +198,19 @@ const HomeScreen: React.FC = () => {
         // If nearest clinic exists, show it
         if (clinicsWithDistances.length > 0) {
           setNearestClinic(clinicsWithDistances[0]);
-          // Optionally focus on nearest clinic or open its modal
-          if (clinicsWithDistances[0].distance && clinicsWithDistances[0].distance < 10) {
-            // Only automatically show modal if clinic is less than 10km away
-            setSelectedClinic(clinicsWithDistances[0]);
+          
+          // Find the nearest open clinic
+          const nearestOpenClinic = clinicsWithDistances.find(clinic => {
+            const { isOpen } = isClinicOpenNow(clinic);
+            return isOpen;
+          });
+          
+          // Determine which clinic to show in modal
+          const clinicToShow = nearestOpenClinic || clinicsWithDistances[0];
+          
+          // Only automatically show modal if clinic is less than 10km away
+          if (1) {
+            setSelectedClinic(clinicToShow);
             setModalVisible(true);
           }
         } else {
@@ -1581,7 +1590,7 @@ const styles = StyleSheet.create({
   cardStatusBadge: {
     position: 'absolute',
     bottom: 10,
-    left: 10,
+    right: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1604,7 +1613,7 @@ const styles = StyleSheet.create({
   card24_7Badge: {
     position: 'absolute',
     bottom: 10,
-    right: 10,
+    right: 60,
     backgroundColor: '#6c63ff',
     flexDirection: 'row',
     alignItems: 'center',
