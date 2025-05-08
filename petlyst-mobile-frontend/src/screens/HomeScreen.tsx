@@ -16,6 +16,7 @@ import {
   StatusBar,
   Platform,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import * as SecureStore from 'expo-secure-store';
+import * as Location from 'expo-location';
 
 // Define the app navigation types
 type RootStackParamList = {
@@ -107,6 +109,12 @@ const HomeScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [bestFor, setBestFor] = useState('');
   
+  // New state for emergency mode
+  const [isEmergencyMode, setIsEmergencyMode] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [nearestClinic, setNearestClinic] = useState<Clinic | null>(null);
+  const [clinicsWithDistance, setClinicWithDistance] = useState<(Clinic & { distance?: number })[]>([]);
+  
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
@@ -118,8 +126,123 @@ const HomeScreen: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
   const navigation = useNavigation<HomeScreenNavigationProp>();
   
-  // Filter clinics when search query changes
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+    return distance;
+  };
+
+  // Handle emergency mode activation
+  const handleEmergency = async () => {
+    try {
+      setIsEmergencyMode(true);
+      
+      // Request location permissions
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Please grant location permissions to find the nearest clinic.'
+        );
+        setIsEmergencyMode(false);
+        return;
+      }
+      
+      // Get user's current location
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      
+      // Calculate distances and find nearest clinic
+      if (allClinics.length > 0) {
+        const clinicsWithDistances = allClinics
+          .filter(clinic => 
+            clinic.location && 
+            clinic.location.latitude && 
+            clinic.location.longitude
+          )
+          .map(clinic => {
+            if (!clinic.location?.latitude || !clinic.location?.longitude) {
+              return { ...clinic, distance: Infinity };
+            }
+            
+            const distance = calculateDistance(
+              location.coords.latitude,
+              location.coords.longitude,
+              clinic.location.latitude,
+              clinic.location.longitude
+            );
+            
+            return { ...clinic, distance };
+          })
+          .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+        
+        setClinicWithDistance(clinicsWithDistances);
+        setFilteredClinics(clinicsWithDistances);
+        
+        // If nearest clinic exists, show it
+        if (clinicsWithDistances.length > 0) {
+          setNearestClinic(clinicsWithDistances[0]);
+          // Optionally focus on nearest clinic or open its modal
+          if (clinicsWithDistances[0].distance && clinicsWithDistances[0].distance < 10) {
+            // Only automatically show modal if clinic is less than 10km away
+            setSelectedClinic(clinicsWithDistances[0]);
+            setModalVisible(true);
+          }
+        } else {
+          Alert.alert(
+            'No Nearby Clinics',
+            'We couldn\'t find any clinics with location data near you.'
+          );
+        }
+      } else {
+        Alert.alert(
+          'No Clinics Available',
+          'Please refresh to load clinic data.'
+        );
+      }
+    } catch (error) {
+      console.error('Error in emergency mode:', error);
+      Alert.alert(
+        'Error',
+        'Failed to locate nearby clinics. Please try again.'
+      );
+    } finally {
+      // Keep emergency mode active for sorting, but finish loading
+      setLoading(false);
+    }
+  };
+
+  // Reset emergency mode
+  const exitEmergencyMode = () => {
+    setIsEmergencyMode(false);
+    setUserLocation(null);
+    setNearestClinic(null);
+    setFilteredClinics(allClinics);
+  };
+
+  // Modify existing filter effect to respect emergency mode
   useEffect(() => {
+    if (isEmergencyMode && userLocation) {
+      // In emergency mode, keep distance-based sorting
+      return;
+    }
+    
     if (searchQuery.trim() === '') {
       setFilteredClinics(allClinics);
     } else {
@@ -132,7 +255,7 @@ const HomeScreen: React.FC = () => {
       );
       setFilteredClinics(filtered);
     }
-  }, [searchQuery, allClinics]);
+  }, [searchQuery, allClinics, isEmergencyMode, userLocation]);
 
   // Fetch clinics data from API
   const fetchClinics = async () => {
@@ -311,7 +434,7 @@ const HomeScreen: React.FC = () => {
   };
 
   // Render a clinic card
-  const renderClinicCard = ({ item, index }: { item: Clinic, index: number }) => {
+  const renderClinicCard = ({ item, index }: { item: Clinic & { distance?: number }, index: number }) => {
     const firstPhoto = item.photos && item.photos.length > 0 ? item.photos[0] : null;
     const animationDelay = index * 100; // Staggered animation effect
     
@@ -359,6 +482,18 @@ const HomeScreen: React.FC = () => {
                 <Ionicons name="videocam" size={12} color="#fff" />
               </View>
             )}
+
+            {/* Emergency Distance Badge */}
+            {isEmergencyMode && item.distance !== undefined && (
+              <View style={styles.distanceBadge}>
+                <Ionicons name="navigate" size={12} color="#fff" />
+                <Text style={styles.distanceText}>
+                  {item.distance < 1 
+                    ? `${(item.distance * 1000).toFixed(0)}m` 
+                    : `${item.distance.toFixed(1)}km`}
+                </Text>
+              </View>
+            )}
           </View>
           
           {/* Card Content */}
@@ -373,6 +508,13 @@ const HomeScreen: React.FC = () => {
             {item.type && (
               <View style={styles.typeBadge}>
                 <Text style={styles.typeText}>{item.type}</Text>
+              </View>
+            )}
+            
+            {/* Show nearest clinic badge */}
+            {isEmergencyMode && nearestClinic?.id === item.id && (
+              <View style={styles.nearestBadge}>
+                <Text style={styles.nearestText}>Nearest Clinic</Text>
               </View>
             )}
           </View>
@@ -402,25 +544,56 @@ const HomeScreen: React.FC = () => {
         style={styles.headerGradient}
       >
         <Text style={styles.headerTitle}>Petlyst</Text>
-        <Text style={styles.headerSubtitle}>{bestFor}</Text>
+        <Text style={styles.headerSubtitle}>
+          {isEmergencyMode ? 'Emergency Mode - Nearest Clinics' : bestFor}
+        </Text>
         
-        {/* Search Bar */}
+        {/* Search Bar with Emergency Button */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#8b8b8b" />
+          {/* Emergency Button */}
+          <TouchableOpacity 
+            style={[
+              styles.emergencyButton, 
+              isEmergencyMode && styles.emergencyButtonActive
+            ]}
+            onPress={isEmergencyMode ? exitEmergencyMode : handleEmergency}
+          >
+            <Ionicons 
+              name={isEmergencyMode ? "close-circle" : "alert-circle"} 
+              size={20} 
+              color={isEmergencyMode ? "#fff" : "#ff4757"} 
+            />
+          </TouchableOpacity>
+
+          <Ionicons name="search" size={20} color="#8b8b8b" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search clinics, services..."
+            placeholder={isEmergencyMode ? "Finding nearest clinics..." : "Search clinics, services..."}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#8b8b8b"
+            editable={!isEmergencyMode}
           />
-          {searchQuery.length > 0 && (
+          {searchQuery.length > 0 && !isEmergencyMode && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <Ionicons name="close-circle" size={18} color="#8b8b8b" />
             </TouchableOpacity>
           )}
         </View>
       </LinearGradient>
+
+      {/* Emergency Mode Banner */}
+      {isEmergencyMode && (
+        <Animatable.View 
+          animation="fadeIn" 
+          style={styles.emergencyBanner}
+        >
+          <Ionicons name="information-circle-outline" size={18} color="#fff" />
+          <Text style={styles.emergencyBannerText}>
+            Showing clinics sorted by distance to your location
+          </Text>
+        </Animatable.View>
+      )}
 
       {/* Clinics Grid */}
       {loading && !refreshing ? (
@@ -749,18 +922,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    paddingHorizontal: 15,
     paddingVertical: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,
+    position: 'relative',
+  },
+  searchIcon: {
+    marginLeft: 15,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
     color: '#333',
+    marginRight: 10,
   },
   loadingContainer: {
     flex: 1,
@@ -1165,6 +1342,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
     marginLeft: 5,
+  },
+  emergencyButton: {
+    padding: 8,
+    borderRadius: 20,
+    marginLeft: 8,
+    backgroundColor: 'rgba(255, 71, 87, 0.1)',
+  },
+  emergencyButtonActive: {
+    backgroundColor: '#ff4757',
+  },
+  emergencyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff4757',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+  },
+  emergencyBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  distanceBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  distanceText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  nearestBadge: {
+    backgroundColor: '#ff4757',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 5,
+    alignSelf: 'flex-start',
+  },
+  nearestText: {
+    fontSize: 10,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 
