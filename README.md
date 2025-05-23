@@ -25,6 +25,26 @@ Petlyst is a comprehensive mobile application connecting pet owners with veterin
 - **Inventory Management**: Track medical supplies and medications
 - **Remote Consultations**: Conduct video appointments with pet owners
 
+## 📸 Screenshots
+
+Here are some screenshots showcasing the key features of Petlyst:
+
+### Pet Owner Interface
+![Home Screen](/images/1.jpeg)
+![Appointment Booking](/images/2.jpeg)
+![Appointment Management](/images/3.jpeg)
+![Clinic Details](/images/4.jpeg)
+
+### Veterinarian Interface
+![Vet Dashboard](/images/5.jpeg)
+![Inventory Management](/images/6.jpeg)
+![Clinic Pet Management](/images/7.jpeg)
+
+### Account Management
+![Profile Editing](/images/8.jpeg)
+![Verification](/images/9.jpeg)
+![Clinic Details](/images/10.jpeg)
+
 ## 🚀 Technology Stack
 
 ### Frontend (Mobile App)
@@ -46,78 +66,6 @@ Petlyst is a comprehensive mobile application connecting pet owners with veterin
 - **Notifications**: Expo Push Notifications
 - **Email Services**: Nodemailer
 - **AI Integration**: Ollama API
-
-## 📋 Prerequisites
-
-- Node.js (v14.0 or higher)
-- npm or yarn
-- Expo CLI
-- Android Studio (for Android development)
-- Xcode (for iOS development, macOS only)
-- PostgreSQL database
-
-## 🔧 Installation & Setup
-
-### Clone the Repository
-```bash
-git clone https://github.com/yourusername/Petlyst-Mobile.git
-cd Petlyst-Mobile
-```
-
-### Frontend Setup
-```bash
-cd petlyst-mobile-frontend
-npm install
-```
-
-### Backend Setup
-```bash
-cd ../petlyst-mobile-backend
-npm install
-```
-
-### Environment Variables
-
-#### Frontend (.env)
-```
-API_URL=https://your-backend-url.com/api
-MAPS_API_KEY=your_google_maps_api_key
-```
-
-#### Backend (.env)
-```
-PORT=3000
-DB_USER=postgres_user
-DB_PASSWORD=postgres_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=petlyst_db
-JWT_SECRET=your_jwt_secret
-S3_ACCESS_KEY=your_aws_access_key
-S3_SECRET_KEY=your_aws_secret_key
-S3_BUCKET_NAME=your_s3_bucket_name
-EMAIL_USER=your_email
-EMAIL_PASS=your_email_password
-```
-
-### Database Setup
-1. Create a PostgreSQL database named `petlyst_db`
-2. Run the database migration scripts (not included in this repository)
-
-## 🚀 Running the Application
-
-### Start the Backend Server
-```bash
-cd petlyst-mobile-backend
-npm start
-```
-
-### Start the Frontend (Development)
-```bash
-cd petlyst-mobile-frontend
-npm run android  # For Android
-npm run ios      # For iOS (macOS only)
-```
 
 ## 📱 Application Workflow
 
